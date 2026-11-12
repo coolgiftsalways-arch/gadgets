@@ -1,0 +1,375 @@
+/* =========================================
+   GADGETÉ ADMIN SIDEBAR
+========================================= */
+
+:root {
+     --gad-sidebar-width: 243px;
+}
+
+/* LIGHT THEME */
+
+:root[data-admin-theme="light"] {
+     --gad-sidebar-bg: #164e74;
+     --gad-sidebar-text: #ffffff;
+     --gad-sidebar-muted: rgba(255, 255, 255, 0.62);
+     --gad-sidebar-hover: rgba(255, 255, 255, 0.1);
+     --gad-sidebar-active: #eff04c;
+     --gad-sidebar-active-text: #10100e;
+     --gad-sidebar-border: rgba(255, 255, 255, 0.14);
+     --gad-sidebar-bottom: rgba(0, 0, 0, 0.12);
+}
+
+/* DARK THEME */
+
+:root[data-admin-theme="dark"] {
+     --gad-sidebar-bg: #082d43;
+     --gad-sidebar-text: #ffffff;
+     --gad-sidebar-muted: rgba(255, 255, 255, 0.58);
+     --gad-sidebar-hover: rgba(255, 255, 255, 0.09);
+     --gad-sidebar-active: #eff04c;
+     --gad-sidebar-active-text: #10100e;
+     --gad-sidebar-border: rgba(255, 255, 255, 0.12);
+     --gad-sidebar-bottom: rgba(0, 0, 0, 0.2);
+}
+
+/* MAIN SIDEBAR */
+
+.gad-admin-sidebar {
+     position: fixed;
+     top: 0;
+     left: 0;
+     z-index: 1000;
+
+     width: var(--gad-sidebar-width);
+     height: 100vh;
+
+     display: flex;
+     flex-direction: column;
+
+     padding: 23px 16px 16px;
+
+     background: var(--gad-sidebar-bg);
+     color: var(--gad-sidebar-text);
+
+     transition: background 0.25s ease;
+}
+
+/* BRAND */
+
+.gad-admin-brand {
+     padding: 0 15px 27px;
+     border-bottom: 1px solid var(--gad-sidebar-border);
+}
+
+.gad-admin-logo {
+     font-family: "Anton", sans-serif;
+     font-size: 35px;
+     line-height: 1;
+     letter-spacing: -1px;
+     color: #f4edda;
+}
+
+.gad-admin-logo span {
+     color: #eff04c;
+}
+
+.gad-admin-logo sup {
+     position: relative;
+     top: -9px;
+     font-family: "Space Grotesk", sans-serif;
+     font-size: 10px;
+}
+
+.gad-admin-brand p {
+     margin: 9px 0 0;
+     font-size: 12px;
+     font-weight: 600;
+     letter-spacing: 1.2px;
+     color: var(--gad-sidebar-muted);
+}
+
+/* NAVIGATION */
+
+.gad-admin-navigation {
+     display: flex;
+     flex-direction: column;
+     gap: 7px;
+     margin-top: 27px;
+}
+
+.gad-admin-nav-label {
+     padding: 0 13px;
+     margin-bottom: 7px;
+     font-size: 10px;
+     font-weight: 700;
+     letter-spacing: 2px;
+     color: var(--gad-sidebar-muted);
+}
+
+/* NAV LINKS */
+
+.gad-admin-nav-link {
+     position: relative;
+
+     min-height: 43px;
+
+     display: flex;
+     align-items: center;
+     gap: 14px;
+
+     padding: 0 14px;
+
+     border-radius: 10px;
+
+     color: var(--gad-sidebar-text);
+     text-decoration: none;
+
+     font-family: "Space Grotesk", sans-serif;
+     font-size: 14px;
+     font-weight: 600;
+
+     transition:
+          background 0.2s ease,
+          color 0.2s ease;
+}
+
+.gad-admin-nav-link:hover {
+     background: var(--gad-sidebar-hover);
+}
+
+.gad-admin-nav-link.active {
+     background: var(--gad-sidebar-active);
+     color: var(--gad-sidebar-active-text);
+}
+
+.gad-admin-nav-link.active svg {
+     stroke-width: 2.2;
+}
+
+/* ORDER BADGE */
+
+.gad-sidebar-order-badge {
+     min-width: 22px;
+     height: 22px;
+
+     display: flex;
+     align-items: center;
+     justify-content: center;
+
+     margin-left: auto;
+
+     border-radius: 50%;
+     background: #eff04c;
+     color: #10100e;
+
+     font-size: 11px;
+     font-weight: 800;
+}
+
+/* BOTTOM SECTION */
+
+.gad-admin-sidebar-bottom {
+     margin-top: auto;
+     padding-top: 17px;
+     border-top: 1px solid var(--gad-sidebar-border);
+}
+
+/* THEME BOX */
+
+.gad-admin-theme-box {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+
+     padding: 13px 11px;
+     margin-bottom: 13px;
+
+     border: 1px solid var(--gad-sidebar-border);
+     border-radius: 10px;
+
+     background: var(--gad-sidebar-bottom);
+}
+
+.gad-admin-theme-text {
+     display: flex;
+     flex-direction: column;
+     gap: 4px;
+}
+
+.gad-admin-theme-text>span {
+     font-size: 9px;
+     font-weight: 700;
+     letter-spacing: 1.4px;
+     color: var(--gad-sidebar-muted);
+}
+
+.gad-admin-theme-text strong {
+     font-size: 12px;
+     font-weight: 600;
+}
+
+/* THEME TOGGLE */
+
+.gad-admin-theme-toggle {
+     width: 43px;
+     height: 24px;
+
+     display: flex;
+     align-items: center;
+
+     padding: 3px;
+
+     border: none;
+     border-radius: 30px;
+
+     background: #eff04c;
+     cursor: pointer;
+
+     transition: background 0.2s ease;
+}
+
+.gad-theme-toggle-icon {
+     width: 18px;
+     height: 18px;
+
+     display: flex;
+     align-items: center;
+     justify-content: center;
+
+     border-radius: 50%;
+     background: #164e74;
+     color: #ffffff;
+
+     transition: transform 0.2s ease;
+}
+
+.gad-admin-theme-toggle.dark .gad-theme-toggle-icon {
+     transform: translateX(19px);
+}
+
+/* ADMIN PROFILE */
+
+.gad-admin-profile {
+     display: flex;
+     align-items: center;
+     gap: 10px;
+
+     padding: 13px 8px 5px;
+     border-top: 1px solid var(--gad-sidebar-border);
+}
+
+.gad-admin-avatar {
+     width: 37px;
+     height: 37px;
+
+     display: flex;
+     align-items: center;
+     justify-content: center;
+
+     flex-shrink: 0;
+
+     border-radius: 50%;
+     background: #f4edda;
+     color: #164e74;
+
+     font-size: 15px;
+     font-weight: 800;
+}
+
+.gad-admin-profile-info {
+     min-width: 0;
+     display: flex;
+     flex-direction: column;
+     gap: 3px;
+}
+
+.gad-admin-profile-info strong {
+     font-size: 12px;
+     font-weight: 700;
+}
+
+.gad-admin-profile-info span {
+     font-size: 10px;
+     color: var(--gad-sidebar-muted);
+}
+
+.gad-admin-logout {
+     width: 31px;
+     height: 31px;
+
+     display: flex;
+     align-items: center;
+     justify-content: center;
+
+     margin-left: auto;
+
+     border: none;
+     border-radius: 7px;
+
+     background: transparent;
+     color: var(--gad-sidebar-muted);
+
+     cursor: pointer;
+}
+
+.gad-admin-logout:hover {
+     background: rgba(255, 255, 255, 0.12);
+     color: white;
+}
+
+/* MOBILE TOGGLE */
+
+.gad-admin-mobile-toggle {
+     display: none;
+}
+
+.gad-admin-overlay {
+     display: none;
+}
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 768px) {
+     .gad-admin-sidebar {
+          width: 260px;
+          transform: translateX(-100%);
+          transition: transform 0.3s ease;
+     }
+
+     .gad-admin-sidebar.gad-sidebar-open {
+          transform: translateX(0);
+     }
+
+     .gad-admin-mobile-toggle {
+          position: fixed;
+          top: 15px;
+          left: 15px;
+          z-index: 1100;
+
+          width: 42px;
+          height: 42px;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          border: none;
+          border-radius: 8px;
+
+          background: #eff04c;
+          color: #10100e;
+
+          cursor: pointer;
+     }
+
+     .gad-admin-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 900;
+
+          display: block;
+          background: rgba(0, 0, 0, 0.55);
+     }
+}

@@ -1,0 +1,60 @@
+/* Admin workspace theme surfaces */
+:root[data-admin-theme="light"] {
+     --gad-admin-page: #f4edda;
+     --gad-admin-panel: #fffaf0;
+     --gad-admin-text: #10100e;
+     --gad-admin-muted: #77766e;
+     --gad-admin-line: rgba(16, 16, 14, 0.16);
+}
+
+:root[data-admin-theme="dark"] {
+     --gad-admin-page: #101418;
+     --gad-admin-panel: #191f25;
+     --gad-admin-text: #f4edda;
+     --gad-admin-muted: #a5adb4;
+     --gad-admin-line: rgba(255, 255, 255, 0.13);
+}
+
+.gad-admin-shell {
+     min-height: 100vh;
+     background: var(--gad-admin-page, #f4edda);
+     color: var(--gad-admin-text, #10100e);
+     transition: background 0.25s ease, color 0.25s ease;
+}
+
+.gad-admin-content {
+     min-height: 100vh;
+     margin-left: 243px;
+     padding: 32px;
+     background: var(--gad-admin-page);
+     color: var(--gad-admin-text);
+     font-family: "Space Grotesk", sans-serif;
+}
+
+.gad-admin-placeholder {
+     padding: 30px;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 14px;
+     background: var(--gad-admin-panel);
+}
+
+.gad-admin-placeholder h1 {
+     margin: 0 0 10px;
+     color: var(--gad-admin-text);
+     font-family: "Anton", sans-serif;
+     font-size: 42px;
+     font-weight: 400;
+     text-transform: uppercase;
+}
+
+.gad-admin-placeholder p {
+     margin: 0;
+     color: var(--gad-admin-muted);
+}
+
+@media (max-width: 768px) {
+     .gad-admin-content {
+          margin-left: 0;
+          padding: 75px 16px 25px;
+     }
+}

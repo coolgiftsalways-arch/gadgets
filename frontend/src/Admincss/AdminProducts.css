@@ -1,0 +1,881 @@
+/* =========================================
+   GADGETÉ ADMIN / PRODUCTS
+========================================= */
+.gad-products-page {
+     width: 100%;
+     max-width: 1600px;
+     margin: 0 auto;
+     color: var(--gad-admin-text, #10100e);
+     font-family: "Space Grotesk", sans-serif;
+}
+
+.gad-products-page *,
+.gad-products-page *::before,
+.gad-products-page *::after {
+     box-sizing: border-box;
+}
+
+.gad-products-header {
+     display: flex;
+     align-items: flex-end;
+     justify-content: space-between;
+     gap: 20px;
+     margin-bottom: 23px;
+}
+
+.gad-products-eyebrow {
+     color: var(--gad-admin-muted, #77766e);
+     font-size: 10px;
+     font-weight: 700;
+     letter-spacing: 1.7px;
+}
+
+.gad-products-header h1 {
+     margin: 7px 0 5px;
+     color: var(--gad-admin-text);
+     font-family: "Anton", sans-serif;
+     font-size: clamp(39px, 4vw, 54px);
+     font-weight: 400;
+     line-height: 1;
+}
+
+.gad-products-header h1 span,
+.gad-products-panel-heading h2 span,
+.gad-product-modal-header h2 span {
+     color: #164e74;
+}
+
+:root[data-admin-theme="dark"] .gad-products-header h1 span,
+:root[data-admin-theme="dark"] .gad-products-panel-heading h2 span,
+:root[data-admin-theme="dark"] .gad-product-modal-header h2 span {
+     color: #eff04c;
+}
+
+.gad-products-header p,
+.gad-products-panel-heading p {
+     margin: 8px 0 0;
+     color: var(--gad-admin-muted);
+     font-size: 12px;
+}
+
+.gad-products-header-actions {
+     display: flex;
+     gap: 8px;
+}
+
+.gad-products-export,
+.gad-products-add {
+     min-height: 41px;
+     display: inline-flex;
+     align-items: center;
+     justify-content: center;
+     gap: 8px;
+     padding: 0 13px;
+     border: 0;
+     border-radius: 8px;
+     font-family: inherit;
+     font-size: 9px;
+     font-weight: 800;
+     letter-spacing: .9px;
+     cursor: pointer;
+}
+
+.gad-products-export {
+     border: 1px solid var(--gad-admin-line);
+     background: var(--gad-admin-panel);
+     color: var(--gad-admin-text);
+}
+
+.gad-products-add {
+     background: #164e74;
+     color: #fff;
+}
+
+.gad-products-add:hover {
+     background: #eff04c;
+     color: #10100e;
+}
+
+/* SUMMARY */
+.gad-products-stats {
+     display: grid;
+     grid-template-columns: repeat(4, minmax(0, 1fr));
+     gap: 12px;
+     margin-bottom: 17px;
+}
+
+.gad-product-stat-card {
+     min-width: 0;
+     padding: 15px;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 12px;
+     background: var(--gad-admin-panel);
+}
+
+.gad-product-stat-icon {
+     width: 32px;
+     height: 32px;
+     display: grid;
+     place-items: center;
+     margin-bottom: 11px;
+     border-radius: 9px;
+     background: rgba(22, 78, 116, .1);
+     color: #164e74;
+}
+
+:root[data-admin-theme="dark"] .gad-product-stat-icon {
+     background: rgba(239, 240, 76, .12);
+     color: #eff04c;
+}
+
+.gad-product-stat-icon.warning {
+     color: #b17c1d;
+     background: rgba(195, 138, 34, .13);
+}
+
+.gad-product-stat-icon.danger {
+     color: #cd4b45;
+     background: rgba(205, 75, 69, .12);
+}
+
+.gad-product-stat-card small {
+     display: block;
+     color: var(--gad-admin-muted);
+     font-size: 9px;
+     font-weight: 800;
+     letter-spacing: .9px;
+}
+
+.gad-product-stat-card strong {
+     display: block;
+     margin-top: 5px;
+     color: var(--gad-admin-text);
+     font-family: "Anton", sans-serif;
+     font-size: 27px;
+     font-weight: 400;
+}
+
+.gad-product-stat-card em {
+     display: block;
+     margin-top: 3px;
+     color: var(--gad-admin-muted);
+     font-size: 9px;
+     font-style: normal;
+}
+
+/* INVENTORY PANEL */
+.gad-products-panel {
+     overflow: hidden;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 13px;
+     background: var(--gad-admin-panel);
+}
+
+.gad-products-panel-heading {
+     display: flex;
+     align-items: flex-end;
+     justify-content: space-between;
+     gap: 15px;
+     padding: 20px 20px 16px;
+}
+
+.gad-products-panel-heading h2,
+.gad-product-modal-header h2 {
+     margin: 5px 0 0;
+     color: var(--gad-admin-text);
+     font-family: "Anton", sans-serif;
+     font-size: 27px;
+     font-weight: 400;
+}
+
+.gad-products-inventory-value {
+     text-align: right;
+}
+
+.gad-products-inventory-value small {
+     display: block;
+     color: var(--gad-admin-muted);
+     font-size: 8px;
+     font-weight: 800;
+     letter-spacing: 1px;
+}
+
+.gad-products-inventory-value strong {
+     display: block;
+     margin-top: 4px;
+     color: var(--gad-admin-text);
+     font-family: "Anton", sans-serif;
+     font-size: 23px;
+     font-weight: 400;
+}
+
+.gad-products-toolbar {
+     display: flex;
+     align-items: center;
+     gap: 8px;
+     padding: 0 20px 16px;
+}
+
+.gad-products-search {
+     min-width: 180px;
+     height: 41px;
+     display: flex;
+     align-items: center;
+     flex: 1;
+     gap: 8px;
+     padding: 0 11px;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 8px;
+     background: var(--gad-admin-page);
+     color: var(--gad-admin-muted);
+}
+
+.gad-products-search input {
+     width: 100%;
+     min-width: 0;
+     border: 0;
+     outline: 0;
+     background: transparent;
+     color: var(--gad-admin-text);
+     font-family: inherit;
+     font-size: 10px;
+}
+
+.gad-products-search input::placeholder {
+     color: var(--gad-admin-muted);
+}
+
+.gad-products-search button {
+     display: grid;
+     place-items: center;
+     border: 0;
+     background: transparent;
+     color: var(--gad-admin-muted);
+     cursor: pointer;
+}
+
+.gad-products-filter {
+     height: 41px;
+     display: flex;
+     align-items: center;
+     gap: 6px;
+     padding: 0 9px;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 8px;
+     background: var(--gad-admin-page);
+     color: var(--gad-admin-muted);
+}
+
+.gad-products-filter select {
+     max-width: 130px;
+     border: 0;
+     outline: 0;
+     appearance: none;
+     background: transparent;
+     color: var(--gad-admin-text);
+     font-family: inherit;
+     font-size: 9px;
+     cursor: pointer;
+}
+
+.gad-products-filter option {
+     background: var(--gad-admin-panel);
+     color: var(--gad-admin-text);
+}
+
+/* TABLE */
+.gad-products-table-wrap {
+     width: 100%;
+     overflow-x: auto;
+}
+
+.gad-products-table {
+     width: 100%;
+     min-width: 760px;
+     border-collapse: collapse;
+     text-align: left;
+}
+
+.gad-products-table thead {
+     background: var(--gad-admin-page);
+}
+
+.gad-products-table th {
+     padding: 12px 12px;
+     color: var(--gad-admin-muted);
+     font-size: 8px;
+     font-weight: 800;
+     letter-spacing: 1px;
+     white-space: nowrap;
+}
+
+.gad-products-table th:first-child,
+.gad-products-table td:first-child {
+     padding-left: 20px;
+}
+
+.gad-products-table td {
+     padding: 12px;
+     border-top: 1px solid var(--gad-admin-line);
+     color: var(--gad-admin-text);
+     font-size: 10px;
+     vertical-align: middle;
+}
+
+.gad-products-table tbody tr:hover {
+     background: rgba(22, 78, 116, .04);
+}
+
+:root[data-admin-theme="dark"] .gad-products-table tbody tr:hover {
+     background: rgba(255, 255, 255, .035);
+}
+
+.gad-product-name-cell {
+     display: flex;
+     align-items: center;
+     gap: 10px;
+     min-width: 180px;
+}
+
+.gad-product-name-cell img {
+     width: 46px;
+     height: 46px;
+     flex: 0 0 46px;
+     border-radius: 8px;
+     object-fit: cover;
+     background: var(--gad-admin-page);
+}
+
+.gad-product-name-cell span {
+     display: flex;
+     flex-direction: column;
+     gap: 4px;
+}
+
+.gad-product-name-cell strong {
+     font-size: 10px;
+}
+
+.gad-product-name-cell small,
+.gad-product-category,
+.gad-product-compare {
+     color: var(--gad-admin-muted);
+     font-size: 9px;
+}
+
+.gad-product-sku,
+.gad-product-category {
+     display: block;
+}
+
+.gad-product-price {
+     display: block;
+     font-size: 11px;
+     white-space: nowrap;
+}
+
+.gad-product-compare {
+     display: block;
+     margin-top: 3px;
+     text-decoration: line-through;
+}
+
+.gad-product-stock {
+     padding: 5px 8px;
+     border-radius: 30px;
+     background: rgba(62, 157, 105, .12);
+     color: #3e9d69;
+     font-size: 9px;
+     font-weight: 700;
+     white-space: nowrap;
+}
+
+.gad-product-stock.low {
+     background: rgba(195, 138, 34, .13);
+     color: #b17c1d;
+}
+
+.gad-product-stock.empty {
+     background: rgba(205, 75, 69, .12);
+     color: #cd4b45;
+}
+
+.gad-product-status {
+     display: inline-flex;
+     padding: 5px 8px;
+     border-radius: 30px;
+     background: rgba(62, 157, 105, .12);
+     color: #3e9d69;
+     font-size: 9px;
+     font-weight: 700;
+     white-space: nowrap;
+}
+
+.gad-product-status.out-of-stock {
+     background: rgba(205, 75, 69, .12);
+     color: #cd4b45;
+}
+
+.gad-product-status.draft {
+     background: rgba(195, 138, 34, .13);
+     color: #b17c1d;
+}
+
+.gad-product-actions {
+     display: flex;
+     gap: 5px;
+}
+
+.gad-product-actions button {
+     width: 28px;
+     height: 28px;
+     display: grid;
+     place-items: center;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 7px;
+     background: transparent;
+     color: var(--gad-admin-muted);
+     cursor: pointer;
+}
+
+.gad-product-actions button:hover {
+     border-color: #164e74;
+     background: #164e74;
+     color: #fff;
+}
+
+.gad-product-actions button.delete:hover {
+     border-color: #cd4b45;
+     background: #cd4b45;
+}
+
+.gad-products-empty {
+     display: flex;
+     align-items: center;
+     flex-direction: column;
+     gap: 8px;
+     padding: 40px 15px;
+     color: var(--gad-admin-muted);
+     text-align: center;
+}
+
+.gad-products-empty strong {
+     color: var(--gad-admin-text);
+     font-size: 13px;
+}
+
+.gad-products-empty span {
+     font-size: 10px;
+}
+
+.gad-products-table-footer {
+     display: flex;
+     justify-content: space-between;
+     gap: 12px;
+     padding: 12px 20px;
+     border-top: 1px solid var(--gad-admin-line);
+     color: var(--gad-admin-muted);
+     font-size: 9px;
+}
+
+.gad-products-table-footer strong {
+     color: var(--gad-admin-text);
+}
+
+/* ADD / EDIT / VIEW MODALS */
+.gad-product-modal-backdrop {
+     position: fixed;
+     inset: 0;
+     z-index: 2200;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     padding: 18px;
+     background: rgba(0, 0, 0, .52);
+}
+
+.gad-product-modal {
+     width: min(760px, 100%);
+     max-height: 92vh;
+     overflow-y: auto;
+     padding: 22px;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 15px;
+     background: var(--gad-admin-panel);
+     color: var(--gad-admin-text);
+     box-shadow: 0 20px 65px rgba(0, 0, 0, .2);
+}
+
+.gad-product-modal-header {
+     display: flex;
+     align-items: flex-start;
+     justify-content: space-between;
+     margin-bottom: 20px;
+}
+
+.gad-product-modal-header button,
+.gad-product-view-close {
+     width: 34px;
+     height: 34px;
+     display: grid;
+     place-items: center;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 8px;
+     background: transparent;
+     color: var(--gad-admin-text);
+     cursor: pointer;
+}
+
+.gad-product-form {
+     display: flex;
+     flex-direction: column;
+     gap: 17px;
+}
+
+.gad-product-form-grid {
+     display: grid;
+     grid-template-columns: minmax(180px, .8fr) minmax(0, 1.2fr);
+     gap: 17px;
+}
+
+.gad-product-form-grid.three {
+     grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gad-product-image-field,
+.gad-product-fields,
+.gad-product-fields label,
+.gad-product-form-grid.three label,
+.gad-product-status-field {
+     display: flex;
+     flex-direction: column;
+     gap: 7px;
+}
+
+.gad-product-image-field>span,
+.gad-product-fields label,
+.gad-product-form-grid.three label,
+.gad-product-status-field {
+     color: var(--gad-admin-muted);
+     font-size: 9px;
+     font-weight: 800;
+     letter-spacing: .7px;
+}
+
+.gad-product-image-picker {
+     min-height: 185px;
+     display: flex;
+     align-items: center;
+     flex-direction: column;
+     justify-content: center;
+     gap: 9px;
+     overflow: hidden;
+     padding: 10px;
+     border: 1px dashed var(--gad-admin-line);
+     border-radius: 10px;
+     background: var(--gad-admin-page);
+     color: var(--gad-admin-muted);
+     cursor: pointer;
+}
+
+.gad-product-image-picker img {
+     width: 100%;
+     height: 165px;
+     border-radius: 7px;
+     object-fit: contain;
+}
+
+.gad-product-image-picker b {
+     font-size: 9px;
+     letter-spacing: 1px;
+}
+
+.gad-product-image-picker small {
+     font-size: 9px;
+}
+
+.gad-product-remove-image {
+     border: 0;
+     background: transparent;
+     color: #cd4b45;
+     font-family: inherit;
+     font-size: 9px;
+     font-weight: 800;
+     cursor: pointer;
+}
+
+.gad-product-fields input,
+.gad-product-fields select,
+.gad-product-fields textarea,
+.gad-product-form-grid.three input,
+.gad-product-status-field select {
+     width: 100%;
+     min-height: 39px;
+     padding: 9px 10px;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 7px;
+     outline: 0;
+     background: var(--gad-admin-page);
+     color: var(--gad-admin-text);
+     font-family: inherit;
+     font-size: 11px;
+     letter-spacing: 0;
+}
+
+.gad-product-fields textarea {
+     resize: vertical;
+}
+
+.gad-product-fields input:focus,
+.gad-product-fields select:focus,
+.gad-product-fields textarea:focus,
+.gad-product-form-grid.three input:focus,
+.gad-product-status-field select:focus {
+     border-color: #164e74;
+}
+
+.gad-product-form-error {
+     margin: 0;
+     color: #cd4b45;
+     font-size: 10px;
+}
+
+.gad-product-form-actions {
+     display: flex;
+     justify-content: flex-end;
+     gap: 8px;
+     padding-top: 13px;
+     border-top: 1px solid var(--gad-admin-line);
+}
+
+.gad-product-form-actions button {
+     min-height: 39px;
+     display: inline-flex;
+     align-items: center;
+     justify-content: center;
+     gap: 7px;
+     padding: 0 14px;
+     border-radius: 7px;
+     font-family: inherit;
+     font-size: 9px;
+     font-weight: 800;
+     letter-spacing: .8px;
+     cursor: pointer;
+}
+
+.gad-product-form-actions .secondary {
+     border: 1px solid var(--gad-admin-line);
+     background: transparent;
+     color: var(--gad-admin-text);
+}
+
+.gad-product-form-actions .primary {
+     border: 0;
+     background: #164e74;
+     color: #fff;
+}
+
+.gad-product-form-actions .primary:hover {
+     background: #eff04c;
+     color: #10100e;
+}
+
+.gad-product-view-modal {
+     position: relative;
+     width: min(600px, 100%);
+     display: grid;
+     grid-template-columns: 1fr 1fr;
+     gap: 20px;
+     padding: 22px;
+     border-radius: 14px;
+     background: var(--gad-admin-panel);
+     color: var(--gad-admin-text);
+}
+
+.gad-product-view-close {
+     position: absolute;
+     top: 12px;
+     right: 12px;
+     z-index: 1;
+}
+
+.gad-product-view-modal>img {
+     width: 100%;
+     height: 260px;
+     border-radius: 10px;
+     object-fit: cover;
+     background: var(--gad-admin-page);
+}
+
+.gad-product-view-copy {
+     align-self: center;
+     padding-right: 20px;
+}
+
+.gad-product-view-copy h2 {
+     margin: 8px 0;
+     font-family: "Anton", sans-serif;
+     font-size: 29px;
+     font-weight: 400;
+}
+
+.gad-product-view-copy p {
+     color: var(--gad-admin-muted);
+     font-size: 11px;
+     line-height: 1.6;
+}
+
+.gad-product-view-copy>strong {
+     display: inline-block;
+     margin: 8px 8px 0 0;
+     font-family: "Anton", sans-serif;
+     font-size: 25px;
+     font-weight: 400;
+}
+
+.gad-product-view-copy>del {
+     color: var(--gad-admin-muted);
+     font-size: 11px;
+}
+
+.gad-product-view-meta {
+     display: flex;
+     flex-direction: column;
+     gap: 7px;
+     margin: 15px 0;
+     color: var(--gad-admin-muted);
+     font-size: 9px;
+}
+
+.gad-product-view-meta b {
+     color: var(--gad-admin-text);
+}
+
+.gad-product-view-copy>button {
+     min-height: 38px;
+     display: inline-flex;
+     align-items: center;
+     gap: 7px;
+     padding: 0 12px;
+     border: 0;
+     border-radius: 7px;
+     background: #164e74;
+     color: #fff;
+     font-family: inherit;
+     font-size: 9px;
+     font-weight: 800;
+     cursor: pointer;
+}
+
+.gad-products-note {
+     display: flex;
+     align-items: center;
+     gap: 7px;
+     margin-top: 13px;
+     color: var(--gad-admin-muted);
+     font-size: 9px;
+}
+
+/* RESPONSIVE */
+@media (max-width:1000px) {
+     .gad-products-stats {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+     }
+}
+
+@media (max-width:720px) {
+     .gad-products-toolbar {
+          flex-wrap: wrap;
+     }
+
+     .gad-products-search {
+          flex-basis: 100%;
+     }
+
+     .gad-products-filter {
+          flex: 1;
+          justify-content: center;
+     }
+}
+
+@media (max-width:600px) {
+     .gad-products-header {
+          align-items: flex-start;
+          flex-direction: column;
+     }
+
+     .gad-products-header h1 {
+          font-size: 40px;
+     }
+
+     .gad-products-header p {
+          max-width: 270px;
+          font-size: 10px;
+          line-height: 1.5;
+     }
+
+     .gad-products-header-actions {
+          width: 100%;
+     }
+
+     .gad-products-header-actions button {
+          flex: 1;
+     }
+
+     .gad-products-stats {
+          gap: 8px;
+     }
+
+     .gad-product-stat-card {
+          padding: 12px;
+     }
+
+     .gad-product-stat-card strong {
+          font-size: 23px;
+     }
+
+     .gad-products-panel-heading {
+          align-items: flex-start;
+          padding: 16px;
+     }
+
+     .gad-products-toolbar {
+          padding: 0 16px 14px;
+     }
+
+     .gad-products-table-footer {
+          padding: 12px 16px;
+          font-size: 8px;
+     }
+
+     .gad-product-modal {
+          padding: 16px;
+     }
+
+     .gad-product-form-grid,
+     .gad-product-form-grid.three {
+          grid-template-columns: 1fr;
+     }
+
+     .gad-product-image-picker {
+          min-height: 150px;
+     }
+
+     .gad-product-image-picker img {
+          height: 130px;
+     }
+
+     .gad-product-view-modal {
+          grid-template-columns: 1fr;
+          gap: 13px;
+          padding: 16px;
+     }
+
+     .gad-product-view-modal>img {
+          height: 190px;
+     }
+
+     .gad-product-view-copy {
+          padding-right: 0;
+     }
+}

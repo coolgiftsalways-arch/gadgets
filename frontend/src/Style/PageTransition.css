@@ -1,0 +1,443 @@
+/* ==========================================
+   GADGETÉ — AWWWARDS PAGE LOADER
+========================================== */
+
+.gadgete-loader {
+     --loader-blue: #164e74;
+     --loader-yellow: #eff04c;
+     --loader-cream: #f4edda;
+     --loader-black: #10100e;
+
+     position: fixed;
+     inset: 0;
+     z-index: 9999999;
+
+     width: 100%;
+     height: 100vh;
+     min-height: 100dvh;
+
+     overflow: hidden;
+
+     display: flex;
+     flex-direction: column;
+     justify-content: space-between;
+
+     padding: 30px 5%;
+
+     background: var(--loader-blue);
+     color: var(--loader-cream);
+
+     visibility: visible;
+
+     /* IMPORTANT: loader must never block clicks */
+     pointer-events: none !important;
+
+     will-change: transform, opacity;
+}
+
+/* ==========================================
+   BACKGROUND GRID
+========================================== */
+
+.loader-grid {
+     position: absolute;
+     inset: 0;
+
+     background-image:
+          linear-gradient(rgba(244, 237, 218, 0.045) 1px,
+               transparent 1px),
+          linear-gradient(90deg,
+               rgba(244, 237, 218, 0.045) 1px,
+               transparent 1px);
+
+     background-size: 65px 65px;
+     pointer-events: none;
+}
+
+/* ==========================================
+   DECORATIVE CIRCLES
+========================================== */
+
+.loader-circle {
+     position: absolute;
+     border: 1px solid rgba(244, 237, 218, 0.15);
+     border-radius: 50%;
+     pointer-events: none;
+}
+
+.loader-circle-one {
+     width: 450px;
+     height: 450px;
+     right: -100px;
+     top: 10%;
+}
+
+.loader-circle-two {
+     width: 300px;
+     height: 300px;
+     right: -20px;
+     top: 22%;
+}
+
+/* ==========================================
+   TOP BAR
+========================================== */
+
+.loader-top {
+     position: relative;
+     z-index: 4;
+
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     gap: 15px;
+
+     font-family: "Space Grotesk", sans-serif;
+     font-size: 9px;
+     font-weight: 800;
+     letter-spacing: 2px;
+}
+
+.loader-top span:first-child {
+     font-family: "Anton", Impact, sans-serif;
+     font-size: 23px;
+     letter-spacing: 0;
+     color: var(--loader-yellow);
+}
+
+/* ==========================================
+   MAIN LOADER
+========================================== */
+
+.loader-main {
+     position: relative;
+     z-index: 4;
+
+     margin-top: auto;
+     margin-bottom: auto;
+
+     padding: 55px 0;
+}
+
+.loader-small-text {
+     display: flex;
+     align-items: center;
+     gap: 12px;
+
+     font-family: "Space Grotesk", sans-serif;
+     font-size: 10px;
+     font-weight: 800;
+     letter-spacing: 3px;
+
+     margin-bottom: 25px;
+}
+
+.loader-dot {
+     width: 9px;
+     height: 9px;
+     border-radius: 50%;
+
+     background: var(--loader-yellow);
+
+     box-shadow: 0 0 15px rgba(239, 240, 76, 0.6);
+
+     animation: loaderPulse 0.8s infinite alternate;
+}
+
+/* ==========================================
+   BIG TYPOGRAPHY
+========================================== */
+
+.loader-title {
+     display: flex;
+     flex-direction: column;
+
+     font-family: "Anton", Impact, sans-serif;
+     font-size: clamp(65px, 12vw, 170px);
+
+     line-height: 0.83;
+     letter-spacing: -3px;
+}
+
+.loader-title-outline {
+     color: transparent;
+     -webkit-text-stroke: 1px var(--loader-cream);
+}
+
+/* ==========================================
+   COUNTER
+========================================== */
+
+.loader-counter-area {
+     display: flex;
+     align-items: flex-start;
+     margin-top: 30px;
+}
+
+.loader-counter {
+     font-family: "Anton", Impact, sans-serif;
+     font-size: clamp(65px, 11vw, 135px);
+
+     line-height: 0.85;
+
+     color: var(--loader-yellow);
+
+     font-variant-numeric: tabular-nums;
+}
+
+.loader-percent {
+     margin: 7px 0 0 8px;
+
+     font-family: "Anton", Impact, sans-serif;
+     font-size: clamp(24px, 4vw, 45px);
+
+     color: var(--loader-yellow);
+}
+
+/* ==========================================
+   BOTTOM PROGRESS
+========================================== */
+
+.loader-bottom {
+     position: relative;
+     z-index: 4;
+}
+
+.loader-progress-info {
+     display: flex;
+     justify-content: space-between;
+
+     margin-bottom: 12px;
+
+     font-family: "Space Grotesk", sans-serif;
+     font-size: 9px;
+     font-weight: 800;
+     letter-spacing: 2px;
+}
+
+.loader-progress-track {
+     height: 3px;
+     width: 100%;
+
+     background: rgba(244, 237, 218, 0.25);
+
+     overflow: hidden;
+}
+
+.loader-progress-fill {
+     width: 100%;
+     height: 100%;
+
+     background: var(--loader-yellow);
+
+     transform: scaleX(0);
+     transform-origin: left center;
+}
+
+.loader-footer {
+     display: flex;
+     justify-content: space-between;
+     gap: 15px;
+
+     margin-top: 17px;
+
+     font-family: "Space Grotesk", sans-serif;
+     font-size: 8px;
+     font-weight: 800;
+     letter-spacing: 1.5px;
+}
+
+/* ==========================================
+   SPEED STREAKS
+========================================== */
+
+.loader-streaks {
+     position: absolute;
+     inset: 0;
+
+     overflow: hidden;
+     pointer-events: none;
+
+     transform: skewX(-25deg);
+}
+
+.loader-streaks span {
+     position: absolute;
+     right: -60%;
+
+     width: 45%;
+     height: 1px;
+
+     background: var(--loader-yellow);
+
+     opacity: 0;
+
+     animation: loaderSpeed 1.2s linear infinite;
+}
+
+.loader-streaks span:nth-child(1) {
+     top: 12%;
+     animation-delay: 0s;
+}
+
+.loader-streaks span:nth-child(2) {
+     top: 22%;
+     animation-delay: 0.2s;
+}
+
+.loader-streaks span:nth-child(3) {
+     top: 32%;
+     animation-delay: 0.4s;
+}
+
+.loader-streaks span:nth-child(4) {
+     top: 42%;
+     animation-delay: 0.1s;
+}
+
+.loader-streaks span:nth-child(5) {
+     top: 52%;
+     animation-delay: 0.3s;
+}
+
+.loader-streaks span:nth-child(6) {
+     top: 62%;
+     animation-delay: 0.5s;
+}
+
+.loader-streaks span:nth-child(7) {
+     top: 72%;
+     animation-delay: 0.2s;
+}
+
+.loader-streaks span:nth-child(8) {
+     top: 82%;
+     animation-delay: 0.4s;
+}
+
+.loader-streaks span:nth-child(9) {
+     top: 92%;
+     animation-delay: 0.6s;
+}
+
+.loader-streaks span:nth-child(10) {
+     top: 7%;
+     animation-delay: 0.35s;
+}
+
+@keyframes loaderSpeed {
+     0% {
+          transform: translateX(0);
+          opacity: 0;
+     }
+
+     25% {
+          opacity: 0.5;
+     }
+
+     100% {
+          transform: translateX(-180vw);
+          opacity: 0;
+     }
+}
+
+/* ==========================================
+   YELLOW ACCENT
+========================================== */
+
+.loader-yellow-block {
+     position: absolute;
+
+     width: 220px;
+     height: 220px;
+
+     right: -120px;
+     bottom: 15%;
+
+     background: var(--loader-yellow);
+
+     border-radius: 50%;
+
+     opacity: 0.12;
+     filter: blur(3px);
+
+     pointer-events: none;
+}
+
+/* ==========================================
+   ANIMATIONS
+========================================== */
+
+@keyframes loaderPulse {
+     from {
+          opacity: 0.4;
+          transform: scale(0.8);
+     }
+
+     to {
+          opacity: 1;
+          transform: scale(1.2);
+     }
+}
+
+/* ==========================================
+   MOBILE
+========================================== */
+
+@media (max-width: 600px) {
+     .gadgete-loader {
+          padding: 23px 6%;
+     }
+
+     .loader-top {
+          font-size: 7px;
+          letter-spacing: 1px;
+     }
+
+     .loader-top span:first-child {
+          font-size: 19px;
+     }
+
+     .loader-title {
+          font-size: clamp(60px, 15vw, 95px);
+          letter-spacing: -1px;
+     }
+
+     .loader-counter {
+          font-size: 90px;
+     }
+
+     .loader-small-text {
+          font-size: 8px;
+          letter-spacing: 2px;
+     }
+
+     .loader-circle-one {
+          width: 270px;
+          height: 270px;
+          right: -130px;
+     }
+
+     .loader-circle-two {
+          width: 190px;
+          height: 190px;
+          right: -80px;
+     }
+
+     .loader-footer {
+          font-size: 7px;
+          letter-spacing: 0.5px;
+     }
+}
+
+/* ==========================================
+   ACCESSIBILITY
+========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+
+     .loader-dot,
+     .loader-streaks span {
+          animation: none !important;
+     }
+}

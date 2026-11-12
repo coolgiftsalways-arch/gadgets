@@ -1,0 +1,2599 @@
+/* ==========================================
+
+   GADGETÉ — PREMIUM HOMEPAGE
+
+   Editorial / Awwwards Inspired
+
+========================================== */
+
+
+
+.hs-home-sections {
+
+     --hs-blue: #164e74;
+
+     --hs-yellow: #eff04c;
+
+     --hs-cream: #f4edda;
+
+     --hs-black: #10100e;
+
+
+
+     position: relative;
+
+     width: 100%;
+
+     overflow: hidden;
+
+     background: var(--hs-blue);
+
+     color: var(--hs-cream);
+
+     font-family: "Space Grotesk", sans-serif;
+
+}
+
+
+
+.hs-home-sections \* {
+
+     box-sizing: border-box;
+
+}
+
+
+
+/* ==========================================
+
+   MOVING MARQUEE
+
+========================================== */
+
+
+
+.hs-marquee {
+
+     padding: 27px 0;
+
+     overflow: hidden;
+
+     background: var(--hs-yellow);
+
+     color: var(--hs-black);
+
+     transform: rotate(-1deg) scale(1.02);
+
+}
+
+
+
+.hs-marquee-track {
+
+     display: flex;
+
+     width: max-content;
+
+}
+
+
+
+.hs-marquee-content {
+
+     display: flex;
+
+     align-items: center;
+
+     gap: 35px;
+
+     padding-right: 35px;
+
+     white-space: nowrap;
+
+}
+
+
+
+.hs-marquee-content span {
+
+     font-family: "Anton", sans-serif;
+
+     font-size: clamp(25px, 4vw, 55px);
+
+}
+
+
+
+.hs-marquee-content svg {
+
+     width: 30px;
+
+     height: 30px;
+
+}
+
+
+
+/* ==========================================
+
+   FEATURED COLLECTION
+
+========================================== */
+
+
+
+.hs-feature {
+
+     position: relative;
+
+     min-height: 780px;
+
+     padding: 120px 7%;
+
+     display: grid;
+
+     grid-template-columns: 1fr 1.1fr 0.7fr;
+
+     align-items: center;
+
+     gap: 35px;
+
+
+
+     background:
+
+          radial-gradient(ellipse at 55% 50%,
+
+               rgba(53, 148, 194, 0.7),
+
+               transparent 55%),
+
+          linear-gradient(130deg, #164e74, #092d47);
+
+}
+
+
+
+.hs-feature-left {
+
+     position: relative;
+
+     z-index: 3;
+
+}
+
+
+
+.hs-eyebrow {
+
+     display: flex;
+
+     align-items: center;
+
+     gap: 10px;
+
+     font-size: 10px;
+
+     font-weight: 700;
+
+     letter-spacing: 2px;
+
+}
+
+
+
+.hs-dot {
+
+     width: 9px;
+
+     height: 9px;
+
+     flex-shrink: 0;
+
+     border-radius: 50%;
+
+     background: var(--hs-yellow);
+
+     box-shadow: 0 0 15px var(--hs-yellow);
+
+}
+
+
+
+.hs-feature-left h2,
+
+.hs-trending-heading h2 {
+
+     margin: 35px 0 25px;
+
+     font-family: "Anton", sans-serif;
+
+     font-size: clamp(75px, 9vw, 145px);
+
+     line-height: 0.82;
+
+     letter-spacing: -3px;
+
+}
+
+
+
+.hs-feature-left h2 span,
+
+.hs-trending-heading h2 span {
+
+     color: var(--hs-yellow);
+
+}
+
+
+
+.hs-feature-left>p {
+
+     max-width: 350px;
+
+     color: rgba(255, 255, 255, 0.75);
+
+     font-size: 14px;
+
+     line-height: 1.8;
+
+}
+
+
+
+.hs-outline-button {
+
+     display: inline-flex;
+
+     align-items: center;
+
+     justify-content: space-between;
+
+     gap: 30px;
+
+     margin-top: 35px;
+
+     padding: 17px 22px;
+
+     border: 1px solid var(--hs-yellow);
+
+     color: var(--hs-yellow);
+
+     text-decoration: none;
+
+     font-size: 10px;
+
+     font-weight: 700;
+
+     letter-spacing: 1px;
+
+     transition: 0.3s;
+
+}
+
+
+
+.hs-outline-button:hover {
+
+     background: var(--hs-yellow);
+
+     color: var(--hs-black);
+
+     transform: translateY(-5px);
+
+}
+
+
+
+/* ==========================================
+
+   WATCH VISUAL
+
+========================================== */
+
+
+
+.hs-feature-visual {
+
+     position: relative;
+
+     min-height: 550px;
+
+     display: flex;
+
+     align-items: center;
+
+     justify-content: center;
+
+     perspective: 1000px;
+
+}
+
+
+
+.hs-feature-orbit {
+
+     position: absolute;
+
+     width: 95%;
+
+     height: 180px;
+
+     border: 2px solid var(--hs-yellow);
+
+     border-radius: 50%;
+
+     transform: rotate(-25deg);
+
+     box-shadow: 0 0 25px rgba(239, 240, 76, 0.5);
+
+}
+
+
+
+.hs-watch-object {
+
+     position: relative;
+
+     z-index: 2;
+
+     display: flex;
+
+     flex-direction: column;
+
+     align-items: center;
+
+     transform: rotate(-15deg);
+
+     filter: drop-shadow(25px 30px 25px rgba(0, 0, 0, 0.4));
+
+     transition: 0.6s;
+
+}
+
+
+
+.hs-feature-visual:hover .hs-watch-object {
+
+     transform: rotate(0deg) scale(1.08);
+
+}
+
+
+
+.hs-watch-strap {
+
+     width: 125px;
+
+     height: 450px;
+
+     border-radius: 45px;
+
+     background: linear-gradient(90deg, #111, #555, #111);
+
+     position: absolute;
+
+     z-index: -1;
+
+}
+
+
+
+.hs-watch-face {
+
+     width: 210px;
+
+     height: 255px;
+
+     border: 10px solid #b9c0c2;
+
+     border-radius: 45px;
+
+     background: linear-gradient(140deg, #16191c, #030607);
+
+     box-shadow:
+
+          inset 0 0 20px rgba(255, 255, 255, 0.15),
+
+          0 15px 35px rgba(0, 0, 0, 0.5);
+
+
+
+     display: flex;
+
+     flex-direction: column;
+
+     align-items: center;
+
+     justify-content: center;
+
+}
+
+
+
+.hs-watch-face span {
+
+     color: var(--hs-yellow);
+
+     font-family: "Anton", sans-serif;
+
+     font-size: 48px;
+
+}
+
+
+
+.hs-watch-face small {
+
+     margin-top: 15px;
+
+     font-size: 9px;
+
+     letter-spacing: 3px;
+
+}
+
+
+
+.hs-visual-index {
+
+     position: absolute;
+
+     bottom: 20px;
+
+     left: 0;
+
+     font-size: 9px;
+
+     letter-spacing: 3px;
+
+}
+
+
+
+.hs-visual-star {
+
+     position: absolute;
+
+     top: 10%;
+
+     right: 5%;
+
+     font-size: 90px;
+
+     color: var(--hs-yellow);
+
+}
+
+
+
+/* ==========================================
+
+   FEATURE SPECIFICATIONS
+
+========================================== */
+
+
+
+.hs-feature-specs {
+
+     position: relative;
+
+     z-index: 3;
+
+     display: flex;
+
+     flex-direction: column;
+
+     gap: 35px;
+
+}
+
+
+
+.hs-feature-specs>span {
+
+     font-family: "Anton", sans-serif;
+
+     font-size: 21px;
+
+     color: var(--hs-yellow);
+
+}
+
+
+
+.hs-feature-specs>div {
+
+     display: flex;
+
+     align-items: center;
+
+     gap: 15px;
+
+}
+
+
+
+.hs-feature-specs svg {
+
+     width: 22px;
+
+     flex-shrink: 0;
+
+     color: var(--hs-yellow);
+
+}
+
+
+
+.hs-feature-specs p {
+
+     font-size: 10px;
+
+     letter-spacing: 1px;
+
+}
+
+
+
+/* ==========================================
+
+   BRAND STORY
+
+========================================== */
+
+
+
+.hs-story {
+
+     position: relative;
+
+     padding: 100px 7%;
+
+     background: var(--hs-cream);
+
+     color: var(--hs-black);
+
+}
+
+
+
+.hs-story-top,
+
+.hs-story-bottom {
+
+     display: flex;
+
+     justify-content: space-between;
+
+     gap: 20px;
+
+     font-size: 10px;
+
+     font-weight: 700;
+
+     letter-spacing: 2px;
+
+}
+
+
+
+.hs-story-top {
+
+     padding-bottom: 20px;
+
+     border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+
+}
+
+
+
+.hs-story-content {
+
+     display: grid;
+
+     grid-template-columns: 1.2fr 0.8fr;
+
+     gap: 10%;
+
+     padding: 90px 0;
+
+}
+
+
+
+.hs-story-heading>span {
+
+     font-size: 11px;
+
+     letter-spacing: 3px;
+
+     font-weight: 700;
+
+}
+
+
+
+.hs-story-heading h2 {
+
+     margin: 25px 0;
+
+     font-family: "Anton", sans-serif;
+
+     font-size: clamp(80px, 12vw, 180px);
+
+     line-height: 0.8;
+
+     letter-spacing: -5px;
+
+}
+
+
+
+.hs-story-heading h2 span {
+
+     color: #286e98;
+
+}
+
+
+
+.hs-story-right {
+
+     display: flex;
+
+     flex-direction: column;
+
+     justify-content: center;
+
+     align-items: flex-start;
+
+}
+
+
+
+.hs-story-symbol {
+
+     font-size: 115px;
+
+     line-height: 1;
+
+     color: #286e98;
+
+}
+
+
+
+.hs-story-right p {
+
+     max-width: 380px;
+
+     font-size: 15px;
+
+     line-height: 1.9;
+
+     color: #555;
+
+}
+
+
+
+.hs-story-right a {
+
+     display: inline-flex;
+
+     align-items: center;
+
+     gap: 30px;
+
+     padding: 16px 22px;
+
+     margin-top: 20px;
+
+     background: var(--hs-black);
+
+     color: white;
+
+     text-decoration: none;
+
+     font-size: 10px;
+
+     font-weight: 700;
+
+     transition: 0.3s;
+
+}
+
+
+
+.hs-story-right a:hover {
+
+     background: #286e98;
+
+     transform: translateY(-5px);
+
+}
+
+
+
+.hs-story-bottom {
+
+     padding-top: 25px;
+
+     border-top: 1px solid rgba(0, 0, 0, 0.25);
+
+}
+
+
+
+/* ==========================================
+
+   TRENDING PRODUCTS
+
+   EDITORIAL PRODUCT CARD DESIGN
+
+========================================== */
+
+
+
+.hs-trending {
+
+     padding: 110px 7% 130px;
+
+     background:
+
+          radial-gradient(ellipse at 50% 50%,
+
+               #327fa4,
+
+               transparent 70%),
+
+          #164e74;
+
+}
+
+
+
+.hs-trending-heading {
+
+     display: flex;
+
+     align-items: flex-end;
+
+     justify-content: space-between;
+
+     margin-bottom: 65px;
+
+}
+
+
+
+.hs-trending-heading h2 {
+
+     margin: 35px 0 0;
+
+     font-family: "Anton", sans-serif;
+
+     font-size: clamp(75px, 9vw, 145px);
+
+     line-height: 0.82;
+
+     letter-spacing: -3px;
+
+}
+
+
+
+.hs-trending-heading h2 span {
+
+     color: var(--hs-yellow);
+
+}
+
+
+
+.hs-view-all {
+
+     display: flex;
+
+     align-items: center;
+
+     gap: 25px;
+
+     padding: 16px 22px;
+
+     border: 1px solid rgba(255, 255, 255, 0.5);
+
+     color: white;
+
+     text-decoration: none;
+
+     font-size: 10px;
+
+     font-weight: 700;
+
+     letter-spacing: 1px;
+
+     transition: 0.3s;
+
+}
+
+
+
+.hs-view-all:hover {
+
+     color: var(--hs-black);
+
+     background: var(--hs-yellow);
+
+     border-color: var(--hs-yellow);
+
+}
+
+
+
+.hs-trending-grid {
+
+     display: grid;
+
+     grid-template-columns: repeat(3, minmax(0, 1fr));
+
+     gap: 25px;
+
+}
+
+
+
+.hs-trend-card {
+
+     position: relative;
+
+     display: flex;
+
+     flex-direction: column;
+
+     min-width: 0;
+
+     min-height: 560px;
+
+     padding: 22px;
+
+     overflow: hidden;
+
+     background: var(--hs-cream);
+
+     color: var(--hs-black);
+
+     transition:
+
+          transform 0.5s,
+
+          box-shadow 0.5s;
+
+}
+
+
+
+.hs-trend-card-highlight {
+
+     background: var(--hs-yellow);
+
+}
+
+
+
+.hs-trend-card:hover {
+
+     transform: translateY(-10px);
+
+     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
+
+}
+
+
+
+/* Card top */
+
+
+
+.hs-trend-top {
+
+     display: grid;
+
+     grid-template-columns: 45px 1fr 25px;
+
+     align-items: center;
+
+     gap: 10px;
+
+     min-height: 35px;
+
+}
+
+
+
+.hs-trend-top>span:first-child {
+
+     font-family: "Anton", sans-serif;
+
+     font-size: 30px;
+
+}
+
+
+
+.hs-trend-category {
+
+     text-align: center;
+
+     font-size: 9px;
+
+     font-weight: 700;
+
+     letter-spacing: 2px;
+
+}
+
+
+
+.hs-trend-top svg {
+
+     justify-self: end;
+
+}
+
+
+
+/* Product icon */
+
+
+
+.hs-trend-visual {
+
+     position: relative;
+
+     flex: 1;
+
+     min-height: 220px;
+
+     display: flex;
+
+     justify-content: center;
+
+     align-items: center;
+
+     overflow: hidden;
+
+}
+
+
+
+.hs-trend-visual>svg {
+
+     position: relative;
+
+     z-index: 2;
+
+     width: clamp(115px, 11vw, 180px);
+
+     height: clamp(115px, 11vw, 180px);
+
+     color: #111;
+
+     filter: drop-shadow(15px 20px 15px rgba(0, 0, 0, 0.12));
+
+     transition: transform 0.6s;
+
+}
+
+
+
+.hs-trend-card:hover .hs-trend-visual>svg {
+
+     transform: scale(1.12) rotate(-5deg);
+
+}
+
+
+
+.hs-trend-glow {
+
+     position: absolute;
+
+     width: 230px;
+
+     height: 230px;
+
+     border-radius: 50%;
+
+     background: radial-gradient(circle,
+
+               rgba(40, 110, 152, 0.2),
+
+               transparent 70%);
+
+}
+
+
+
+/* Product information */
+
+
+
+.hs-trend-info {
+
+     padding-top: 24px;
+
+     border-top: 1px solid rgba(0, 0, 0, 0.22);
+
+}
+
+
+
+.hs-trend-info>span {
+
+     font-size: 10px;
+
+     letter-spacing: 2px;
+
+}
+
+
+
+.hs-trend-info h3 {
+
+     margin: 22px 0 24px;
+
+     font-family: "Anton", sans-serif;
+
+     font-size: clamp(27px, 2.6vw, 43px);
+
+     line-height: 1.05;
+
+}
+
+
+
+.hs-trend-description {
+
+     display: flex;
+
+     justify-content: space-between;
+
+     align-items: center;
+
+     gap: 12px;
+
+     min-height: 48px;
+
+}
+
+
+
+.hs-trend-description p {
+
+     max-width: 65%;
+
+     margin: 0;
+
+     font-size: 11px;
+
+     line-height: 1.6;
+
+}
+
+
+
+.hs-trend-description strong {
+
+     font-family: "Anton", sans-serif;
+
+     font-size: clamp(22px, 2vw, 30px);
+
+     white-space: nowrap;
+
+}
+
+
+
+/* Product buttons */
+
+
+
+.hs-trend-actions {
+
+     display: grid;
+
+     grid-template-columns: 1fr 1fr;
+
+     gap: 10px;
+
+     margin-top: 25px;
+
+}
+
+
+
+.hs-trend-actions button {
+
+     min-width: 0;
+
+     min-height: 52px;
+
+     display: flex;
+
+     justify-content: center;
+
+     align-items: center;
+
+     gap: 8px;
+
+     padding: 12px 8px;
+
+     font-family: "Space Grotesk", sans-serif;
+
+     font-size: 9px;
+
+     font-weight: 700;
+
+     letter-spacing: 0.7px;
+
+     cursor: pointer;
+
+     transition: 0.3s;
+
+}
+
+
+
+.hs-add-cart {
+
+     border: 1px solid var(--hs-black);
+
+     background: transparent;
+
+     color: var(--hs-black);
+
+}
+
+
+
+.hs-add-cart:hover {
+
+     background: var(--hs-black);
+
+     color: white;
+
+}
+
+
+
+.hs-buy-now {
+
+     border: 1px solid var(--hs-black);
+
+     background: var(--hs-black);
+
+     color: white;
+
+}
+
+
+
+.hs-buy-now:hover {
+
+     background: #286e98;
+
+     border-color: #286e98;
+
+     color: white;
+
+}
+
+
+
+/* Product footer */
+
+
+
+.hs-trend-footer {
+
+     display: flex;
+
+     justify-content: space-between;
+
+     gap: 10px;
+
+     margin-top: 24px;
+
+     padding-top: 18px;
+
+     border-top: 1px solid rgba(0, 0, 0, 0.22);
+
+     font-size: 9px;
+
+     font-weight: 700;
+
+     letter-spacing: 1px;
+
+}
+
+
+
+/* ==========================================
+
+   FINAL EDITORIAL CTA
+
+========================================== */
+
+
+
+.hs-final {
+
+     position: relative;
+
+     min-height: 600px;
+
+     padding: 90px 7%;
+
+     display: flex;
+
+     flex-direction: column;
+
+     justify-content: center;
+
+     align-items: flex-start;
+
+     overflow: hidden;
+
+     background: var(--hs-yellow);
+
+     color: var(--hs-black);
+
+}
+
+
+
+.hs-final-grain {
+
+     position: absolute;
+
+     inset: 0;
+
+     pointer-events: none;
+
+     opacity: 0.13;
+
+     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http\://www\.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+
+}
+
+
+
+.hs-final-index {
+
+     position: relative;
+
+     z-index: 1;
+
+     font-size: 11px;
+
+     font-weight: 700;
+
+     letter-spacing: 3px;
+
+}
+
+
+
+.hs-final h2 {
+
+     position: relative;
+
+     z-index: 1;
+
+     margin: 45px 0;
+
+     font-family: "Anton", sans-serif;
+
+     font-size: clamp(95px, 17vw, 250px);
+
+     line-height: 0.75;
+
+     letter-spacing: -7px;
+
+}
+
+
+
+.hs-final h2 span {
+
+     color: var(--hs-cream);
+
+     -webkit-text-stroke: 2px var(--hs-black);
+
+}
+
+
+
+.hs-final>a {
+
+     position: relative;
+
+     z-index: 2;
+
+     display: flex;
+
+     align-items: center;
+
+     gap: 40px;
+
+     padding: 20px 25px;
+
+     background: var(--hs-black);
+
+     color: white;
+
+     text-decoration: none;
+
+     font-size: 11px;
+
+     font-weight: 700;
+
+     letter-spacing: 1px;
+
+     transition: 0.3s;
+
+}
+
+
+
+.hs-final>a:hover {
+
+     background: var(--hs-cream);
+
+     color: var(--hs-black);
+
+     transform: translateY(-5px);
+
+}
+
+
+
+.hs-final-bottom {
+
+     position: absolute;
+
+     bottom: 30px;
+
+     left: 7%;
+
+     right: 7%;
+
+     display: flex;
+
+     justify-content: space-between;
+
+     font-size: 10px;
+
+     font-weight: 700;
+
+     letter-spacing: 2px;
+
+}
+
+
+
+/* ==========================================
+
+   TABLET RESPONSIVENESS
+
+========================================== */
+
+
+
+@media (max-width: 1000px) {
+
+     .hs-feature {
+
+          grid-template-columns: 1fr 1fr;
+
+          padding: 100px 6%;
+
+     }
+
+
+
+     .hs-feature-specs {
+
+          grid-column: 1 / -1;
+
+          display: grid;
+
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+
+     }
+
+
+
+     .hs-trend-card {
+
+          min-height: 500px;
+
+          padding: 18px;
+
+     }
+
+
+
+     .hs-trend-category {
+
+          font-size: 8px;
+
+          letter-spacing: 1px;
+
+     }
+
+
+
+     .hs-trend-actions {
+
+          gap: 7px;
+
+     }
+
+
+
+     .hs-trend-actions button {
+
+          font-size: 8px;
+
+          gap: 5px;
+
+     }
+
+
+
+     .hs-story-content {
+
+          gap: 6%;
+
+     }
+
+}
+
+
+
+/* ==========================================
+
+   MOBILE RESPONSIVENESS
+
+========================================== */
+
+
+
+@media (max-width: 700px) {
+
+     .hs-home-sections {
+
+          width: 100%;
+
+          overflow: hidden;
+
+     }
+
+
+
+     .hs-home-sections p {
+
+          line-height: 1.8;
+
+          word-spacing: 1px;
+
+          overflow-wrap: break-word;
+
+     }
+
+
+
+     /* MARQUEE */
+
+
+
+     .hs-marquee {
+
+          padding: 17px 0;
+
+          margin: 0;
+
+     }
+
+
+
+     .hs-marquee-content {
+
+          gap: 20px;
+
+     }
+
+
+
+     .hs-marquee-content span {
+
+          font-size: 30px;
+
+          letter-spacing: 0;
+
+     }
+
+
+
+     .hs-marquee-content svg {
+
+          width: 20px;
+
+          height: 20px;
+
+     }
+
+
+
+     /* FEATURE */
+
+
+
+     .hs-feature {
+
+          min-height: auto;
+
+          padding: 75px 7% 65px;
+
+          gap: 25px;
+
+          grid-template-columns: minmax(0, 1fr);
+
+     }
+
+
+
+     .hs-feature-left {
+
+          width: 100%;
+
+     }
+
+
+
+     .hs-eyebrow {
+
+          font-size: 9px;
+
+          letter-spacing: 1.5px;
+
+          line-height: 1.7;
+
+          gap: 9px;
+
+     }
+
+
+
+     .hs-feature-left h2 {
+
+          font-size: clamp(65px, 17vw, 88px);
+
+          line-height: 0.91;
+
+          letter-spacing: -2px;
+
+          margin: 27px 0 22px;
+
+     }
+
+
+
+     .hs-feature-left>p {
+
+          max-width: 100%;
+
+          font-size: 13px;
+
+          line-height: 1.9;
+
+          margin: 0;
+
+          padding-right: 8px;
+
+     }
+
+
+
+     .hs-outline-button {
+
+          width: 100%;
+
+          justify-content: space-between;
+
+          margin-top: 27px;
+
+          padding: 17px;
+
+          font-size: 10px;
+
+          gap: 12px;
+
+     }
+
+
+
+     /* WATCH */
+
+
+
+     .hs-feature-visual {
+
+          width: 100%;
+
+          min-height: 390px;
+
+          margin: 5px auto;
+
+     }
+
+
+
+     .hs-feature-orbit {
+
+          width: 85%;
+
+          height: 130px;
+
+     }
+
+
+
+     .hs-watch-face {
+
+          width: 145px;
+
+          height: 190px;
+
+          border-radius: 35px;
+
+     }
+
+
+
+     .hs-watch-face span {
+
+          font-size: 39px;
+
+     }
+
+
+
+     .hs-watch-strap {
+
+          width: 90px;
+
+          height: 320px;
+
+     }
+
+
+
+     .hs-visual-star {
+
+          font-size: 65px;
+
+          right: 3%;
+
+     }
+
+
+
+     .hs-visual-index {
+
+          bottom: 5px;
+
+          font-size: 8px;
+
+     }
+
+
+
+     /* FEATURE SPECS */
+
+
+
+     .hs-feature-specs {
+
+          width: 100%;
+
+          display: grid;
+
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+
+          gap: 23px 14px;
+
+          padding-top: 25px;
+
+          border-top: 1px solid rgba(255, 255, 255, 0.25);
+
+     }
+
+
+
+     .hs-feature-specs>span {
+
+          grid-column: 1 / -1;
+
+          font-size: 19px;
+
+          margin-bottom: 3px;
+
+     }
+
+
+
+     .hs-feature-specs>div {
+
+          align-items: flex-start;
+
+          gap: 10px;
+
+          min-width: 0;
+
+     }
+
+
+
+     .hs-feature-specs svg {
+
+          width: 19px;
+
+          min-width: 19px;
+
+          height: 19px;
+
+     }
+
+
+
+     .hs-feature-specs p {
+
+          margin: 0;
+
+          font-size: 9px;
+
+          line-height: 1.6;
+
+          letter-spacing: 0.7px;
+
+     }
+
+
+
+     /* BRAND STORY */
+
+
+
+     .hs-story {
+
+          padding: 65px 7%;
+
+     }
+
+
+
+     .hs-story-top {
+
+          align-items: flex-start;
+
+          flex-direction: column;
+
+          gap: 12px;
+
+          padding-bottom: 18px;
+
+          font-size: 8px;
+
+          letter-spacing: 1.2px;
+
+          line-height: 1.7;
+
+     }
+
+
+
+     .hs-story-content {
+
+          display: flex;
+
+          flex-direction: column;
+
+          gap: 30px;
+
+          padding: 55px 0;
+
+     }
+
+
+
+     .hs-story-heading>span {
+
+          font-size: 9px;
+
+          letter-spacing: 1.5px;
+
+          line-height: 1.7;
+
+     }
+
+
+
+     .hs-story-heading h2 {
+
+          font-size: clamp(70px, 17vw, 105px);
+
+          line-height: 0.91;
+
+          letter-spacing: -2px;
+
+          margin: 22px 0 0;
+
+     }
+
+
+
+     .hs-story-symbol {
+
+          font-size: 75px;
+
+          margin-bottom: 8px;
+
+     }
+
+
+
+     .hs-story-right p {
+
+          width: 100%;
+
+          max-width: 100%;
+
+          font-size: 13px;
+
+          line-height: 1.9;
+
+          margin: 0 0 16px;
+
+     }
+
+
+
+     .hs-story-right a {
+
+          width: 100%;
+
+          justify-content: space-between;
+
+          margin-top: 12px;
+
+          padding: 17px;
+
+          font-size: 10px;
+
+     }
+
+
+
+     .hs-story-bottom {
+
+          display: flex;
+
+          flex-direction: column;
+
+          gap: 13px;
+
+          padding-top: 20px;
+
+          font-size: 9px;
+
+          letter-spacing: 1.5px;
+
+          line-height: 1.5;
+
+     }
+
+
+
+     /* TRENDING PRODUCTS */
+
+
+
+     .hs-trending {
+
+          padding: 75px 6% 85px;
+
+     }
+
+
+
+     .hs-trending-heading {
+
+          flex-direction: column;
+
+          align-items: flex-start;
+
+          gap: 25px;
+
+          margin-bottom: 35px;
+
+     }
+
+
+
+     .hs-trending-heading h2 {
+
+          font-size: clamp(68px, 17vw, 100px);
+
+          line-height: 0.9;
+
+          letter-spacing: -2px;
+
+          margin-top: 25px;
+
+     }
+
+
+
+     .hs-view-all {
+
+          width: 100%;
+
+          justify-content: space-between;
+
+          padding: 16px;
+
+     }
+
+
+
+     .hs-trending-grid {
+
+          grid-template-columns: 1fr;
+
+          gap: 22px;
+
+     }
+
+
+
+     .hs-trend-card {
+
+          min-height: 620px;
+
+          padding: 22px;
+
+     }
+
+
+
+     .hs-trend-top {
+
+          grid-template-columns: 40px 1fr 24px;
+
+     }
+
+
+
+     .hs-trend-top>span:first-child {
+
+          font-size: 27px;
+
+     }
+
+
+
+     .hs-trend-category {
+
+          font-size: 8px;
+
+          letter-spacing: 1.5px;
+
+     }
+
+
+
+     .hs-trend-visual {
+
+          min-height: 270px;
+
+     }
+
+
+
+     .hs-trend-visual>svg {
+
+          width: 145px;
+
+          height: 145px;
+
+     }
+
+
+
+     .hs-trend-info {
+
+          padding-top: 20px;
+
+     }
+
+
+
+     .hs-trend-info h3 {
+
+          font-size: 34px;
+
+          margin: 18px 0;
+
+     }
+
+
+
+     .hs-trend-description p {
+
+          font-size: 10px;
+
+     }
+
+
+
+     .hs-trend-description strong {
+
+          font-size: 25px;
+
+     }
+
+
+
+     .hs-trend-actions {
+
+          gap: 10px;
+
+          margin-top: 23px;
+
+     }
+
+
+
+     .hs-trend-actions button {
+
+          min-height: 50px;
+
+          font-size: 9px;
+
+          letter-spacing: 0.5px;
+
+     }
+
+
+
+     .hs-trend-footer {
+
+          font-size: 8px;
+
+          letter-spacing: 0.7px;
+
+     }
+
+
+
+     /* FINAL CTA */
+
+
+
+     .hs-final {
+
+          min-height: 440px;
+
+          padding: 65px 7% 90px;
+
+          justify-content: center;
+
+     }
+
+
+
+     .hs-final-index {
+
+          font-size: 9px;
+
+          letter-spacing: 1.5px;
+
+          line-height: 1.7;
+
+     }
+
+
+
+     .hs-final h2 {
+
+          font-size: clamp(65px, 16.5vw, 105px);
+
+          line-height: 0.9;
+
+          letter-spacing: -3px;
+
+          margin: 35px 0;
+
+          overflow-wrap: anywhere;
+
+     }
+
+
+
+     .hs-final h2 span {
+
+          -webkit-text-stroke: 1px var(--hs-black);
+
+     }
+
+
+
+     .hs-final>a {
+
+          width: 100%;
+
+          justify-content: space-between;
+
+          gap: 12px;
+
+          padding: 17px;
+
+          font-size: 9px;
+
+          line-height: 1.6;
+
+     }
+
+
+
+     .hs-final-bottom {
+
+          left: 7%;
+
+          right: 7%;
+
+          bottom: 22px;
+
+          gap: 12px;
+
+          font-size: 8px;
+
+          letter-spacing: 1px;
+
+     }
+
+}
+
+
+
+/* ==========================================
+
+   EXTRA SMALL PHONES
+
+========================================== */
+
+
+
+@media (max-width: 380px) {
+
+     .hs-feature-left h2 {
+
+          font-size: 64px;
+
+     }
+
+
+
+     .hs-story-heading h2 {
+
+          font-size: 68px;
+
+     }
+
+
+
+     .hs-trending-heading h2 {
+
+          font-size: 66px;
+
+     }
+
+
+
+     .hs-final h2 {
+
+          font-size: 62px;
+
+     }
+
+
+
+     .hs-feature-specs {
+
+          gap: 20px 8px;
+
+     }
+
+
+
+     .hs-feature-specs p {
+
+          font-size: 8px;
+
+     }
+
+
+
+     .hs-trend-card {
+
+          min-height: 590px;
+
+          padding: 17px;
+
+     }
+
+
+
+     .hs-trend-info h3 {
+
+          font-size: 29px;
+
+     }
+
+
+
+     .hs-trend-actions button {
+
+          font-size: 8px;
+
+          gap: 4px;
+
+     }
+
+
+
+     .hs-trend-footer {
+
+          font-size: 7px;
+
+     }
+
+
+
+     .hs-final-bottom {
+
+          font-size: 7px;
+
+     }
+
+}
+
+
+
+/* ==========================================
+
+   REDUCED MOTION
+
+========================================== */
+
+
+
+@media (prefers-reduced-motion: reduce) {
+
+
+
+     .hs-home-sections \*,
+
+     .hs-home-sections \*::before,
+
+     .hs-home-sections \*::after {
+
+          scroll-behavior: auto !important;
+
+          animation-duration: 0.01ms !important;
+
+          transition-duration: 0.01ms !important;
+
+     }
+
+}
+
+
+
+/* =========================================================
+   MOBILE LAYOUT REPAIR
+   Prevent overlapping headings, visuals and CTA text.
+   ========================================================= */
+
+@media (max-width: 700px) {
+     .hs-feature {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: 28px !important;
+          padding: 64px 6% 58px !important;
+          min-height: auto !important;
+     }
+
+     .hs-feature-left,
+     .hs-feature-visual,
+     .hs-feature-specs {
+          width: 100% !important;
+          min-width: 0 !important;
+          grid-column: auto !important;
+     }
+
+     .hs-feature-left h2 {
+          font-size: clamp(58px, 15vw, 78px) !important;
+          line-height: 0.88 !important;
+          letter-spacing: -1.5px !important;
+          margin: 25px 0 20px !important;
+          overflow-wrap: normal;
+     }
+
+     .hs-feature-visual {
+          min-height: 330px !important;
+          height: 330px !important;
+          margin: 0 !important;
+          overflow: hidden;
+     }
+
+     .hs-watch-object {
+          transform: scale(0.78) rotate(-10deg) !important;
+     }
+
+     .hs-watch-strap {
+          height: 300px !important;
+     }
+
+     .hs-watch-face {
+          width: 170px !important;
+          height: 205px !important;
+     }
+
+     .hs-feature-specs {
+          display: grid !important;
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 18px 12px !important;
+     }
+
+     .hs-story {
+          padding: 58px 6% !important;
+     }
+
+     .hs-story-content {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 34px !important;
+          padding: 42px 0 !important;
+     }
+
+     .hs-story-heading,
+     .hs-story-right {
+          width: 100% !important;
+          min-width: 0 !important;
+     }
+
+     .hs-story-heading h2 {
+          font-size: clamp(66px, 16vw, 92px) !important;
+          line-height: 0.88 !important;
+          letter-spacing: -2px !important;
+          margin: 20px 0 0 !important;
+     }
+
+     .hs-story-right {
+          align-items: flex-start !important;
+     }
+
+     .hs-story-symbol {
+          font-size: 72px !important;
+          margin-bottom: 12px;
+     }
+
+     .hs-story-right p {
+          max-width: 100% !important;
+          width: 100% !important;
+          font-size: 14px !important;
+          line-height: 1.8 !important;
+          margin: 0 0 14px !important;
+     }
+
+     .hs-trending {
+          padding: 65px 6% 75px !important;
+     }
+
+     .hs-trending-heading {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: flex-start !important;
+          gap: 22px !important;
+          margin-bottom: 32px !important;
+     }
+
+     .hs-trending-heading>div {
+          width: 100%;
+     }
+
+     .hs-trending-heading h2 {
+          font-size: clamp(62px, 15.5vw, 88px) !important;
+          line-height: 0.88 !important;
+          letter-spacing: -2px !important;
+          margin: 22px 0 0 !important;
+     }
+
+     .hs-view-all {
+          width: 100% !important;
+          max-width: 100% !important;
+          justify-content: space-between !important;
+          margin: 0 !important;
+          padding: 15px 17px !important;
+     }
+
+     .hs-trending-grid {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) !important;
+          gap: 20px !important;
+          align-items: stretch !important;
+     }
+
+     .hs-trend-card {
+          width: 100% !important;
+          height: auto !important;
+          min-height: 0 !important;
+          padding: 20px !important;
+          display: flex !important;
+          flex-direction: column !important;
+     }
+
+     .hs-trend-visual {
+          flex: 0 0 auto !important;
+          height: 230px !important;
+          min-height: 230px !important;
+     }
+
+     .hs-trend-visual>svg {
+          width: 135px !important;
+          height: 135px !important;
+     }
+
+     .hs-trend-info {
+          flex: 0 0 auto !important;
+          margin-top: 0 !important;
+          padding-top: 18px !important;
+     }
+
+     .hs-trend-info h3 {
+          font-size: clamp(29px, 8vw, 36px) !important;
+          line-height: 0.98 !important;
+          margin: 16px 0 !important;
+     }
+
+     .hs-trend-description {
+          align-items: center !important;
+          min-height: 42px !important;
+     }
+
+     .hs-trend-actions {
+          margin-top: 18px !important;
+     }
+
+     .hs-trend-actions button {
+          min-height: 48px !important;
+          font-size: 9px !important;
+     }
+
+     .hs-trend-footer {
+          margin-top: 18px !important;
+          padding-top: 13px !important;
+     }
+
+     .hs-final {
+          min-height: 420px !important;
+          padding: 65px 6% 90px !important;
+     }
+
+     .hs-final h2 {
+          max-width: 100% !important;
+          font-size: clamp(58px, 15vw, 88px) !important;
+          line-height: 0.92 !important;
+          letter-spacing: -2px !important;
+          margin: 32px 0 !important;
+          overflow-wrap: normal !important;
+          word-break: normal !important;
+     }
+
+     .hs-final h2 span {
+          display: inline-block;
+          -webkit-text-stroke: 1px var(--hs-black);
+     }
+
+     .hs-final>a {
+          width: 100% !important;
+          max-width: 100% !important;
+          justify-content: space-between !important;
+          gap: 12px !important;
+          padding: 16px !important;
+          font-size: 9px !important;
+     }
+
+     .hs-final-bottom {
+          left: 6% !important;
+          right: 6% !important;
+          gap: 10px !important;
+          font-size: 7px !important;
+          letter-spacing: 0.8px !important;
+     }
+}
+
+@media (max-width: 380px) {
+     .hs-feature-left h2 {
+          font-size: 58px !important;
+     }
+
+     .hs-story-heading h2 {
+          font-size: 64px !important;
+     }
+
+     .hs-trending-heading h2 {
+          font-size: 60px !important;
+     }
+
+     .hs-trend-card {
+          padding: 16px !important;
+     }
+
+     .hs-final h2 {
+          font-size: 55px !important;
+     }
+}
+
+
+/* ==========================================
+   COMPACT TRENDING CARDS — FINAL OVERRIDE
+   Desktop cards are shorter; mobile remains content-sized.
+========================================== */
+
+@media (min-width: 1001px) {
+     .hs-trend-card {
+          min-height: 560px;
+          padding: 22px;
+     }
+
+     .hs-trend-visual {
+          min-height: 220px;
+     }
+}
+
+@media (min-width: 701px) and (max-width: 1000px) {
+     .hs-trend-card {
+          min-height: 500px;
+          padding: 18px;
+     }
+
+     .hs-trend-visual {
+          min-height: 190px;
+     }
+}
+
+@media (max-width: 700px) {
+     .hs-trend-card {
+          height: auto !important;
+          min-height: 0 !important;
+     }
+}

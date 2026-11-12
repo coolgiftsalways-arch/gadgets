@@ -1,0 +1,795 @@
+/* =========================================
+   GADGETÉ ADMIN DASHBOARD
+========================================= */
+
+.gad-dashboard {
+     width: 100%;
+     max-width: 1600px;
+     margin: 0 auto;
+     color: var(--gad-admin-text, #10100e);
+     font-family: "Space Grotesk", sans-serif;
+}
+
+.gad-dashboard-header {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     gap: 24px;
+     margin-bottom: 25px;
+}
+
+.gad-dashboard-eyebrow {
+     display: block;
+     color: var(--gad-admin-muted, #77766e);
+     font-size: 10px;
+     font-weight: 700;
+     letter-spacing: 1.8px;
+}
+
+.gad-dashboard-title h1 {
+     margin: 5px 0 4px;
+     color: var(--gad-admin-text);
+     font-family: "Anton", sans-serif;
+     font-size: clamp(38px, 4vw, 53px);
+     font-weight: 400;
+     line-height: 1;
+     letter-spacing: -0.5px;
+}
+
+.gad-dashboard-title h1 span,
+.gad-panel-heading h2 span {
+     color: #164e74;
+}
+
+:root[data-admin-theme="dark"] .gad-dashboard-title h1 span,
+:root[data-admin-theme="dark"] .gad-panel-heading h2 span {
+     color: #eff04c;
+}
+
+.gad-dashboard-title p {
+     margin: 8px 0 0;
+     color: var(--gad-admin-muted);
+     font-size: 13px;
+}
+
+.gad-dashboard-header-actions {
+     display: flex;
+     align-items: center;
+     gap: 17px;
+}
+
+.gad-dashboard-date {
+     display: flex;
+     align-items: center;
+     gap: 8px;
+     color: var(--gad-admin-muted);
+     font-size: 10px;
+     font-weight: 700;
+     letter-spacing: 1px;
+}
+
+.gad-live-dot {
+     width: 8px;
+     height: 8px;
+     border-radius: 50%;
+     background: #a8b52b;
+     box-shadow: 0 0 0 4px rgba(168, 181, 43, 0.12);
+}
+
+/* NOTIFICATION BELL */
+
+.gad-notification-wrap {
+     position: relative;
+}
+
+.gad-notification-button {
+     position: relative;
+     width: 46px;
+     height: 46px;
+     display: grid;
+     place-items: center;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 12px;
+     background: var(--gad-admin-panel);
+     color: var(--gad-admin-text);
+     cursor: pointer;
+     transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.gad-notification-button:hover,
+.gad-notification-button.is-open {
+     border-color: #eff04c;
+}
+
+.gad-notification-count {
+     position: absolute;
+     top: -7px;
+     right: -7px;
+     min-width: 20px;
+     height: 20px;
+     display: grid;
+     place-items: center;
+     padding: 0 5px;
+     border: 2px solid var(--gad-admin-page);
+     border-radius: 20px;
+     background: #e34c45;
+     color: white;
+     font-size: 10px;
+     font-weight: 800;
+}
+
+.gad-notification-popover {
+     position: absolute;
+     top: calc(100% + 13px);
+     right: 0;
+     z-index: 1500;
+     width: min(390px, calc(100vw - 30px));
+     overflow: hidden;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 15px;
+     background: var(--gad-admin-panel);
+     color: var(--gad-admin-text);
+     box-shadow: 0 18px 55px rgba(0, 0, 0, 0.2);
+}
+
+.gad-notification-popover-head {
+     display: flex;
+     align-items: flex-start;
+     justify-content: space-between;
+     gap: 12px;
+     padding: 19px 19px 14px;
+     border-bottom: 1px solid var(--gad-admin-line);
+}
+
+.gad-notification-popover-head h2 {
+     margin: 5px 0 3px;
+     font-family: "Anton", sans-serif;
+     font-size: 25px;
+     font-weight: 400;
+}
+
+.gad-notification-popover-head p {
+     margin: 0;
+     color: var(--gad-admin-muted);
+     font-size: 11px;
+}
+
+.gad-popover-close {
+     width: 30px;
+     height: 30px;
+     display: grid;
+     place-items: center;
+     border: 0;
+     border-radius: 7px;
+     background: transparent;
+     color: var(--gad-admin-muted);
+     cursor: pointer;
+}
+
+.gad-popover-close:hover {
+     background: var(--gad-admin-page);
+     color: var(--gad-admin-text);
+}
+
+.gad-notification-tools {
+     display: flex;
+     justify-content: flex-end;
+     padding: 9px 17px 0;
+}
+
+.gad-notification-tools button {
+     border: 0;
+     background: transparent;
+     color: #164e74;
+     font-family: inherit;
+     font-size: 11px;
+     font-weight: 700;
+     cursor: pointer;
+}
+
+:root[data-admin-theme="dark"] .gad-notification-tools button {
+     color: #eff04c;
+}
+
+.gad-notification-list {
+     max-height: 350px;
+     overflow-y: auto;
+}
+
+.gad-notification-item {
+     width: 100%;
+     display: grid;
+     grid-template-columns: 36px minmax(0, 1fr) auto;
+     align-items: center;
+     gap: 10px;
+     padding: 13px 16px;
+     border: 0;
+     border-bottom: 1px solid var(--gad-admin-line);
+     background: transparent;
+     color: var(--gad-admin-text);
+     text-align: left;
+     cursor: pointer;
+}
+
+.gad-notification-item:hover {
+     background: var(--gad-admin-page);
+}
+
+.gad-notification-item.unread {
+     background: rgba(239, 240, 76, 0.09);
+}
+
+.gad-notification-item-icon {
+     width: 34px;
+     height: 34px;
+     display: grid;
+     place-items: center;
+     border-radius: 9px;
+     background: #164e74;
+     color: white;
+}
+
+.gad-notification-item-copy {
+     min-width: 0;
+     display: flex;
+     flex-direction: column;
+     gap: 3px;
+}
+
+.gad-notification-item-copy strong {
+     font-size: 12px;
+}
+
+.gad-notification-item-copy>span {
+     overflow: hidden;
+     color: var(--gad-admin-muted);
+     font-size: 10px;
+     text-overflow: ellipsis;
+     white-space: nowrap;
+}
+
+.gad-notification-item-copy small {
+     color: var(--gad-admin-muted);
+     font-size: 9px;
+}
+
+.gad-notification-item-right {
+     display: flex;
+     align-items: flex-end;
+     flex-direction: column;
+     gap: 7px;
+}
+
+.gad-notification-item-right b {
+     font-size: 11px;
+     white-space: nowrap;
+}
+
+.gad-notification-item-right i {
+     width: 7px;
+     height: 7px;
+     border-radius: 50%;
+     background: #e34c45;
+}
+
+.gad-notification-empty,
+.gad-recent-orders-empty {
+     display: flex;
+     align-items: center;
+     flex-direction: column;
+     justify-content: center;
+     gap: 7px;
+     padding: 30px 15px;
+     color: var(--gad-admin-muted);
+     text-align: center;
+}
+
+.gad-notification-empty strong,
+.gad-recent-orders-empty strong {
+     color: var(--gad-admin-text);
+     font-size: 12px;
+}
+
+.gad-notification-empty span,
+.gad-recent-orders-empty span {
+     font-size: 10px;
+}
+
+.gad-notification-footer {
+     width: 100%;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     gap: 8px;
+     padding: 13px;
+     border: 0;
+     background: #164e74;
+     color: white;
+     font-family: inherit;
+     font-size: 10px;
+     font-weight: 700;
+     letter-spacing: 1px;
+     cursor: pointer;
+}
+
+/* WELCOME BANNER */
+
+.gad-dashboard-welcome {
+     position: relative;
+     min-height: 145px;
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     overflow: hidden;
+     padding: 25px 30px;
+     border-radius: 15px;
+     background: #164e74;
+     color: white;
+}
+
+.gad-dashboard-welcome .gad-dashboard-eyebrow {
+     color: rgba(255, 255, 255, 0.65);
+}
+
+.gad-dashboard-welcome h2 {
+     margin: 9px 0 5px;
+     font-family: "Anton", sans-serif;
+     font-size: clamp(27px, 3vw, 39px);
+     font-weight: 400;
+}
+
+.gad-dashboard-welcome h2 em {
+     padding: 0 5px;
+     background: #eff04c;
+     color: #10100e;
+     font-style: normal;
+}
+
+.gad-dashboard-welcome p {
+     margin: 9px 0 0;
+     color: rgba(255, 255, 255, 0.72);
+     font-size: 12px;
+}
+
+.gad-welcome-mark {
+     padding-right: 25px;
+     color: rgba(255, 255, 255, 0.13);
+     font-family: "Anton", sans-serif;
+     font-size: 90px;
+     line-height: 1;
+}
+
+.gad-welcome-mark span {
+     color: #eff04c;
+}
+
+/* STAT CARDS */
+
+.gad-dashboard-stats {
+     display: grid;
+     grid-template-columns: repeat(4, minmax(0, 1fr));
+     gap: 15px;
+     margin-top: 18px;
+}
+
+.gad-stat-card {
+     min-width: 0;
+     padding: 18px;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 13px;
+     background: var(--gad-admin-panel);
+}
+
+.gad-stat-top {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     gap: 8px;
+     color: var(--gad-admin-muted);
+     font-size: 9px;
+     font-weight: 700;
+     letter-spacing: 1px;
+}
+
+.gad-stat-icon {
+     width: 34px;
+     height: 34px;
+     display: grid;
+     place-items: center;
+     border-radius: 9px;
+     background: rgba(22, 78, 116, 0.1);
+     color: #164e74;
+}
+
+:root[data-admin-theme="dark"] .gad-stat-icon {
+     background: rgba(239, 240, 76, 0.12);
+     color: #eff04c;
+}
+
+.gad-stat-value {
+     display: block;
+     margin-top: 13px;
+     color: var(--gad-admin-text);
+     font-family: "Anton", sans-serif;
+     font-size: 31px;
+     font-weight: 400;
+}
+
+.gad-stat-card>small {
+     display: block;
+     margin-top: 4px;
+     color: var(--gad-admin-muted);
+     font-size: 10px;
+}
+
+/* DASHBOARD PANELS */
+
+.gad-dashboard-main-grid,
+.gad-dashboard-bottom-grid {
+     display: grid;
+     grid-template-columns: minmax(0, 1.5fr) minmax(270px, 0.85fr);
+     gap: 15px;
+     margin-top: 17px;
+}
+
+.gad-dashboard-panel {
+     min-width: 0;
+     padding: 20px;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 13px;
+     background: var(--gad-admin-panel);
+}
+
+.gad-panel-heading {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     gap: 12px;
+     margin-bottom: 17px;
+}
+
+.gad-panel-heading h2 {
+     margin: 5px 0 0;
+     color: var(--gad-admin-text);
+     font-family: "Anton", sans-serif;
+     font-size: 25px;
+     font-weight: 400;
+}
+
+.gad-panel-period {
+     padding: 7px 9px;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 6px;
+     color: var(--gad-admin-muted);
+     font-size: 9px;
+     font-weight: 700;
+     letter-spacing: 1px;
+}
+
+/* EMPTY SALES CHART */
+
+.gad-sales-empty-chart {
+     height: 190px;
+     display: grid;
+     grid-template-columns: 45px minmax(0, 1fr);
+     gap: 8px;
+}
+
+.gad-chart-y-labels {
+     display: flex;
+     align-items: flex-end;
+     flex-direction: column;
+     justify-content: space-between;
+     padding: 0 0 23px;
+     color: var(--gad-admin-muted);
+     font-size: 9px;
+}
+
+.gad-chart-area {
+     position: relative;
+     display: grid;
+     grid-template-columns: repeat(7, 1fr);
+     gap: 9px;
+}
+
+.gad-chart-column {
+     position: relative;
+     display: flex;
+     align-items: center;
+     flex-direction: column;
+     justify-content: flex-end;
+     gap: 8px;
+     padding-bottom: 0;
+}
+
+.gad-chart-gridline {
+     position: absolute;
+     top: 0;
+     left: 0;
+     width: 100%;
+     height: 1px;
+     background: var(--gad-admin-line);
+     box-shadow: 0 39px 0 var(--gad-admin-line), 0 78px 0 var(--gad-admin-line), 0 117px 0 var(--gad-admin-line);
+}
+
+.gad-chart-bar-empty {
+     width: 55%;
+     height: 2px;
+     margin-bottom: 23px;
+     border-radius: 5px;
+     background: rgba(22, 78, 116, 0.16);
+}
+
+.gad-chart-column>span {
+     color: var(--gad-admin-muted);
+     font-size: 9px;
+}
+
+.gad-chart-no-data {
+     position: absolute;
+     top: 50%;
+     left: 50%;
+     padding: 8px 11px;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 5px;
+     background: var(--gad-admin-panel);
+     color: var(--gad-admin-muted);
+     font-size: 9px;
+     font-weight: 700;
+     letter-spacing: 1px;
+     white-space: nowrap;
+     transform: translate(-50%, -50%);
+}
+
+.gad-panel-footnote {
+     margin: 10px 0 0;
+     color: var(--gad-admin-muted);
+     font-size: 10px;
+}
+
+/* ORDER STATUS */
+
+.gad-status-row {
+     display: flex;
+     align-items: center;
+     gap: 10px;
+     padding: 11px 0;
+     border-bottom: 1px solid var(--gad-admin-line);
+     color: var(--gad-admin-text);
+     font-size: 12px;
+}
+
+.gad-status-row strong {
+     margin-left: auto;
+     font-size: 13px;
+}
+
+.gad-status-icon {
+     width: 30px;
+     height: 30px;
+     display: grid;
+     place-items: center;
+     border-radius: 8px;
+}
+
+.gad-status-icon.pending {
+     background: rgba(239, 180, 76, 0.15);
+     color: #c38a22;
+}
+
+.gad-status-icon.processing {
+     background: rgba(22, 78, 116, 0.12);
+     color: #164e74;
+}
+
+.gad-status-icon.shipped {
+     background: rgba(77, 144, 190, 0.15);
+     color: #4d90be;
+}
+
+.gad-status-icon.delivered {
+     background: rgba(78, 160, 111, 0.15);
+     color: #4e9f6e;
+}
+
+.gad-text-link,
+.gad-panel-view-all {
+     display: inline-flex;
+     align-items: center;
+     gap: 7px;
+     margin-top: 14px;
+     padding: 0;
+     border: 0;
+     background: transparent;
+     color: #164e74;
+     font-family: inherit;
+     font-size: 10px;
+     font-weight: 800;
+     letter-spacing: 1px;
+     cursor: pointer;
+}
+
+:root[data-admin-theme="dark"] .gad-text-link,
+:root[data-admin-theme="dark"] .gad-panel-view-all {
+     color: #eff04c;
+}
+
+.gad-panel-view-all {
+     margin-top: 0;
+}
+
+/* QUICK ACTIONS */
+
+.gad-quick-action {
+     width: 100%;
+     display: flex;
+     align-items: center;
+     gap: 11px;
+     padding: 12px 0;
+     border: 0;
+     border-bottom: 1px solid var(--gad-admin-line);
+     background: transparent;
+     color: var(--gad-admin-text);
+     text-align: left;
+     cursor: pointer;
+}
+
+.gad-quick-action:last-child {
+     border-bottom: 0;
+}
+
+.gad-quick-action-icon {
+     width: 36px;
+     height: 36px;
+     display: grid;
+     place-items: center;
+     flex: 0 0 36px;
+     border-radius: 9px;
+     background: rgba(22, 78, 116, 0.1);
+     color: #164e74;
+}
+
+:root[data-admin-theme="dark"] .gad-quick-action-icon {
+     background: rgba(239, 240, 76, 0.12);
+     color: #eff04c;
+}
+
+.gad-quick-action-copy {
+     min-width: 0;
+     display: flex;
+     flex: 1;
+     flex-direction: column;
+     gap: 3px;
+}
+
+.gad-quick-action-copy strong {
+     font-size: 12px;
+}
+
+.gad-quick-action-copy small {
+     overflow: hidden;
+     color: var(--gad-admin-muted);
+     font-size: 10px;
+     text-overflow: ellipsis;
+     white-space: nowrap;
+}
+
+.gad-quick-action>svg {
+     color: var(--gad-admin-muted);
+}
+
+/* RECENT ORDERS EMPTY */
+
+.gad-recent-orders-empty {
+     min-height: 145px;
+     border: 1px dashed var(--gad-admin-line);
+     border-radius: 9px;
+}
+
+/* FOOTNOTE */
+
+.gad-dashboard-disclaimer {
+     display: flex;
+     align-items: center;
+     gap: 8px;
+     margin-top: 15px;
+     color: var(--gad-admin-muted);
+     font-size: 10px;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 1100px) {
+     .gad-dashboard-stats {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+     }
+}
+
+@media (max-width: 850px) {
+
+     .gad-dashboard-main-grid,
+     .gad-dashboard-bottom-grid {
+          grid-template-columns: 1fr;
+     }
+}
+
+@media (max-width: 600px) {
+     .gad-dashboard-header {
+          align-items: flex-start;
+     }
+
+     .gad-dashboard-header-actions {
+          gap: 8px;
+     }
+
+     .gad-dashboard-date {
+          display: none;
+     }
+
+     .gad-dashboard-title h1 {
+          font-size: 39px;
+     }
+
+     .gad-dashboard-title p {
+          max-width: 230px;
+          font-size: 11px;
+     }
+
+     .gad-notification-button {
+          width: 41px;
+          height: 41px;
+     }
+
+     .gad-dashboard-welcome {
+          min-height: 125px;
+          padding: 20px;
+     }
+
+     .gad-dashboard-welcome h2 {
+          font-size: 27px;
+     }
+
+     .gad-dashboard-welcome p {
+          max-width: 230px;
+          font-size: 10px;
+          line-height: 1.5;
+     }
+
+     .gad-welcome-mark {
+          padding-right: 0;
+          font-size: 54px;
+     }
+
+     .gad-dashboard-stats {
+          gap: 9px;
+     }
+
+     .gad-stat-card {
+          padding: 13px;
+     }
+
+     .gad-stat-top {
+          font-size: 8px;
+     }
+
+     .gad-stat-icon {
+          width: 29px;
+          height: 29px;
+     }
+
+     .gad-stat-value {
+          font-size: 26px;
+     }
+
+     .gad-stat-card>small {
+          font-size: 9px;
+     }
+
+     .gad-dashboard-panel {
+          padding: 15px;
+     }
+
+     .gad-notification-popover {
+          right: -4px;
+     }
+}
