@@ -1,0 +1,3399 @@
+From a5a328e0ba1c3e2a8b9a3d4d1bb4b0ae10c739a0 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 13 Nov 2026 11:14:48 +0000
+Subject: [PATCH] Payments like lights.bio: Razorpay payment link + QR (UPI,
+ 10% off) and COD
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HALAYwtR84NkZ9xzqNu8Jr
+---
+ backend/controllers/orderController.js |  155 ++-
+ backend/models/Order.js                |  446 ++-------
+ backend/services/orderService.js       |  308 ++----
+ backend/services/razorpay.js           |  287 ++----
+ frontend/package-lock.json             |   40 +-
+ frontend/package.json                  |    1 +
+ frontend/src/App.jsx                   |   14 +
+ frontend/src/Pages/Checkout.jsx        | 1205 +++++-------------------
+ frontend/src/Pages/OrderResult.jsx     |   97 ++
+ frontend/src/Pages/OrderSuccess.jsx    |    2 +-
+ frontend/src/Pages/TrackOrder.jsx      |    2 +-
+ frontend/src/shopApi.js                |   63 ++
+ 12 files changed, 698 insertions(+), 1922 deletions(-)
+ create mode 100644 frontend/src/Pages/OrderResult.jsx
+ create mode 100644 frontend/src/shopApi.js
+
+diff --git a/backend/controllers/orderController.js b/backend/controllers/orderController.js
+index e7ccd4c..6d8d0dd 100644
+--- a/backend/controllers/orderController.js
++++ b/backend/controllers/orderController.js
+@@ -221,7 +221,6 @@ function requestLinks(req) {
+   return { site, api: env.serverUrl || self };
+ }
+ 
+-
+ function checkoutResponse(order) {
+   const awaiting = order.status === "awaiting_payment";
+ 
+@@ -237,33 +236,22 @@ function checkoutResponse(order) {
+     shippingFee: order.shippingFee,
+     total: order.total,
+     delivery: order.delivery,
+-
+-    paymentUrl: null,
+-
+-    qrId: awaiting ? order.payment.qrId || null : null,
+-    qrImageUrl: awaiting ? order.payment.qrImageUrl || null : null,
+-
+-    expiresAt: awaiting ? order.payment.qrExpiresAt || null : null,
++    paymentUrl: awaiting ? order.payment.linkUrl || null : null,
++    expiresAt: awaiting ? order.payment.linkExpiresAt || null : null,
+   };
+ }
+ 
+-
+ // The same checkout sent twice (double click, flaky network retry) returns
+ // the order that already exists instead of creating another.
+-
+ async function existingCheckout(checkoutKey) {
+   if (!checkoutKey) return null;
+ 
+   let order = await Order.findOne({ checkoutKey });
+ 
+-  // Wait while the first request is creating its QR code.
++  // The first request may still be creating its payment link.
+   for (let tries = 0; order && tries < 12; tries += 1) {
+-    const qrPending =
+-      order.status === "awaiting_payment" &&
+-      !order.payment.qrId;
+-
+-    if (!qrPending) break;
+-
++    const linkPending = order.status === "awaiting_payment" && !order.payment.linkUrl;
++    if (!linkPending) break;
+     await sleep(400);
+     order = await Order.findOne({ checkoutKey });
+   }
+@@ -271,7 +259,6 @@ async function existingCheckout(checkoutKey) {
+   return order;
+ }
+ 
+-
+ function describeOrder(order) {
+   const list = order.items.map((item) => `${item.name} x${item.quantity}`).join(", ");
+   const note = order.discount > 0 ? ` (${order.payment.discountPercent}% UPI discount applied)` : "";
+@@ -369,48 +356,32 @@ export async function checkout(req, res) {
+     throw error;
+   }
+ 
+-  // UPI: create a unique, fixed-amount, single-use QR code.
++  // UPI: one fixed-amount Razorpay payment link for this order.
+   try {
+-    const expiresAt = new Date(
+-      Date.now() + env.store.paymentWindowMinutes * 60 * 1000
+-    );
++    const expiresAt = new Date(Date.now() + env.store.paymentWindowMinutes * 60 * 1000);
+ 
+-    const qr = await razorpay.createQrCode({
+-      amount: Math.round(order.total * 100),
+-      orderNumber: order.orderNumber,
+-      orderId: order._id.toString(),
+-      expiresAt,
++    const link = await razorpay.createPaymentLink({
++      amount: order.total,
++      referenceId: order.orderNumber,
+       description: describeOrder(order),
++      customer: {
++        name: `${order.customer.firstName} ${order.customer.lastName}`.trim(),
++        email: order.customer.email,
++        contact: `+91${order.customer.phone}`,
++      },
++      expiresAt,
++      callbackUrl: `${order.links.api}/api/orders/payment-callback`,
++      notes: { brand: env.store.name, orderNumber: order.orderNumber },
+     });
+ 
+-    if (!qr?.id || !qr?.image_url) {
+-      throw new Error("Razorpay did not return a QR ID and image URL.");
+-    }
+-
+-    order.payment.qrId = qr.id;
+-    order.payment.qrImageUrl = qr.image_url;
+-
+-    // Use Razorpay's actual expiry when available.
+-    order.payment.qrExpiresAt = qr.close_by
+-      ? new Date(qr.close_by * 1000)
+-      : expiresAt;
+-
++    order.payment.linkId = link.id;
++    order.payment.linkUrl = link.short_url;
++    order.payment.linkExpiresAt = expiresAt;
+     await order.save();
+   } catch (error) {
+-    console.error(
+-      `Razorpay QR creation failed for ${order.orderNumber}:`,
+-      error.message
+-    );
+-
+-    await expireOrder(order._id, {
+-      cancelLink: false,
+-      message: "Payment could not be started.",
+-    });
+-
+-    throw new HttpError(
+-      502,
+-      "We couldn't generate your payment QR code. Please try again."
+-    );
++    console.error(`Razorpay payment link error for ${order.orderNumber}:`, error.message);
++    await expireOrder(order._id, { cancelLink: false, message: "Payment could not be started." });
++    throw new HttpError(502, "We couldn't start the payment. Please try again in a moment.");
+   }
+ 
+   res.status(201).json(checkoutResponse(order));
+@@ -421,22 +392,38 @@ export async function checkout(req, res) {
+ // GET /api/orders/payment-callback
+ // Razorpay sends the customer's browser here after they pay through the link.
+ export async function paymentCallback(req, res) {
+-  // QR payments are confirmed only by the signed server-to-server webhook
+-  // or by syncPayment querying Razorpay. Never trust a browser redirect.
+-  const token =
+-    typeof req.query?.order === "string" &&
+-    TOKEN_PATTERN.test(req.query.order)
+-      ? req.query.order
+-      : "";
+-
+-  const order = token ? await Order.findOne({ accessToken: token }) : null;
++  const {
++    razorpay_payment_id: paymentId,
++    razorpay_payment_link_id: linkId,
++    razorpay_payment_link_reference_id: referenceId,
++    razorpay_payment_link_status: status,
++    razorpay_signature: signature,
++  } = req.query;
++
++  const allStrings = [paymentId, linkId, referenceId, status, signature].every(
++    (value) => typeof value === "string" && value.length > 0 && value.length < 200,
++  );
++
++  const order = allStrings ? await Order.findOne({ "payment.linkId": linkId }) : null;
+   const site = order?.links?.site || env.clientUrl;
+ 
+-  return res.redirect(
+-    order
+-      ? `${site}/order-failed?order=${order.accessToken}`
+-      : `${site}/order-failed`
+-  );
++  if (!order) return res.redirect(`${site}/order-failed`);
++
++  // Proves this redirect really came from Razorpay and not a typed-in address.
++  const genuine = razorpay.verifyCallbackSignature({
++    linkId,
++    referenceId,
++    status,
++    paymentId,
++    signature,
++  });
++
++  if (!genuine || status !== "paid") {
++    return res.redirect(`${site}/order-failed?order=${order.accessToken}`);
++  }
++
++  await markPaid(order._id, paymentId);
++  res.redirect(`${site}/order-success?order=${order.accessToken}`);
+ }
+ 
+ // POST /api/payments/razorpay/webhook
+@@ -460,27 +447,25 @@ export async function razorpayWebhook(req, res) {
+     return res.status(400).json({ message: "Invalid payload." });
+   }
+ 
+-  // Confirm only the QR linked to this order and the exact captured INR amount.
++  // Always answer 200 from here on so Razorpay doesn't keep retrying;
++  // anything that goes wrong is logged instead.
+   try {
+-    if (event?.event === "qr_code.credited") {
+-      const qr = event?.payload?.qr_code?.entity;
+-      const payment = event?.payload?.payment?.entity;
+-
+-      if (typeof qr?.id === "string" && typeof payment?.id === "string") {
+-        const order = await Order.findOne({ "payment.qrId": qr.id });
+-
+-        if (
+-          order &&
+-          payment.status === "captured" &&
+-          payment.currency === "INR" &&
+-          payment.amount === Math.round(order.total * 100)
+-        ) {
+-          await markPaid(order._id, payment.id);
+-        }
++    const link = event?.payload?.payment_link?.entity;
++    const payment = event?.payload?.payment?.entity;
++    const order =
++      link?.id && typeof link.id === "string"
++        ? await Order.findOne({ "payment.linkId": link.id })
++        : null;
++
++    if (order) {
++      if (event.event === "payment_link.paid") {
++        await markPaid(order._id, typeof payment?.id === "string" ? payment.id : "");
++      } else if (["payment_link.expired", "payment_link.cancelled"].includes(event.event)) {
++        await expireOrder(order._id, { cancelLink: false });
+       }
+     }
+   } catch (error) {
+-    console.error("Razorpay QR webhook handling failed:", error.message);
++    console.error("Razorpay webhook handling failed:", error.message);
+   }
+ 
+   res.json({ ok: true });
+@@ -500,7 +485,7 @@ const statusPayload = (order) => ({
+   status: order.status,
+   paymentStatus: order.payment.status,
+   placed: PLACED_STATUSES.includes(order.status),
+-  expiresAt: order.payment.qrExpiresAt || null,
++  expiresAt: order.payment.linkExpiresAt || null,
+ });
+ 
+ // The payment screen polls every few seconds; ask Razorpay at most this often per order.
+diff --git a/backend/models/Order.js b/backend/models/Order.js
+index 58e18d8..084b15b 100644
+--- a/backend/models/Order.js
++++ b/backend/models/Order.js
+@@ -1,43 +1,23 @@
+-
+ import mongoose from "mongoose";
+-import {
+-  INDIAN_STATES,
+-  ORDER_STATUSES,
+-  PAYMENT_METHODS,
+-} from "../config/store.js";
+-
+-import {
+-  EMAIL_PATTERN,
+-  PHONE_PATTERN,
+-  PINCODE_PATTERN,
+-} from "../utils/validate.js";
+-
+-// ==========================================
+-// ORDER ITEM
+-// ==========================================
++import { INDIAN_STATES, ORDER_STATUSES, PAYMENT_METHODS } from "../config/store.js";
++import { EMAIL_PATTERN, PHONE_PATTERN, PINCODE_PATTERN } from "../utils/validate.js";
+ 
++// A copy of the product as it was when bought, so old orders stay correct
++// even if the product is later renamed, repriced or deleted.
+ const itemSchema = new mongoose.Schema(
+   {
+-    product: {
+-      type: mongoose.Schema.Types.ObjectId,
+-      ref: "Product",
+-      required: true,
+-    },
++    product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+     name: { type: String, required: true },
+     sku: String,
+     slug: String,
+     image: String,
+     color: String,
+-    price: { type: Number, required: true, min: 0 },
++    price: { type: Number, required: true, min: 0 }, // rupees, per unit
+     quantity: { type: Number, required: true, min: 1 },
+   },
+-  { _id: false }
++  { _id: false },
+ );
+ 
+-// ==========================================
+-// ORDER TIMELINE
+-// ==========================================
+-
+ const timelineSchema = new mongoose.Schema(
+   {
+     status: String,
+@@ -45,58 +25,33 @@ const timelineSchema = new mongoose.Schema(
+     location: String,
+     at: { type: Date, default: Date.now },
+   },
+-  { _id: false }
++  { _id: false },
+ );
+ 
+-// ==========================================
+-// EMAIL LOG
+-// ==========================================
+-
+ const emailLogSchema = new mongoose.Schema(
+   {
+-    type: String,
++    type: String, // confirmation, shipped, delivered, cancelled, admin-alert
+     to: String,
+     ok: Boolean,
+     error: String,
+     at: { type: Date, default: Date.now },
+   },
+-  { _id: false }
++  { _id: false },
+ );
+ 
+-// ==========================================
+-// ORDER SCHEMA
+-// ==========================================
+-
+ const orderSchema = new mongoose.Schema(
+   {
+-    orderNumber: {
+-      type: String,
+-      required: true,
+-      unique: true,
+-    },
+-
+-    accessToken: {
+-      type: String,
+-      required: true,
+-      unique: true,
+-    },
+-
+-    // ======================================
+-    // PRODUCTS
+-    // ======================================
++    // What the customer sees and types on the Track Order page.
++    orderNumber: { type: String, required: true, unique: true },
++    // Long random key for the customer's own order pages (payment screen,
++    // "thank you" page). Unlike a database id it cannot be guessed.
++    accessToken: { type: String, required: true, unique: true },
+ 
+     items: {
+       type: [itemSchema],
+-      validate: [
+-        (items) => items.length > 0,
+-        "Your cart is empty.",
+-      ],
++      validate: [(items) => items.length > 0, "Your cart is empty."],
+     },
+ 
+-    // ======================================
+-    // CUSTOMER
+-    // ======================================
+-
+     customer: {
+       firstName: {
+         type: String,
+@@ -104,40 +59,27 @@ const orderSchema = new mongoose.Schema(
+         trim: true,
+         maxlength: 60,
+       },
+-
+       lastName: {
+         type: String,
+         required: [true, "Please enter your last name."],
+         trim: true,
+         maxlength: 60,
+       },
+-
+       email: {
+         type: String,
+         required: [true, "Please enter your email address."],
+         trim: true,
+         lowercase: true,
+-        match: [
+-          EMAIL_PATTERN,
+-          "Please enter a valid email address.",
+-        ],
++        match: [EMAIL_PATTERN, "Please enter a valid email address."],
+       },
+-
+       phone: {
+         type: String,
+         required: [true, "Please enter your mobile number."],
+-        match: [
+-          PHONE_PATTERN,
+-          "Please enter a valid 10-digit Indian mobile number.",
+-        ],
++        match: [PHONE_PATTERN, "Please enter a valid 10-digit Indian mobile number."],
+         index: true,
+       },
+     },
+ 
+-    // ======================================
+-    // SHIPPING ADDRESS
+-    // ======================================
+-
+     shippingAddress: {
+       line1: {
+         type: String,
+@@ -145,353 +87,103 @@ const orderSchema = new mongoose.Schema(
+         trim: true,
+         maxlength: 200,
+       },
+-
+-      line2: {
+-        type: String,
+-        trim: true,
+-        maxlength: 200,
+-        default: "",
+-      },
+-
++      line2: { type: String, trim: true, maxlength: 200, default: "" },
+       city: {
+         type: String,
+         required: [true, "Please enter your city."],
+         trim: true,
+         maxlength: 80,
+       },
+-
+       state: {
+         type: String,
+         required: [true, "Please select your state."],
+-        enum: {
+-          values: INDIAN_STATES,
+-          message: "Please select a valid state.",
+-        },
++        enum: { values: INDIAN_STATES, message: "Please select a valid state." },
+       },
+-
+       pincode: {
+         type: String,
+         required: [true, "Please enter your PIN code."],
+-        match: [
+-          PINCODE_PATTERN,
+-          "Please enter a valid 6-digit PIN code.",
+-        ],
++        match: [PINCODE_PATTERN, "Please enter a valid 6-digit PIN code."],
+       },
+     },
+ 
+-    // ======================================
+-    // ORDER AMOUNTS
+-    // All amounts are in INR.
+-    // ======================================
+-
+-    subtotal: {
+-      type: Number,
+-      required: true,
+-      min: 0,
+-    },
+-
+-    discount: {
+-      type: Number,
+-      default: 0,
+-      min: 0,
+-    },
+-
+-    shippingFee: {
+-      type: Number,
+-      default: 0,
+-      min: 0,
+-    },
+-
+-    total: {
+-      type: Number,
+-      required: true,
+-      min: 1,
+-    },
+-
+-    currency: {
+-      type: String,
+-      default: "INR",
+-    },
+-
+-    // ======================================
+-    // PAYMENT DETAILS
+-    // ======================================
++    // All amounts are whole rupees.
++    subtotal: { type: Number, required: true, min: 0 },
++    discount: { type: Number, default: 0, min: 0 },
++    shippingFee: { type: Number, default: 0, min: 0 },
++    total: { type: Number, required: true, min: 1 },
++    currency: { type: String, default: "INR" },
+ 
+     payment: {
+-      method: {
+-        type: String,
+-        enum: PAYMENT_METHODS,
+-        required: true,
+-      },
+-
++      method: { type: String, enum: PAYMENT_METHODS, required: true },
++      // pending  = UPI not paid yet / COD cash not collected yet
++      // paid     = money received (UPI captured, or COD delivered)
++      // failed   = never paid (UPI abandoned, or COD order cancelled)
++      // refunded = you sent the money back
+       status: {
+         type: String,
+-        enum: [
+-          "pending",
+-          "paid",
+-          "failed",
+-          "refunded",
+-        ],
++        enum: ["pending", "paid", "failed", "refunded"],
+         default: "pending",
+       },
+-
+-      discountPercent: {
+-        type: Number,
+-        default: 0,
+-      },
+-
+-      // ====================================
+-      // EXISTING RAZORPAY PAYMENT LINK
+-      // Kept for backward compatibility.
+-      // ====================================
+-
+-      linkId: {
+-        type: String,
+-        index: true,
+-        sparse: true,
+-      },
+-
++      discountPercent: { type: Number, default: 0 },
++      linkId: { type: String, index: true, sparse: true }, // Razorpay payment link
+       linkUrl: String,
+-
+       linkExpiresAt: Date,
+-
+-      // ====================================
+-      // NEW RAZORPAY QR PAYMENT
+-      // ====================================
+-
+-      qrId: {
+-        type: String,
+-        index: true,
+-        sparse: true,
+-      },
+-
+-      qrImageUrl: {
+-        type: String,
+-        default: "",
+-      },
+-
+-      qrExpiresAt: {
+-        type: Date,
+-      },
+-
+-      // ====================================
+-      // PAYMENT CONFIRMATION
+-      // ====================================
+-
+-      paymentId: {
+-        type: String,
+-      },
+-
+-      paidAt: {
+-        type: Date,
+-      },
+-
+-      refundedAt: {
+-        type: Date,
+-      },
+-    },
+-
+-    // ======================================
+-    // DELIVERY
+-    // ======================================
+-
+-    delivery: {
+-      minDays: Number,
+-      maxDays: Number,
+-    },
+-
+-    // ======================================
+-    // ORDER STATUS
+-    // ======================================
+-
+-    status: {
+-      type: String,
+-      enum: ORDER_STATUSES,
+-      required: true,
+-      index: true,
++      paymentId: String, // Razorpay payment id (pay_…)
++      paidAt: Date,
++      refundedAt: Date,
+     },
+ 
+-    stockReserved: {
+-      type: Boolean,
+-      default: false,
+-    },
+-
+-    attention: {
+-      type: String,
+-      default: "",
+-    },
++    delivery: { minDays: Number, maxDays: Number }, // promised at checkout
+ 
+-    placedAt: {
+-      type: Date,
+-      index: true,
+-    },
++    status: { type: String, enum: ORDER_STATUSES, required: true, index: true },
+ 
+-    seenByAdmin: {
+-      type: Boolean,
+-      default: true,
+-      index: true,
+-    },
++    // True while this order is holding units out of product stock.
++    stockReserved: { type: Boolean, default: false },
++    // Set when something needs a human (e.g. paid after stock ran out).
++    attention: { type: String, default: "" },
+ 
+-    // ======================================
+-    // SHIPPING / TRACKING
+-    // ======================================
++    placedAt: { type: Date, index: true }, // when it became a real order
++    seenByAdmin: { type: Boolean, default: true, index: true },
+ 
+     shipping: {
+-      courier: {
+-        type: String,
+-        trim: true,
+-        maxlength: 80,
+-        default: "",
+-      },
+-
+-      awb: {
+-        type: String,
+-        trim: true,
+-        maxlength: 80,
+-        default: "",
+-      },
+-
+-      trackingUrl: {
+-        type: String,
+-        trim: true,
+-        maxlength: 500,
+-        default: "",
+-      },
+-
++      courier: { type: String, trim: true, maxlength: 80, default: "" },
++      awb: { type: String, trim: true, maxlength: 80, default: "" },
++      trackingUrl: { type: String, trim: true, maxlength: 500, default: "" },
+       estimatedDelivery: Date,
+-
+       shippedAt: Date,
+-
+       deliveredAt: Date,
+     },
+ 
+-    // ======================================
+-    // TIMELINE AND EMAILS
+-    // ======================================
+-
+-    timeline: {
+-      type: [timelineSchema],
+-      default: [],
+-    },
+-
+-    emails: {
+-      type: [emailLogSchema],
+-      default: [],
+-    },
+-
+-    // ======================================
+-    // ADMIN DETAILS
+-    // ======================================
+-
+-    adminNote: {
+-      type: String,
+-      trim: true,
+-      maxlength: 2000,
+-      default: "",
+-    },
+-
+-    cancelReason: {
+-      type: String,
+-      trim: true,
+-      maxlength: 300,
+-      default: "",
+-    },
++    timeline: { type: [timelineSchema], default: [] },
++    emails: { type: [emailLogSchema], default: [] },
+ 
++    adminNote: { type: String, trim: true, maxlength: 2000, default: "" },
++    cancelReason: { type: String, trim: true, maxlength: 300, default: "" },
+     cancelledAt: Date,
+ 
+-    // ======================================
+-    // ORDER SOURCE
+-    // ======================================
+-
+-    source: {
+-      type: String,
+-      default: "Website",
+-    },
+-
+-    links: {
+-      site: String,
+-      api: String,
+-    },
+-
+-    // ======================================
+-    // CHECKOUT DUPLICATE PREVENTION
+-    // ======================================
+-
+-    checkoutKey: {
+-      type: String,
+-      index: {
+-        unique: true,
+-        sparse: true,
+-      },
+-    },
++    source: { type: String, default: "Website" }, // Website / Mobile website
++    // Where this order was placed from, so emails and the "payment done"
++    // redirect link back to the right address.
++    links: { site: String, api: String },
++    // Sent by the browser so a double-click or retry never creates two orders.
++    checkoutKey: { type: String, index: { unique: true, sparse: true } },
+   },
+-  {
+-    timestamps: true,
+-  }
++  { timestamps: true },
+ );
+ 
+-// ==========================================
+-// DATABASE INDEXES
+-// ==========================================
+-
+-orderSchema.index({
+-  status: 1,
+-  placedAt: -1,
+-});
+-
+-orderSchema.index({
+-  "payment.method": 1,
+-  status: 1,
+-});
+-
+-orderSchema.index({
+-  status: 1,
+-  "payment.linkExpiresAt": 1,
+-});
+-
+-orderSchema.index({
+-  status: 1,
+-  "payment.qrExpiresAt": 1,
+-});
+-
+-// ==========================================
+-// VIRTUAL: CUSTOMER NAME
+-// ==========================================
+-
+-orderSchema.virtual("customer.name").get(function () {
+-  return [
+-    this.customer?.firstName,
+-    this.customer?.lastName,
+-  ]
+-    .filter(Boolean)
+-    .join(" ");
+-});
+-
+-// ==========================================
+-// VIRTUAL: TOTAL ITEM COUNT
+-// ==========================================
+-
+-orderSchema.virtual("itemCount").get(function () {
+-  return this.items.reduce(
+-    (sum, item) => sum + item.quantity,
+-    0
+-  );
+-});
+-
+-// ==========================================
+-// JSON CONFIGURATION
+-// ==========================================
++orderSchema.index({ status: 1, placedAt: -1 });
++orderSchema.index({ "payment.method": 1, status: 1 });
++orderSchema.index({ status: 1, "payment.linkExpiresAt": 1 });
+ 
+-orderSchema.set("toJSON", {
+-  virtuals: true,
++orderSchema.virtual("customer.name").get(function customerName() {
++  return [this.customer?.firstName, this.customer?.lastName].filter(Boolean).join(" ");
+ });
+ 
+-orderSchema.set("toObject", {
+-  virtuals: true,
++orderSchema.virtual("itemCount").get(function itemCount() {
++  return this.items.reduce((sum, item) => sum + item.quantity, 0);
+ });
+ 
+-// ==========================================
+-// EXPORT MODEL
+-// ==========================================
++orderSchema.set("toJSON", { virtuals: true });
++orderSchema.set("toObject", { virtuals: true });
+ 
+ export default mongoose.model("Order", orderSchema);
+diff --git a/backend/services/orderService.js b/backend/services/orderService.js
+index c0c6c0a..e82f68a 100644
+--- a/backend/services/orderService.js
++++ b/backend/services/orderService.js
+@@ -1,8 +1,6 @@
+-
+ // Everything that changes an order lives here: taking and returning stock,
+ // turning a checkout into a real order, recording payments, moving an order
+ // through its statuses, and sending the matching emails.
+-
+ import crypto from "node:crypto";
+ import Order from "../models/Order.js";
+ import Product from "../models/Product.js";
+@@ -28,7 +26,7 @@ export async function reserveStock(items) {
+   for (const item of items) {
+     const result = await Product.updateOne(
+       { _id: item.product, stock: { $gte: item.quantity } },
+-      { $inc: { stock: -item.quantity } }
++      { $inc: { stock: -item.quantity } },
+     );
+ 
+     if (result.modifiedCount === 0) {
+@@ -44,10 +42,7 @@ export async function reserveStock(items) {
+ 
+ export async function releaseStock(items) {
+   for (const item of items) {
+-    await Product.updateOne(
+-      { _id: item.product },
+-      { $inc: { stock: item.quantity } }
+-    );
++    await Product.updateOne({ _id: item.product }, { $inc: { stock: item.quantity } });
+   }
+ }
+ 
+@@ -56,14 +51,7 @@ export async function releaseStock(items) {
+ async function logEmail(orderId, entry) {
+   await Order.updateOne(
+     { _id: orderId },
+-    {
+-      $push: {
+-        emails: {
+-          $each: [{ ...entry, at: new Date() }],
+-          $slice: -40,
+-        },
+-      },
+-    }
++    { $push: { emails: { $each: [{ ...entry, at: new Date() }], $slice: -40 } } },
+   );
+ }
+ 
+@@ -77,19 +65,12 @@ export async function sendOrderEmail(orderId, type) {
+   const to = order.customer.email;
+   const result = await sendMail({ to, subject, html, text });
+ 
+-  await logEmail(order._id, {
+-    type,
+-    to,
+-    ok: result.ok,
+-    error: result.ok ? "" : result.error,
+-  });
++  await logEmail(order._id, { type, to, ok: result.ok, error: result.ok ? "" : result.error });
+ 
+   if (result.ok) {
+     console.log(`Email "${type}" sent to ${to} for ${order.orderNumber}`);
+   } else if (!result.skipped) {
+-    console.error(
+-      `Email "${type}" failed for ${order.orderNumber}: ${result.error}`
+-    );
++    console.error(`Email "${type}" failed for ${order.orderNumber}: ${result.error}`);
+   }
+ 
+   return result;
+@@ -102,7 +83,6 @@ async function sendAdminAlert(orderId) {
+   if (!order) return;
+ 
+   const { subject, html, text } = newOrderAlert(order);
+-
+   const result = await sendMail({
+     to: env.orderAlertEmail,
+     subject,
+@@ -122,12 +102,9 @@ async function sendAdminAlert(orderId) {
+ // Called once, the moment an order becomes real (COD placed / UPI paid).
+ function announceNewOrder(order) {
+   runInBackground(`confirmation email ${order.orderNumber}`, () =>
+-    sendOrderEmail(order._id, "confirmation")
+-  );
+-
+-  runInBackground(`admin alert ${order.orderNumber}`, () =>
+-    sendAdminAlert(order._id)
++    sendOrderEmail(order._id, "confirmation"),
+   );
++  runInBackground(`admin alert ${order.orderNumber}`, () => sendAdminAlert(order._id));
+ }
+ 
+ // ---------- creating orders ----------
+@@ -144,9 +121,7 @@ export async function saveNewOrder(order) {
+       await order.save();
+       return order;
+     } catch (error) {
+-      const duplicateNumber =
+-        error?.code === 11000 && error?.keyPattern?.orderNumber;
+-
++      const duplicateNumber = error?.code === 11000 && error?.keyPattern?.orderNumber;
+       if (!duplicateNumber) throw error;
+     }
+   }
+@@ -162,7 +137,6 @@ export async function placeCodOrder(order) {
+   order.placedAt = now;
+   order.seenByAdmin = false;
+   order.payment.status = "pending";
+-
+   order.timeline.push({
+     status: "pending",
+     message: "Order placed — Cash on Delivery.",
+@@ -171,20 +145,14 @@ export async function placeCodOrder(order) {
+ 
+   await saveNewOrder(order);
+   announceNewOrder(order);
+-
+   return order;
+ }
+ 
+-// ---------- UPI QR payments ----------
++// ---------- UPI payments ----------
+ 
+-// Records a successful payment exactly once, whether Razorpay reports it
+-// through a webhook or our own status check.
++// Records a successful payment exactly once, however many times Razorpay (or
++// our own status check) reports it.
+ export async function markPaid(orderId, paymentId = "") {
+-  if (!paymentId) {
+-    console.warn(`Payment confirmation rejected for order ${orderId}: missing payment ID.`);
+-    return null;
+-  }
+-
+   const now = new Date();
+ 
+   const order = await Order.findOneAndUpdate(
+@@ -211,61 +179,37 @@ export async function markPaid(orderId, paymentId = "") {
+         },
+       },
+     },
+-    { returnDocument: "after" }
++    { returnDocument: "after" },
+   );
+ 
+-  if (!order) return null;
++  if (!order) return null; // already recorded
+ 
+-  // If payment arrived after the QR expired, stock may already have been
+-  // released. Try to reserve it again.
++  // Rare: the money arrived after the payment window closed, when the stock
++  // had already been put back on the shelf. Take it again if we still can.
+   if (!order.stockReserved) {
+     const missing = await reserveStock(order.items);
+ 
+     if (missing) {
+-      order.attention =
+-        `Paid after the payment window closed and "${missing.name}" is now out of stock. Restock it or refund the customer.`;
+-
+-      await Order.updateOne(
+-        { _id: order._id },
+-        { $set: { attention: order.attention } }
+-      );
+-
+-      console.warn(
+-        `Order ${order.orderNumber} needs attention: ${order.attention}`
+-      );
++      order.attention = `Paid after the payment window closed and "${missing.name}" is now out of stock. Restock it or refund the customer.`;
++      await Order.updateOne({ _id: order._id }, { $set: { attention: order.attention } });
++      console.warn(`Order ${order.orderNumber} needs attention: ${order.attention}`);
+     } else {
+       order.stockReserved = true;
+-
+-      await Order.updateOne(
+-        { _id: order._id },
+-        { $set: { stockReserved: true } }
+-      );
++      await Order.updateOne({ _id: order._id }, { $set: { stockReserved: true } });
+     }
+   }
+ 
+   announceNewOrder(order);
+-
+   return order;
+ }
+ 
+-// Gives up on a UPI checkout that was never paid.
+-// The stock goes back and its QR code is closed.
+-export async function expireOrder(
+-  orderId,
+-  { cancelLink = true, message } = {}
+-) {
++// Gives up on a UPI checkout that was never paid: the stock goes back and the
++// payment link is closed so it can't be paid later by accident.
++export async function expireOrder(orderId, { cancelLink = true, message } = {}) {
+   const before = await Order.findOneAndUpdate(
++    { _id: orderId, status: "awaiting_payment" },
+     {
+-      _id: orderId,
+-      status: "awaiting_payment",
+-      "payment.status": { $ne: "paid" },
+-    },
+-    {
+-      $set: {
+-        status: "expired",
+-        "payment.status": "failed",
+-        stockReserved: false,
+-      },
++      $set: { status: "expired", "payment.status": "failed", stockReserved: false },
+       $push: {
+         timeline: {
+           status: "expired",
+@@ -274,119 +218,37 @@ export async function expireOrder(
+         },
+       },
+     },
+-    { returnDocument: "before" }
++    { returnDocument: "before" },
+   );
+ 
+   if (!before) return null;
+ 
+-  if (before.stockReserved) {
+-    await releaseStock(before.items);
+-  }
++  if (before.stockReserved) await releaseStock(before.items);
+ 
+-  if (razorpay.isConfigured()) {
+-    if (before.payment?.qrId) {
+-      runInBackground(`close QR code ${before.orderNumber}`, () =>
+-        razorpay.closeQrCode(before.payment.qrId).catch((error) => {
+-          console.warn(
+-            `Could not close QR for ${before.orderNumber}:`,
+-            error.message
+-          );
+-        })
+-      );
+-    } else if (cancelLink && before.payment?.linkId) {
+-      // Backward compatibility for older Payment Link orders.
+-      runInBackground(`cancel payment link ${before.orderNumber}`, () =>
+-        razorpay.cancelPaymentLink(before.payment.linkId).catch(() => {
+-          // Already expired or paid — nothing to close.
+-        })
+-      );
+-    }
++  if (cancelLink && before.payment?.linkId && razorpay.isConfigured()) {
++    runInBackground(`cancel payment link ${before.orderNumber}`, () =>
++      razorpay.cancelPaymentLink(before.payment.linkId).catch(() => {
++        /* already expired or paid — nothing to close */
++      }),
++    );
+   }
+ 
+   return before;
+ }
+ 
+-// Asks Razorpay whether an unpaid QR order has been paid.
+-// The amount and currency are checked against the saved order.
++// Asks Razorpay whether an unpaid order has been paid in the meantime.
+ // Returns the up-to-date order.
+ export async function syncPayment(order) {
+   const unpaid = ["awaiting_payment", "expired"].includes(order.status);
++  if (!unpaid || order.payment?.method !== "upi" || !order.payment.linkId) return order;
++  if (!razorpay.isConfigured()) return order;
+ 
+-  if (
+-    !unpaid ||
+-    order.payment?.method !== "upi" ||
+-    !order.payment.qrId
+-  ) {
+-    return order;
+-  }
+-
+-  if (!razorpay.isConfigured()) {
+-    return order;
+-  }
+-
+-  const result = await razorpay.fetchQrPayments(order.payment.qrId, 100);
+-
+-  const payments = Array.isArray(result?.items) ? result.items : [];
+-
+-  const expectedAmount = Math.round(Number(order.total) * 100);
+-
+-  const captured = payments.find(
+-    (payment) =>
+-      payment.status === "captured" &&
+-      payment.currency === "INR" &&
+-      Number(payment.amount) === expectedAmount &&
+-      typeof payment.id === "string"
+-  );
+-
+-  if (captured) {
+-    await markPaid(order._id, captured.id);
+-    return Order.findById(order._id);
+-  }
+-
+-  // Check expiry only after checking Razorpay's payment records.
+-  if (
+-    order.status === "awaiting_payment" &&
+-    order.payment.qrExpiresAt &&
+-    new Date(order.payment.qrExpiresAt).getTime() <= Date.now()
+-  ) {
+-    try {
+-      await razorpay.closeQrCode(order.payment.qrId);
+-    } catch (error) {
+-      console.warn(
+-        `QR close failed for ${order.orderNumber}:`,
+-        error.message
+-      );
+-    }
+-
+-    // Check once more after closing, in case payment was completed around
+-    // the expiry time.
+-    const finalResult = await razorpay.fetchQrPayments(
+-      order.payment.qrId,
+-      100
+-    );
+-
+-    const finalPayments = Array.isArray(finalResult?.items)
+-      ? finalResult.items
+-      : [];
+-
+-    const finalCaptured = finalPayments.find(
+-      (payment) =>
+-        payment.status === "captured" &&
+-        payment.currency === "INR" &&
+-        Number(payment.amount) === expectedAmount &&
+-        typeof payment.id === "string"
+-    );
+-
+-    if (finalCaptured) {
+-      await markPaid(order._id, finalCaptured.id);
+-      return Order.findById(order._id);
+-    }
+-
+-    await expireOrder(order._id, {
+-      cancelLink: false,
+-      message: "Payment window expired.",
+-    });
++  const link = await razorpay.fetchPaymentLink(order.payment.linkId);
+ 
++  if (link.status === "paid") {
++    const payments = Array.isArray(link.payments) ? link.payments : [];
++    const captured = payments.find((payment) => payment.status === "captured") || payments[0];
++    await markPaid(order._id, captured?.payment_id || "");
+     return Order.findById(order._id);
+   }
+ 
+@@ -399,28 +261,20 @@ const timelineMessage = (status, order) => {
+   switch (status) {
+     case "pending":
+       return "Order received.";
+-
+     case "processing":
+       return "Your order is confirmed and being prepared.";
+-
+     case "shipped": {
+       const { courier, awb } = order.shipping || {};
+       const parts = ["Your order has shipped"];
+-
+       if (courier) parts.push(`with ${courier}`);
+-
+       return `${parts.join(" ")}.${awb ? ` Tracking number ${awb}.` : ""}`;
+     }
+-
+     case "out_for_delivery":
+       return "Out for delivery.";
+-
+     case "delivered":
+       return "Delivered.";
+-
+     case "cancelled":
+       return "Order cancelled.";
+-
+     default:
+       return "Order updated.";
+   }
+@@ -435,26 +289,16 @@ const STATUS_EMAILS = {
+ 
+ // Moves a placed order to another status, with the side effects that go with
+ // it (stock, COD collection, dates, the customer email).
+-export async function changeOrderStatus(
+-  order,
+-  nextStatus,
+-  { reason = "", notify = true } = {}
+-) {
++export async function changeOrderStatus(order, nextStatus, { reason = "", notify = true } = {}) {
+   const previous = order.status;
+ 
+-  if (!ADMIN_STATUSES.includes(nextStatus)) {
+-    throw badRequest("That is not a valid order status.");
+-  }
++  if (!ADMIN_STATUSES.includes(nextStatus)) throw badRequest("That is not a valid order status.");
+ 
+   if (!PLACED_STATUSES.includes(previous)) {
+-    throw conflict(
+-      "This checkout was never paid, so it has no order status to change."
+-    );
++    throw conflict("This checkout was never paid, so it has no order status to change.");
+   }
+ 
+-  if (previous === nextStatus) {
+-    return { order, changed: false };
+-  }
++  if (previous === nextStatus) return { order, changed: false };
+ 
+   const now = new Date();
+   const isCod = order.payment.method === "cod";
+@@ -464,55 +308,34 @@ export async function changeOrderStatus(
+       await releaseStock(order.items);
+       order.stockReserved = false;
+     }
+-
+     order.cancelledAt = now;
+     order.cancelReason = reason;
+-
+-    if (isCod && order.payment.status === "pending") {
+-      order.payment.status = "failed";
+-    }
++    if (isCod && order.payment.status === "pending") order.payment.status = "failed";
+   } else {
+     if (previous === "cancelled") {
+       if (order.payment.status === "refunded") {
+         throw conflict(
+-          "This order has been refunded, so it can't be re-opened. Ask the customer to place a new order."
++          "This order has been refunded, so it can't be re-opened. Ask the customer to place a new order.",
+         );
+       }
+ 
+       const missing = await reserveStock(order.items);
+-
+       if (missing) {
+-        throw conflict(
+-          `Can't re-open this order — "${missing.name}" doesn't have enough stock.`
+-        );
++        throw conflict(`Can't re-open this order — "${missing.name}" doesn't have enough stock.`);
+       }
+ 
+       order.stockReserved = true;
+       order.cancelledAt = undefined;
+       order.cancelReason = "";
+-
+-      if (isCod && order.payment.status === "failed") {
+-        order.payment.status = "pending";
+-      }
+-    }
+-
+-    const hasShipped = [
+-      "shipped",
+-      "out_for_delivery",
+-      "delivered",
+-    ].includes(nextStatus);
+-
+-    if (hasShipped && !order.shipping.shippedAt) {
+-      order.shipping.shippedAt = now;
++      if (isCod && order.payment.status === "failed") order.payment.status = "pending";
+     }
+ 
+-    if (!hasShipped) {
+-      order.shipping.shippedAt = undefined;
+-    }
++    const hasShipped = ["shipped", "out_for_delivery", "delivered"].includes(nextStatus);
++    if (hasShipped && !order.shipping.shippedAt) order.shipping.shippedAt = now;
++    if (!hasShipped) order.shipping.shippedAt = undefined;
+ 
+     if (nextStatus === "delivered") {
+       order.shipping.deliveredAt = now;
+-
+       // Cash is collected at the door.
+       if (isCod && order.payment.status === "pending") {
+         order.payment.status = "paid";
+@@ -520,7 +343,6 @@ export async function changeOrderStatus(
+       }
+     } else if (previous === "delivered") {
+       order.shipping.deliveredAt = undefined;
+-
+       if (isCod && order.payment.status === "paid") {
+         order.payment.status = "pending";
+         order.payment.paidAt = undefined;
+@@ -529,54 +351,38 @@ export async function changeOrderStatus(
+   }
+ 
+   order.status = nextStatus;
+-
+-  order.timeline.push({
+-    status: nextStatus,
+-    message: timelineMessage(nextStatus, order),
+-    at: now,
+-  });
++  order.timeline.push({ status: nextStatus, message: timelineMessage(nextStatus, order), at: now });
+ 
+   await order.save();
+ 
+   const emailType = STATUS_EMAILS[nextStatus];
+-
+   if (notify && emailType) {
+     runInBackground(`${emailType} email ${order.orderNumber}`, () =>
+-      sendOrderEmail(order._id, emailType)
++      sendOrderEmail(order._id, emailType),
+     );
+   }
+ 
+   return { order, changed: true, previous };
+ }
+ 
+-// Marks a paid UPI order as refunded (or undoes that).
+-// The refund itself is made in the Razorpay dashboard — this only records it.
++// Marks a paid UPI order as refunded (or undoes that). The refund itself is
++// made in the Razorpay dashboard — this only records it.
+ export async function setRefunded(order, refunded) {
+   if (order.payment.method !== "upi") {
+     throw badRequest("Only online payments can be marked as refunded.");
+   }
+ 
+   if (refunded) {
+-    if (order.payment.status !== "paid") {
+-      throw conflict("Only a paid order can be refunded.");
+-    }
+-
++    if (order.payment.status !== "paid") throw conflict("Only a paid order can be refunded.");
+     order.payment.status = "refunded";
+     order.payment.refundedAt = new Date();
+-
+-    order.timeline.push({
+-      status: order.status,
+-      message: "Refund issued.",
+-      at: new Date(),
+-    });
++    order.timeline.push({ status: order.status, message: "Refund issued.", at: new Date() });
+   } else {
+     if (order.payment.status !== "refunded") return order;
+-
+     order.payment.status = "paid";
+     order.payment.refundedAt = undefined;
+   }
+ 
+   await order.save();
+-
+   return order;
+ }
+diff --git a/backend/services/razorpay.js b/backend/services/razorpay.js
+index 0e6092e..792ff65 100644
+--- a/backend/services/razorpay.js
++++ b/backend/services/razorpay.js
+@@ -1,247 +1,110 @@
+-
+-import crypto from "crypto";
+-
+-const RAZORPAY_BASE_URL = "https://api.razorpay.com/v1";
+-
+-const KEY_ID = process.env.RAZORPAY_KEY_ID;
+-const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+-const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
+-
+-// ==========================================
+-// CONFIGURATION
+-// ==========================================
+-
+-export function isConfigured() {
+-  return Boolean(KEY_ID && KEY_SECRET);
+-}
+-
+-function getAuthHeader() {
++// Razorpay Payment Links — the same payment method lights.bio uses.
++//
++// For every UPI order we create one fixed-amount payment link. The checkout
++// page shows it as a QR code plus a "Pay" button; Razorpay then tells us the
++// result three ways (any one is enough): the signed redirect back to our
++// site, a webhook, and our own status check.
++//
++// Docs: https://razorpay.com/docs/api/payments/payment-links/
++import crypto from "node:crypto";
++import { env, isRazorpayConfigured } from "../config/env.js";
++
++export const isConfigured = isRazorpayConfigured;
++
++async function request(path, { method = "GET", body } = {}) {
+   if (!isConfigured()) {
+-    throw new Error("Razorpay credentials are not configured.");
++    throw new Error("Razorpay is not set up (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET).");
+   }
+ 
+-  return `Basic ${Buffer.from(`${KEY_ID}:${KEY_SECRET}`).toString("base64")}`;
+-}
+-
+-// ==========================================
+-// RAZORPAY API REQUEST HELPER
+-// ==========================================
++  const { keyId, keySecret, apiUrl } = env.razorpay;
+ 
+-async function request(endpoint, options = {}) {
+-  const response = await fetch(`${RAZORPAY_BASE_URL}${endpoint}`, {
+-    method: options.method || "GET",
++  const response = await fetch(`${apiUrl}${path}`, {
++    method,
+     headers: {
+-      Authorization: getAuthHeader(),
++      Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`,
+       "Content-Type": "application/json",
+-      ...(options.headers || {}),
+     },
+-    ...(options.body ? { body: JSON.stringify(options.body) } : {}),
++    body: body ? JSON.stringify(body) : undefined,
++    signal: AbortSignal.timeout(20000),
+   });
+ 
+   const data = await response.json().catch(() => ({}));
+ 
+   if (!response.ok) {
+-    const message =
+-      data?.error?.description ||
+-      data?.error?.reason ||
+-      `Razorpay API error (${response.status})`;
+-
+-    const error = new Error(message);
+-    error.statusCode = response.status;
+-    error.razorpayError = data.error || data;
++    const error = new Error(
++      data?.error?.description || `Razorpay request failed (${response.status})`,
++    );
++    error.status = response.status;
++    error.code = data?.error?.code;
+     throw error;
+   }
+ 
+   return data;
+ }
+ 
+-// ==========================================
+-// PAYMENT LINK FUNCTIONS - EXISTING SUPPORT
+-// ==========================================
+-
+-export async function createPaymentLink(payload) {
+-  return request("/payment_links", {
+-    method: "POST",
+-    body: payload,
+-  });
+-}
+-
+-export async function fetchPaymentLink(paymentLinkId) {
+-  if (!paymentLinkId) {
+-    throw new Error("Payment Link ID is required.");
+-  }
+-
+-  return request(`/payment_links/${encodeURIComponent(paymentLinkId)}`);
+-}
+-
+-export async function cancelPaymentLink(paymentLinkId) {
+-  if (!paymentLinkId) {
+-    throw new Error("Payment Link ID is required.");
+-  }
+-
+-  return request(
+-    `/payment_links/${encodeURIComponent(paymentLinkId)}/cancel`,
+-    { method: "POST" }
+-  );
+-}
+-
+-// ==========================================
+-// CREATE SINGLE-USE UPI QR CODE
+-// ==========================================
+-
+-export async function createQrCode({
++// amount is in rupees; Razorpay wants paise.
++export function createPaymentLink({
+   amount,
+-  orderNumber,
+-  orderId,
+-  expiresAt,
++  referenceId,
+   description,
++  customer,
++  expiresAt,
++  callbackUrl,
++  notes,
+ }) {
+-  if (!Number.isInteger(amount) || amount <= 0) {
+-    throw new Error("QR amount must be a positive integer in paise.");
+-  }
+-
+-  if (!orderNumber || !orderId) {
+-    throw new Error("Order details are required to create a QR code.");
++  const payload = {
++    amount: Math.round(amount * 100),
++    currency: "INR",
++    accept_partial: false,
++    reference_id: referenceId,
++    description: description.slice(0, 250),
++    customer,
++    notify: { sms: false, email: false },
++    reminder_enable: false,
++    expire_by: Math.floor(expiresAt.getTime() / 1000),
++    callback_url: callbackUrl,
++    callback_method: "get",
++    notes,
++  };
++
++  if (env.razorpay.upiOnly) {
++    payload.options = {
++      checkout: { method: { upi: true, card: false, netbanking: false, wallet: false } },
++    };
+   }
+ 
+-  const closeBy = Math.floor(new Date(expiresAt).getTime() / 1000);
+-
+-  if (!Number.isFinite(closeBy)) {
+-    throw new Error("A valid QR expiry date is required.");
+-  }
+-
+-  const minimumCloseBy = Math.floor(Date.now() / 1000) + 15 * 60;
+-
+-  if (closeBy < minimumCloseBy) {
+-    throw new Error(
+-      "Razorpay QR expiry must be at least 15 minutes after creation."
+-    );
+-  }
+-
+-  return request("/payments/qr_codes", {
+-    method: "POST",
+-    body: {
+-      type: "upi_qr",
+-      name: `GADGETE ${orderNumber}`,
+-      usage: "single_use",
+-      fixed_amount: true,
+-      payment_amount: amount,
+-      description:
+-        description || `Payment for GADGETE order ${orderNumber}`,
+-      close_by: closeBy,
+-      notes: {
+-        orderId: String(orderId),
+-        orderNumber: String(orderNumber),
+-      },
+-    },
+-  });
+-}
+-
+-// ==========================================
+-// FETCH QR CODE
+-// ==========================================
+-
+-export async function fetchQrCode(qrId) {
+-  if (!qrId) {
+-    throw new Error("QR Code ID is required.");
+-  }
+-
+-  return request(`/payments/qr_codes/${encodeURIComponent(qrId)}`);
++  return request("/payment_links", { method: "POST", body: payload });
+ }
+ 
+-// ==========================================
+-// FETCH PAYMENTS MADE THROUGH QR CODE
+-// ==========================================
++export const fetchPaymentLink = (linkId) =>
++  request(`/payment_links/${encodeURIComponent(linkId)}`);
+ 
+-export async function fetchQrPayments(qrId, count = 10) {
+-  if (!qrId) {
+-    throw new Error("QR Code ID is required.");
+-  }
++export const cancelPaymentLink = (linkId) =>
++  request(`/payment_links/${encodeURIComponent(linkId)}/cancel`, { method: "POST" });
+ 
+-  const safeCount = Math.min(Math.max(Number(count) || 10, 1), 100);
++const hmac = (secret, value) =>
++  crypto.createHmac("sha256", secret).update(value).digest("hex");
+ 
+-  return request(
+-    `/payments/qr_codes/${encodeURIComponent(qrId)}/payments?count=${safeCount}`
+-  );
++function safeEqual(a, b) {
++  const left = Buffer.from(String(a));
++  const right = Buffer.from(String(b));
++  return left.length === right.length && crypto.timingSafeEqual(left, right);
+ }
+ 
+-// ==========================================
+-// CLOSE QR CODE
+-// ==========================================
+-
+-export async function closeQrCode(qrId) {
+-  if (!qrId) {
+-    throw new Error("QR Code ID is required.");
+-  }
+-
+-  return request(
+-    `/payments/qr_codes/${encodeURIComponent(qrId)}/close`,
+-    { method: "POST" }
++// Proves the "you have paid" redirect really came from Razorpay.
++export function verifyCallbackSignature({ linkId, referenceId, status, paymentId, signature }) {
++  if (!isConfigured() || !signature) return false;
++  const expected = hmac(
++    env.razorpay.keySecret,
++    `${linkId}|${referenceId}|${status}|${paymentId}`,
+   );
++  return safeEqual(expected, signature);
+ }
+ 
+-// ==========================================
+-// PAYMENT SIGNATURE VERIFICATION
+-// ==========================================
+-
+-export function verifyCallbackSignature({
+-  paymentLinkId,
+-  paymentId,
+-  signature,
+-}) {
+-  if (!KEY_SECRET || !paymentLinkId || !paymentId || !signature) {
+-    return false;
+-  }
+-
+-  const body = `${paymentLinkId}|${paymentId}`;
+-
+-  const expectedSignature = crypto
+-    .createHmac("sha256", KEY_SECRET)
+-    .update(body)
+-    .digest("hex");
+-
+-  return safeCompare(expectedSignature, signature);
+-}
+-
+-// ==========================================
+-// WEBHOOK SIGNATURE VERIFICATION
+-// ==========================================
+-
++// Proves a webhook body really came from Razorpay. rawBody must be the exact
++// bytes received, before any JSON parsing.
+ export function verifyWebhookSignature(rawBody, signature) {
+-  if (!WEBHOOK_SECRET || !rawBody || !signature) {
+-    return false;
+-  }
+-
+-  const body = Buffer.isBuffer(rawBody)
+-    ? rawBody
+-    : Buffer.from(rawBody);
+-
+-  const expectedSignature = crypto
+-    .createHmac("sha256", WEBHOOK_SECRET)
+-    .update(body)
+-    .digest("hex");
+-
+-  return safeCompare(expectedSignature, signature);
+-}
+-
+-// ==========================================
+-// TIMING-SAFE SIGNATURE COMPARISON
+-// ==========================================
+-
+-function safeCompare(expected, received) {
+-  try {
+-    const expectedBuffer = Buffer.from(expected, "hex");
+-    const receivedBuffer = Buffer.from(received, "hex");
+-
+-    if (
+-      expectedBuffer.length === 0 ||
+-      expectedBuffer.length !== receivedBuffer.length
+-    ) {
+-      return false;
+-    }
+-
+-    return crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
+-  } catch {
+-    return false;
+-  }
++  const secret = env.razorpay.webhookSecret;
++  if (!secret || !signature || !rawBody) return false;
++  return safeEqual(hmac(secret, rawBody), signature);
+ }
+diff --git a/frontend/package-lock.json b/frontend/package-lock.json
+index f2988e0..515de39 100644
+--- a/frontend/package-lock.json
++++ b/frontend/package-lock.json
+@@ -12,6 +12,7 @@
+         "lenis": "^1.3.27",
+         "locomotive-scroll": "^5.0.1",
+         "lucide-react": "^1.70.0",
++        "qrcode.react": "^4.2.0",
+         "react": "^19.3.1",
+         "react-dom": "^19.3.1",
+         "react-router-dom": "^7.18.5"
+@@ -680,9 +681,6 @@
+         "arm64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -700,9 +698,6 @@
+         "arm64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -720,9 +715,6 @@
+         "ppc64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -740,9 +732,6 @@
+         "s390x"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -760,9 +749,6 @@
+         "x64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -780,9 +766,6 @@
+         "x64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -1832,9 +1815,6 @@
+         "arm64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MPL-2.0",
+       "optional": true,
+       "os": [
+@@ -1856,9 +1836,6 @@
+         "arm64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MPL-2.0",
+       "optional": true,
+       "os": [
+@@ -1880,9 +1857,6 @@
+         "x64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "glibc"
+-      ],
+       "license": "MPL-2.0",
+       "optional": true,
+       "os": [
+@@ -1904,9 +1878,6 @@
+         "x64"
+       ],
+       "dev": true,
+-      "libc": [
+-        "musl"
+-      ],
+       "license": "MPL-2.0",
+       "optional": true,
+       "os": [
+@@ -2259,6 +2230,15 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/qrcode.react": {
++      "version": "4.2.0",
++      "resolved": "https://registry.npmjs.org/qrcode.react/-/qrcode.react-4.2.0.tgz",
++      "integrity": "sha512-QpgqWi8rD9DsS9EP3z7BT+5lY5SFhsqGjpgW5DY/i3mK4M9DTBNz3ErMi8BWYEfI3L0d8GIbGmcdFAS1uIRGjA==",
++      "license": "ISC",
++      "peerDependencies": {
++        "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
++      }
++    },
+     "node_modules/react": {
+       "version": "19.3.1",
+       "resolved": "https://registry.npmjs.org/react/-/react-19.3.1.tgz",
+diff --git a/frontend/package.json b/frontend/package.json
+index 7e0cd03..d1d27d5 100644
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -14,6 +14,7 @@
+     "lenis": "^1.3.27",
+     "locomotive-scroll": "^5.0.1",
+     "lucide-react": "^1.70.0",
++    "qrcode.react": "^4.2.0",
+     "react": "^19.3.1",
+     "react-dom": "^19.3.1",
+     "react-router-dom": "^7.18.5"
+diff --git a/frontend/src/App.jsx b/frontend/src/App.jsx
+index 8031418..8eeb1da 100644
+--- a/frontend/src/App.jsx
++++ b/frontend/src/App.jsx
+@@ -16,6 +16,7 @@ import Hero from "./components/Hero";
+ import HomeSections from "./components/HomeSections";
+ import Footer from "./components/Footer";
+ import OrderSuccess from "./Pages/OrderSuccess";
++import OrderResult from "./Pages/OrderResult";
+ 
+ // ==========================================
+ // PUBLIC WEBSITE PAGES
+@@ -456,6 +457,19 @@ function App() {
+           element={<OrderSuccessPage />}
+         />
+ 
++        <Route
++          path="/order-failed"
++          element={
++            <div className="gadgete-app">
++              <Navbar />
++              <main>
++                <OrderResult />
++              </main>
++              <Footer />
++            </div>
++          }
++        />
++
+         {/* ADMIN ROUTES */}
+ 
+         <Route path="/admin/login" element={<AdminLogin />} />
+diff --git a/frontend/src/Pages/Checkout.jsx b/frontend/src/Pages/Checkout.jsx
+index 8f1fe98..03a90fb 100644
+--- a/frontend/src/Pages/Checkout.jsx
++++ b/frontend/src/Pages/Checkout.jsx
+@@ -1,1085 +1,360 @@
+-
+-import { useEffect, useMemo, useState } from "react";
++import { useEffect, useMemo, useRef, useState } from "react";
+ import { Link, useNavigate } from "react-router-dom";
+-
++import { QRCodeSVG } from "qrcode.react";
+ import {
+   ArrowRight,
+   LockKeyhole,
+-  CreditCard,
++  Smartphone,
+   Banknote,
+   ChevronDown,
+   ShoppingBag,
+   RefreshCw,
+-  AlertCircle,
+-  QrCode,
+-  Clock,
+-  CheckCircle2,
+ } from "lucide-react";
+-
++import {
++  api,
++  cartToApiItems,
++  deliveryWindow,
++  formatPrice,
++  getCart,
++  imageUrl,
++} from "../shopApi";
+ import "../Style/Checkout.css";
+ 
+-const CART_KEY = "gadgete_cart";
+-
+-const API_URL = (
+-  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+-).replace(/\/+$/, "");
+-
+-// ==========================================
+-// CART HELPERS
+-// ==========================================
+-
+-const getCart = () => {
+-  try {
+-    const cart = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+-    return Array.isArray(cart) ? cart : [];
+-  } catch {
+-    return [];
+-  }
+-};
+-
+-const getName = (item) =>
+-  item.name || item.title || item.productName || "GADGETÉ Product";
+-
+-const getImage = (item) => {
+-  const image =
+-    item.image ||
+-    item.images?.[0] ||
+-    item.thumbnail ||
+-    item.productImage ||
+-    "";
+-
+-  return typeof image === "string" ? image : image?.url || "";
+-};
+-
+-const getPrice = (item) => {
+-  const value = item.price ?? item.salePrice ?? item.amount ?? 0;
+-
+-  if (typeof value === "number") return value;
+-
+-  return Number(String(value).replace(/[^\d.]/g, "")) || 0;
+-};
++const STATES = [
++  "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chandigarh",
++  "Chhattisgarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Goa", "Gujarat", "Haryana",
++  "Himachal Pradesh", "Jammu and Kashmir", "Jharkhand", "Karnataka", "Kerala", "Ladakh", "Lakshadweep",
++  "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Puducherry",
++  "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand",
++  "West Bengal",
++];
+ 
+-const formatPrice = (price) =>
+-  `₹${Number(price || 0).toLocaleString("en-IN", {
+-    maximumFractionDigits: 2,
+-  })}`;
+-
+-// ==========================================
+-// API REQUEST
+-// ==========================================
+-
+-async function createOrder(payload) {
+-  const response = await fetch(`${API_URL}/orders/checkout`, {
+-    method: "POST",
+-    headers: {
+-      "Content-Type": "application/json",
+-    },
+-    body: JSON.stringify(payload),
+-  });
+-
+-  const data = await response.json().catch(() => ({}));
+-
+-  if (!response.ok) {
+-    throw new Error(
+-      data.message || "Unable to place your order. Please try again."
+-    );
+-  }
+-
+-  return data;
+-}
+-
+-// ==========================================
+-// CHECKOUT COMPONENT
+-// ==========================================
++const newKey = () =>
++  (crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`).replace(/[^A-Za-z0-9_-]/g, "");
+ 
+ const Checkout = () => {
+   const navigate = useNavigate();
+-
+-  const [cart, setCart] = useState(getCart);
+-  const [paymentMethod, setPaymentMethod] = useState("online");
++  const [cart] = useState(getCart);
++  const [quote, setQuote] = useState(null);
++  const [quoteError, setQuoteError] = useState("");
++  const [paymentMethod, setPaymentMethod] = useState("upi");
+   const [loading, setLoading] = useState(false);
+   const [error, setError] = useState("");
+-  const [paymentOrder, setPaymentOrder] = useState(null);
+-  const [paymentExpired, setPaymentExpired] = useState(false);
+-  const [paymentMessage, setPaymentMessage] = useState("");
+-  const [clockNow, setClockNow] = useState(Date.now());
++  const [upiOrder, setUpiOrder] = useState(null);
++  const checkoutKey = useRef(newKey());
+ 
+   const [form, setForm] = useState({
+-    firstName: "",
+-    lastName: "",
+-    phone: "",
+-    email: "",
+-    address1: "",
+-    address2: "",
+-    city: "",
+-    state: "",
+-    pincode: "",
++    firstName: "", lastName: "", phone: "", email: "",
++    address1: "", address2: "", city: "", state: "", pincode: "",
+   });
+ 
+-  // ==========================================
+-  // CART UPDATE LISTENERS
+-  // ==========================================
+-
+-  useEffect(() => {
+-    const updateCart = () => {
+-      setCart(getCart());
+-    };
+-
+-    window.addEventListener("gadgete-cart-updated", updateCart);
+-    window.addEventListener("storage", updateCart);
+-
+-    return () => {
+-      window.removeEventListener("gadgete-cart-updated", updateCart);
+-      window.removeEventListener("storage", updateCart);
+-    };
+-  }, []);
+-
+-  // ==========================================
+-  // QR PAYMENT STATUS POLLING
+-  // ==========================================
++  const items = useMemo(() => cartToApiItems(cart), [cart]);
+ 
++  // Real prices and stock from the server.
+   useEffect(() => {
+-    if (!paymentOrder?.orderId) return undefined;
++    if (!items.length) return;
++    api("/orders/quote", { body: { items } })
++      .then((data) => {
++        setQuote(data);
++        if (!data.options.upi.enabled) setPaymentMethod("cod");
++      })
++      .catch((err) => setQuoteError(err.message));
++  }, [items]);
+ 
+-    let active = true;
+-    let checking = false;
+-
+-    const checkPayment = async () => {
+-      if (checking) return;
+-      checking = true;
+-
+-      try {
+-        const response = await fetch(
+-          `${API_URL}/orders/${encodeURIComponent(paymentOrder.orderId)}/status`,
+-          { method: "GET", cache: "no-store" }
+-        );
+-        const data = await response.json().catch(() => ({}));
+-
+-        if (!response.ok) {
+-          throw new Error(data.message || "Unable to verify payment status.");
+-        }
+-
+-        if (!active) return;
+-
+-        if (data.paymentStatus === "paid") {
+-          localStorage.removeItem(CART_KEY);
+-          window.dispatchEvent(
+-            new CustomEvent("gadgete-cart-updated", { detail: [] })
+-          );
+-          navigate(
+-            `/order-success?order=${encodeURIComponent(paymentOrder.orderId)}`,
+-            { replace: true }
+-          );
+-          return;
+-        }
+-
+-        if (
+-          ["expired", "cancelled", "failed"].includes(data.status) ||
+-          data.paymentStatus === "failed"
+-        ) {
+-          setPaymentExpired(true);
+-          setPaymentMessage(
+-            "This payment QR has expired or been cancelled. Please return to checkout and place a new order."
+-          );
+-        }
+-      } catch (err) {
+-        if (active) {
+-          setPaymentMessage(
+-            err.message || "Payment status check failed. We will keep checking."
+-          );
+-        }
+-      } finally {
+-        checking = false;
+-      }
+-    };
+-
+-    checkPayment();
+-    const interval = window.setInterval(checkPayment, 2500);
+-
+-    return () => {
+-      active = false;
+-      window.clearInterval(interval);
+-    };
+-  }, [paymentOrder, navigate]);
+-
+-  useEffect(() => {
+-    if (!paymentOrder?.expiresAt || paymentExpired) return undefined;
+-    const interval = window.setInterval(() => setClockNow(Date.now()), 1000);
+-    return () => window.clearInterval(interval);
+-  }, [paymentOrder, paymentExpired]);
+-
+-  // ==========================================
+-  // CART CALCULATIONS
+-  // ==========================================
+-
+-  const itemCount = useMemo(
+-    () =>
+-      cart.reduce(
+-        (total, item) =>
+-          total + Math.max(0, Number(item.quantity) || 0),
+-        0
+-      ),
+-    [cart]
+-  );
+-
+-  const subtotal = useMemo(
+-    () =>
+-      cart.reduce(
+-        (total, item) =>
+-          total + getPrice(item) * (Number(item.quantity) || 1),
+-        0
+-      ),
+-    [cart]
+-  );
+-
+-  // Display estimate only.
+-  // Backend calculates the actual shipping and discount.
+-
+-  const shipping = 0;
+-  const total = subtotal + shipping;
+-
+-  // ==========================================
+-  // FORM HANDLING
+-  // ==========================================
++  const option = quote?.options?.[paymentMethod];
+ 
+   const handleChange = (event) => {
+-    const { name, value } = event.target;
+-
+-    setForm((previous) => ({
+-      ...previous,
+-      [name]: value,
+-    }));
+-
+-    setError("");
++    const { name } = event.target;
++    let { value } = event.target;
++    if (name === "phone") value = value.replace(/\D/g, "").slice(0, 10);
++    if (name === "pincode") {
++      value = value.replace(/\D/g, "").slice(0, 6);
++      // Fill in city and state from the PIN code.
++      if (/^[1-9]\d{5}$/.test(value)) {
++        api(`/store/pincode/${value}`)
++          .then(({ city, state }) =>
++            setForm((f) => ({
++              ...f,
++              city: f.city || city,
++              state: f.state || STATES.find((s) => s.toLowerCase() === String(state).toLowerCase()) || f.state,
++            })),
++          )
++          .catch(() => {});
++      }
++    }
++    setForm((previous) => ({ ...previous, [name]: value }));
+   };
+ 
+-  // ==========================================
+-  // PLACE ORDER
+-  // ==========================================
+-
+   const handleSubmit = async (event) => {
+     event.preventDefault();
++    setError("");
+ 
+-    if (loading) return;
+-
+-    if (!cart.length) {
+-      setError("Your cart is empty.");
+-      navigate("/shop");
+-      return;
+-    }
+-
+-    if (!/^[6-9]\d{9}$/.test(form.phone)) {
+-      setError("Please enter a valid 10-digit Indian mobile number.");
+-      return;
+-    }
+-
+-    if (!/^\d{6}$/.test(form.pincode)) {
+-      setError("Please enter a valid 6-digit PIN code.");
+-      return;
+-    }
+-
+-    if (!form.firstName.trim() || !form.lastName.trim()) {
+-      setError("Please enter your full name.");
+-      return;
+-    }
+-
+-    if (!form.address1.trim() || !form.city.trim() || !form.state) {
+-      setError("Please complete your delivery address.");
+-      return;
+-    }
+-
+-    if (!form.email.trim()) {
+-      setError("Please enter your email address.");
+-      return;
+-    }
++    if (!/^[6-9]\d{9}$/.test(form.phone)) return setError("Please enter a valid 10-digit Indian mobile number.");
++    if (!/^[1-9]\d{5}$/.test(form.pincode)) return setError("Please enter a valid 6-digit PIN code.");
+ 
+     setLoading(true);
+-    setError("");
+-
+     try {
+-      // Backend accepts "upi" or "cod".
+-      const selectedPayment =
+-        paymentMethod === "online" ? "upi" : "cod";
+-
+-      // Never trust browser prices.
+-      // Backend fetches product prices and stock from MongoDB.
+-
+-      const orderItems = cart.map((item) => ({
+-        productId: item.productId || item.id || item._id || "",
+-        slug: item.slug || "",
+-        quantity: Math.max(1, Number(item.quantity) || 1),
+-        color: item.color || "",
+-      }));
+-
+-      const payload = {
+-        checkoutKey: crypto.randomUUID().replace(/-/g, ""),
+-
+-        paymentMethod: selectedPayment,
+-
+-        items: orderItems,
+-
+-        customer: {
+-          firstName: form.firstName.trim(),
+-          lastName: form.lastName.trim(),
+-          phone: form.phone,
+-          email: form.email.trim(),
+-        },
+-
+-        shippingAddress: {
+-          line1: form.address1.trim(),
+-          line2: form.address2.trim(),
+-          city: form.city.trim(),
+-          state: form.state,
+-          pincode: form.pincode,
++      const order = await api("/orders/checkout", {
++        body: {
++          items,
++          paymentMethod,
++          checkoutKey: checkoutKey.current,
++          customer: { firstName: form.firstName, lastName: form.lastName, email: form.email, phone: form.phone },
++          shippingAddress: {
++            line1: form.address1, line2: form.address2, city: form.city, state: form.state, pincode: form.pincode,
++          },
+         },
+-      };
++      });
+ 
+-      // Send order to existing Express backend.
+-
+-      const data = await createOrder(payload);
+-
+-      console.log("Checkout response:", data);
+-
+-      // ======================================
+-      // ONLINE PAYMENT - RAZORPAY
+-      // ======================================
+-
+-      if (selectedPayment === "upi") {
+-        if (!data.orderId || !data.qrImageUrl) {
+-          throw new Error(
+-            "The server did not return a payment QR code. Please try again or contact support."
+-          );
+-        }
+-
+-        // Keep the cart until the backend confirms that the payment is captured.
+-        setPaymentExpired(false);
+-        setPaymentMessage("");
+-        setPaymentOrder({
+-          orderId: data.orderId,
+-          orderNumber: data.orderNumber,
+-          qrId: data.qrId,
+-          qrImageUrl: data.qrImageUrl,
+-          expiresAt: data.expiresAt,
+-          total: data.total,
+-        });
+-        return;
+-      }
+-
+-      // ======================================
+-      // CASH ON DELIVERY
+-      // ======================================
+-
+-      if (selectedPayment === "cod") {
+-        if (!data.orderId) {
+-          throw new Error(
+-            "Order was created but the confirmation token was not returned."
+-          );
+-        }
+-
+-        localStorage.removeItem(CART_KEY);
+-
+-        window.dispatchEvent(
+-          new CustomEvent("gadgete-cart-updated", {
+-            detail: [],
+-          })
+-        );
+-
+-        navigate(
+-          `/order-success?order=${encodeURIComponent(data.orderId)}`
+-        );
+-
+-        return;
++      if (order.paymentMethod === "cod") {
++        navigate(`/order-success?order=${order.orderId}`);
++      } else {
++        setUpiOrder(order);
++        window.scrollTo({ top: 0, behavior: "smooth" });
+       }
+     } catch (err) {
+-      console.error("Checkout error:", err);
+-
+-      setError(
+-        err.message || "Something went wrong. Please try again."
+-      );
++      setError(err.message);
++      checkoutKey.current = newKey();
+     } finally {
+       setLoading(false);
+     }
+   };
+ 
+-  // ==========================================
+-  // QR PAYMENT SCREEN
+-  // ==========================================
+-
+-  if (paymentOrder) {
+-    const expiresAtMs = paymentOrder.expiresAt
+-      ? new Date(paymentOrder.expiresAt).getTime()
+-      : null;
+-    const secondsLeft = expiresAtMs
+-      ? Math.max(0, Math.floor((expiresAtMs - clockNow) / 1000))
+-      : null;
+-    const countdown =
+-      secondsLeft === null
+-        ? "Waiting for payment"
+-        : `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(
+-            secondsLeft % 60
+-          ).padStart(2, "0")}`;
+-
+-    const cancelQrPayment = async () => {
+-      setLoading(true);
+-      setPaymentMessage("");
+-      try {
+-        const response = await fetch(
+-          `${API_URL}/orders/${encodeURIComponent(paymentOrder.orderId)}/cancel-payment`,
+-          { method: "POST", cache: "no-store" }
+-        );
+-        const data = await response.json().catch(() => ({}));
+-        if (!response.ok) {
+-          throw new Error(data.message || "Unable to cancel this payment.");
+-        }
+-        if (data.paymentStatus === "paid") {
+-          navigate(
+-            `/order-success?order=${encodeURIComponent(paymentOrder.orderId)}`,
+-            { replace: true }
+-          );
+-          return;
+-        }
+-        setPaymentOrder(null);
+-        setPaymentExpired(false);
+-        setPaymentMessage("");
+-        setError("Payment cancelled. You can place a new order.");
+-      } catch (err) {
+-        setPaymentMessage(err.message || "Unable to cancel payment.");
+-      } finally {
+-        setLoading(false);
+-      }
+-    };
+-
+-    return (
+-      <main className="ge-checkout-page">
+-        <section
+-          className="ge-payment-card"
+-          style={{
+-            maxWidth: "560px",
+-            margin: "50px auto",
+-            padding: "32px",
+-            textAlign: "center",
+-          }}
+-        >
+-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
+-            {paymentExpired ? (
+-              <AlertCircle size={34} color="#d32f2f" />
+-            ) : (
+-              <QrCode size={34} />
+-            )}
+-          </div>
+-
+-          <h1 style={{ marginBottom: "8px" }}>
+-            {paymentExpired ? "PAYMENT QR EXPIRED." : "SCAN TO PAY."}
+-          </h1>
+-          <p>
+-            Order <strong>{paymentOrder.orderNumber || ""}</strong>
+-          </p>
+-
+-          <div
+-            style={{
+-              background: "#fff",
+-              borderRadius: "14px",
+-              padding: "16px",
+-              display: "inline-flex",
+-              justifyContent: "center",
+-              margin: "18px auto",
+-            }}
+-          >
+-            <img
+-              src={paymentOrder.qrImageUrl}
+-              alt="Razorpay payment QR code"
+-              style={{
+-                display: "block",
+-                width: "min(280px, 65vw)",
+-                height: "auto",
+-                objectFit: "contain",
+-              }}
+-            />
+-          </div>
+-
+-          <h2 style={{ margin: "4px 0 12px" }}>
+-            {formatPrice(paymentOrder.total)}
+-          </h2>
+-
+-          {!paymentExpired && (
+-            <p style={{ display: "flex", justifyContent: "center", gap: "8px", alignItems: "center" }}>
+-              <Clock size={18} />
+-              QR expires in <strong>{countdown}</strong>
+-            </p>
+-          )}
+-
+-          <p style={{ marginTop: "12px" }}>
+-            {paymentExpired
+-              ? paymentMessage || "This QR code is no longer valid."
+-              : "Open any supported UPI app, scan this QR code, and pay the exact amount shown. Keep this page open while we verify your payment."}
+-          </p>
+-
+-          {!paymentExpired && (
+-            <p style={{ display: "flex", justifyContent: "center", gap: "8px", alignItems: "center", marginTop: "14px" }}>
+-              <RefreshCw size={16} className="ge-checkout-spinner" />
+-              Waiting for payment confirmation…
+-            </p>
+-          )}
+-
+-          {paymentMessage && !paymentExpired && (
+-            <p role="status" style={{ color: "#b45309", marginTop: "10px" }}>
+-              {paymentMessage}
+-            </p>
+-          )}
+-
+-          {paymentExpired && (
+-            <button
+-              type="button"
+-              className="ge-place-order"
+-              onClick={() => {
+-                setPaymentOrder(null);
+-                setPaymentExpired(false);
+-                setPaymentMessage("");
+-              }}
+-              style={{ marginTop: "18px" }}
+-            >
+-              RETURN TO CHECKOUT <ArrowRight size={20} />
+-            </button>
+-          )}
+-
+-          {!paymentExpired && (
+-            <button
+-              type="button"
+-              className="ge-place-order"
+-              onClick={cancelQrPayment}
+-              disabled={loading}
+-              style={{ marginTop: "18px" }}
+-            >
+-              {loading ? "CANCELLING..." : "CANCEL PAYMENT"}
+-            </button>
+-          )}
+-        </section>
+-      </main>
+-    );
+-  }
+-
+-  // ==========================================
+-  // EMPTY CART
+-  // ==========================================
+-
+   if (!cart.length) {
+     return (
+       <main className="ge-checkout-page">
+         <div className="ge-checkout-empty">
+           <ShoppingBag size={55} />
+-
+-          <h1>
+-            YOUR CART IS <span>EMPTY.</span>
+-          </h1>
+-
++          <h1>YOUR CART IS <span>EMPTY.</span></h1>
+           <p>Add some products before proceeding to checkout.</p>
+-
+-          <Link to="/shop" className="ge-place-order">
+-            EXPLORE PRODUCTS <ArrowRight size={20} />
+-          </Link>
++          <Link to="/shop" className="ge-place-order">EXPLORE PRODUCTS <ArrowRight size={20} /></Link>
+         </div>
+       </main>
+     );
+   }
+ 
+-  // ==========================================
+-  // RENDER
+-  // ==========================================
++  if (upiOrder) {
++    return (
++      <UpiPayment
++        order={upiOrder}
++        onCancel={() => {
++          api(`/orders/${upiOrder.orderId}/cancel-payment`, { method: "POST" }).catch(() => {});
++          checkoutKey.current = newKey();
++          setUpiOrder(null);
++        }}
++      />
++    );
++  }
++
++  const field = (name, label, props = {}) => (
++    <div className={`ge-form-group ${props.wrapClass || ""}`}>
++      <label htmlFor={name}>{label}</label>
++      <input id={name} name={name} value={form[name]} onChange={handleChange} {...props} wrapClass={undefined} />
++    </div>
++  );
+ 
+   return (
+     <main className="ge-checkout-page">
+-
+-      {/* BREADCRUMB */}
+-
+       <div className="ge-checkout-breadcrumb">
+-        <Link to="/">HOME</Link>
+-        <span>›</span>
+-        <Link to="/cart">CART</Link>
+-        <span>›</span>
+-        <strong>CHECKOUT</strong>
++        <Link to="/">HOME</Link><span>›</span><Link to="/cart">CART</Link><span>›</span><strong>CHECKOUT</strong>
+       </div>
+ 
+-      {/* PAGE HEADING */}
+-
+       <section className="ge-checkout-heading">
+-        <h1>
+-          CHECK<span>OUT.</span>
+-        </h1>
+-
+-        <div className="ge-checkout-heading-description">
+-          COMPLETE YOUR ORDER
+-          <br />
+-          IN A FEW SIMPLE STEPS.
+-        </div>
+-
++        <h1>CHECK<span>OUT.</span></h1>
++        <div className="ge-checkout-heading-description">COMPLETE YOUR ORDER<br />IN A FEW SIMPLE STEPS.</div>
+         <div className="ge-checkout-steps">
+-          <div className="ge-step active">
+-            <span>1</span>
+-            DETAILS
+-          </div>
+-
+-          <i />
+-
+-          <div className="ge-step">
+-            <span>2</span>
+-            PAYMENT
+-          </div>
+-
+-          <i />
+-
+-          <div className="ge-step">
+-            <span>3</span>
+-            CONFIRM
+-          </div>
++          <div className="ge-step active"><span>1</span>DETAILS</div><i />
++          <div className="ge-step"><span>2</span>PAYMENT</div><i />
++          <div className="ge-step"><span>3</span>CONFIRM</div>
+         </div>
+       </section>
+ 
+       <form className="ge-checkout-layout" onSubmit={handleSubmit}>
+-
+-        {/* SHIPPING DETAILS */}
+-
+         <section className="ge-shipping-card">
+-
+-          <h2>
+-            SHIPPING <span>DETAILS.</span>
+-          </h2>
+-
+-          <p className="ge-shipping-subtitle">
+-            ENTER YOUR INFORMATION FOR DELIVERY.
+-          </p>
++          <h2>SHIPPING <span>DETAILS.</span></h2>
++          <p className="ge-shipping-subtitle">ENTER YOUR INFORMATION FOR DELIVERY.</p>
+ 
+           <div className="ge-form-grid">
+-
+-            {/* FIRST NAME */}
+-
+-            <div className="ge-form-group">
+-              <label htmlFor="firstName">First Name *</label>
+-
+-              <input
+-                id="firstName"
+-                name="firstName"
+-                type="text"
+-                placeholder="Enter first name"
+-                value={form.firstName}
+-                onChange={handleChange}
+-                required
+-                autoComplete="given-name"
+-              />
+-            </div>
+-
+-            {/* LAST NAME */}
+-
+-            <div className="ge-form-group">
+-              <label htmlFor="lastName">Last Name *</label>
+-
+-              <input
+-                id="lastName"
+-                name="lastName"
+-                type="text"
+-                placeholder="Enter last name"
+-                value={form.lastName}
+-                onChange={handleChange}
+-                required
+-                autoComplete="family-name"
+-              />
+-            </div>
+-
+-            {/* PHONE */}
+-
++            {field("firstName", "First Name *", { required: true, autoComplete: "given-name" })}
++            {field("lastName", "Last Name *", { required: true, autoComplete: "family-name" })}
+             <div className="ge-form-group">
+               <label htmlFor="phone">Phone Number *</label>
+-
+               <div className="ge-phone-input">
+                 <span>+91</span>
+-
+-                <input
+-                  id="phone"
+-                  name="phone"
+-                  type="tel"
+-                  inputMode="numeric"
+-                  placeholder="98765 43210"
+-                  value={form.phone}
+-                  onChange={(e) =>
+-                    handleChange({
+-                      target: {
+-                        name: "phone",
+-                        value: e.target.value.replace(/\D/g, "").slice(0, 10),
+-                      },
+-                    })
+-                  }
+-                  required
+-                  autoComplete="tel-national"
+-                />
++                <input id="phone" name="phone" type="tel" inputMode="numeric" placeholder="98765 43210"
++                  value={form.phone} onChange={handleChange} required autoComplete="tel-national" />
+               </div>
+             </div>
+-
+-            {/* EMAIL */}
+-
+-            <div className="ge-form-group">
+-              <label htmlFor="email">Email Address *</label>
+-
+-              <input
+-                id="email"
+-                name="email"
+-                type="email"
+-                placeholder="yourname@gmail.com"
+-                value={form.email}
+-                onChange={handleChange}
+-                required
+-                autoComplete="email"
+-              />
+-            </div>
+-
+-            {/* ADDRESS 1 */}
+-
+-            <div className="ge-form-group">
+-              <label htmlFor="address1">Address Line 1 *</label>
+-
+-              <input
+-                id="address1"
+-                name="address1"
+-                type="text"
+-                placeholder="House number, street name"
+-                value={form.address1}
+-                onChange={handleChange}
+-                required
+-                autoComplete="address-line1"
+-              />
+-            </div>
+-
+-            {/* ADDRESS 2 */}
+-
++            {field("email", "Email Address *", { type: "email", required: true, autoComplete: "email", placeholder: "Order confirmation is sent here" })}
++            {field("pincode", "PIN Code *", { inputMode: "numeric", required: true, autoComplete: "postal-code", placeholder: "400001" })}
++            {field("address1", "Address Line 1 *", { required: true, autoComplete: "address-line1", placeholder: "House number, street name" })}
++            {field("address2", "Address Line 2", { autoComplete: "address-line2", placeholder: "Apartment, landmark, area" })}
++            {field("city", "City *", { required: true, autoComplete: "address-level2" })}
+             <div className="ge-form-group">
+-              <label htmlFor="address2">Address Line 2</label>
+-
+-              <input
+-                id="address2"
+-                name="address2"
+-                type="text"
+-                placeholder="Apartment, landmark, area"
+-                value={form.address2}
+-                onChange={handleChange}
+-                autoComplete="address-line2"
+-              />
+-            </div>
+-
+-            {/* CITY */}
+-
+-            <div className="ge-form-group ge-city">
+-              <label htmlFor="city">City *</label>
+-
+-              <input
+-                id="city"
+-                name="city"
+-                type="text"
+-                placeholder="Enter city"
+-                value={form.city}
+-                onChange={handleChange}
+-                required
+-                autoComplete="address-level2"
+-              />
+-            </div>
+-
+-            {/* STATE */}
+-
+-            <div className="ge-form-group ge-state">
+               <label htmlFor="state">State *</label>
+-
+               <div className="ge-select-wrapper">
+-                <select
+-                  id="state"
+-                  name="state"
+-                  value={form.state}
+-                  onChange={handleChange}
+-                  required
+-                  autoComplete="address-level1"
+-                >
++                <select id="state" name="state" value={form.state} onChange={handleChange} required>
+                   <option value="">Select State</option>
+-
+-                  {[
+-                    "Andaman and Nicobar Islands",
+-                    "Andhra Pradesh",
+-                    "Arunachal Pradesh",
+-                    "Assam",
+-                    "Bihar",
+-                    "Chandigarh",
+-                    "Chhattisgarh",
+-                    "Dadra and Nagar Haveli and Daman and Diu",
+-                    "Delhi",
+-                    "Goa",
+-                    "Gujarat",
+-                    "Haryana",
+-                    "Himachal Pradesh",
+-                    "Jammu and Kashmir",
+-                    "Jharkhand",
+-                    "Karnataka",
+-                    "Kerala",
+-                    "Ladakh",
+-                    "Lakshadweep",
+-                    "Madhya Pradesh",
+-                    "Maharashtra",
+-                    "Manipur",
+-                    "Meghalaya",
+-                    "Mizoram",
+-                    "Nagaland",
+-                    "Odisha",
+-                    "Puducherry",
+-                    "Punjab",
+-                    "Rajasthan",
+-                    "Sikkim",
+-                    "Tamil Nadu",
+-                    "Telangana",
+-                    "Tripura",
+-                    "Uttar Pradesh",
+-                    "Uttarakhand",
+-                    "West Bengal",
+-                  ].map((state) => (
+-                    <option key={state} value={state}>
+-                      {state}
+-                    </option>
+-                  ))}
++                  {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                 </select>
+-
+                 <ChevronDown size={19} />
+               </div>
+             </div>
+-
+-            {/* PIN CODE */}
+-
+-            <div className="ge-form-group ge-pincode">
+-              <label htmlFor="pincode">PIN Code *</label>
+-
+-              <input
+-                id="pincode"
+-                name="pincode"
+-                type="text"
+-                inputMode="numeric"
+-                maxLength={6}
+-                placeholder="400001"
+-                value={form.pincode}
+-                onChange={(e) =>
+-                  handleChange({
+-                    target: {
+-                      name: "pincode",
+-                      value: e.target.value.replace(/\D/g, "").slice(0, 6),
+-                    },
+-                  })
+-                }
+-                required
+-                autoComplete="postal-code"
+-              />
+-            </div>
+-
+           </div>
+-
+         </section>
+ 
+-        {/* RIGHT SIDE */}
+-
+         <aside className="ge-checkout-right">
+-
+-          {/* ORDER SUMMARY */}
+-
+           <section className="ge-order-summary">
+-
+             <div className="ge-summary-heading">
+-              <h2>
+-                ORDER <span>SUMMARY.</span>
+-              </h2>
+-
+-              <strong>
+-                {String(itemCount).padStart(2, "0")}
+-                <small> ITEMS</small>
+-              </strong>
++              <h2>ORDER <span>SUMMARY.</span></h2>
++              <strong>{String(quote?.itemCount ?? 0).padStart(2, "0")} <small>ITEMS</small></strong>
+             </div>
+ 
+-            <div className="ge-checkout-products">
+-
+-              {cart.map((item, index) => {
+-                const image = getImage(item);
+-                const name = getName(item);
+-                const quantity = Number(item.quantity) || 1;
+-                const price = getPrice(item);
+-
+-                return (
+-                  <div
+-                    className="ge-checkout-product"
+-                    key={`${item.id || item.slug || name}-${index}`}
+-                  >
+-
+-                    <div className="ge-checkout-product-image">
+-                      {image ? (
+-                        <img src={image} alt={name} />
+-                      ) : (
+-                        <ShoppingBag size={25} />
+-                      )}
+-                    </div>
+-
+-                    <div className="ge-checkout-product-info">
+-                      <h3>{name}</h3>
+-                      <p>Color: {item.color || "Standard"}</p>
+-                    </div>
+-
+-                    <span className="ge-checkout-quantity">
+-                      × {quantity}
+-                    </span>
+-
+-                    <strong className="ge-checkout-price">
+-                      {formatPrice(price * quantity)}
+-                    </strong>
++            {quoteError && <p>{quoteError}</p>}
++            {quote?.problems?.map((p, i) => <p key={i} style={{ color: "#eff04c", fontSize: 13 }}>⚠ {p.message}</p>)}
+ 
++            <div className="ge-checkout-products">
++              {(quote?.items || []).map((item) => (
++                <div className="ge-checkout-product" key={`${item.slug}-${item.color}`}>
++                  <div className="ge-checkout-product-image">
++                    {item.image ? <img src={imageUrl(item.image)} alt={item.name} /> : <ShoppingBag size={25} />}
+                   </div>
+-                );
+-              })}
+-
++                  <div className="ge-checkout-product-info">
++                    <h3>{item.name}</h3>
++                    <p>Color: {item.color || "Standard"}</p>
++                  </div>
++                  <span className="ge-checkout-quantity">× {item.quantity}</span>
++                  <strong className="ge-checkout-price">{formatPrice(item.lineTotal)}</strong>
++                </div>
++              ))}
+             </div>
+ 
+             <div className="ge-checkout-summary-divider" />
+-
+-            <div className="ge-checkout-summary-row">
+-              <span>Subtotal ({itemCount} items)</span>
+-              <strong>{formatPrice(subtotal)}</strong>
+-            </div>
+-
++            <div className="ge-checkout-summary-row"><span>Subtotal</span><strong>{formatPrice(option?.subtotal)}</strong></div>
++            {option?.discount > 0 && (
++              <div className="ge-checkout-summary-row">
++                <span>UPI discount ({option.discountPercent}%)</span>
++                <strong className="ge-free-shipping">−{formatPrice(option.discount)}</strong>
++              </div>
++            )}
+             <div className="ge-checkout-summary-row">
+               <span>Shipping</span>
+-              <strong className="ge-free-shipping">FREE</strong>
++              <strong className="ge-free-shipping">{option?.shippingFee ? formatPrice(option.shippingFee) : "FREE"}</strong>
+             </div>
+-
+             <div className="ge-checkout-summary-divider" />
+-
+-            <div className="ge-checkout-total">
+-              <span>Total*</span>
+-              <strong>{formatPrice(total)}</strong>
+-            </div>
+-
+-            <small>*Final total and applicable discounts are calculated by the server.</small>
+-
++            <div className="ge-checkout-total"><span>Total</span><strong>{formatPrice(option?.total)}</strong></div>
++            {option?.delivery && (
++              <p style={{ fontSize: 12, marginTop: 8 }}>Estimated delivery: {deliveryWindow(option.delivery)}</p>
++            )}
+           </section>
+ 
+-          {/* PAYMENT METHOD */}
+-
+           <section className="ge-payment-card">
+-
+             <div className="ge-payment-heading">
+-              <h2>
+-                PAYMENT <span>METHOD.</span>
+-              </h2>
+-
++              <h2>PAYMENT <span>METHOD.</span></h2>
+               <small>CHOOSE HOW YOU'D LIKE TO PAY.</small>
+             </div>
+ 
+-            {/* ONLINE PAYMENT */}
+-
+-            <label
+-              className={`ge-payment-option ${
+-                paymentMethod === "online" ? "selected" : ""
+-              }`}
+-            >
+-              <input
+-                type="radio"
+-                name="paymentMethod"
+-                value="online"
+-                checked={paymentMethod === "online"}
+-                onChange={() => setPaymentMethod("online")}
+-              />
+-
+-              <span className="ge-custom-radio" />
+-
+-              <CreditCard size={30} />
+-
+-              <span className="ge-payment-option-text">
+-                <strong>Pay Online</strong>
+-
+-                <small>
+-                  UPI, Cards, Net Banking and Wallets
+-                </small>
+-              </span>
+-            </label>
+-
+-            {/* COD */}
+-
+-            <label
+-              className={`ge-payment-option ${
+-                paymentMethod === "cod" ? "selected" : ""
+-              }`}
+-            >
+-              <input
+-                type="radio"
+-                name="paymentMethod"
+-                value="cod"
+-                checked={paymentMethod === "cod"}
+-                onChange={() => setPaymentMethod("cod")}
+-              />
+-
+-              <span className="ge-custom-radio" />
+-
+-              <Banknote size={30} />
+-
+-              <span className="ge-payment-option-text">
+-                <strong>Cash on Delivery (COD)</strong>
+-
+-                <small>
+-                  Pay in cash when your order is delivered
+-                </small>
+-              </span>
+-            </label>
+-
+-            {/* ERROR */}
++            {quote?.options?.upi?.enabled && (
++              <label className={`ge-payment-option ${paymentMethod === "upi" ? "selected" : ""}`}>
++                <input type="radio" name="paymentMethod" checked={paymentMethod === "upi"} onChange={() => setPaymentMethod("upi")} />
++                <span className="ge-custom-radio" />
++                <Smartphone size={30} />
++                <span className="ge-payment-option-text">
++                  <strong>
++                    Pay Online (UPI) {quote.options.upi.discountPercent > 0 && `— SAVE ${quote.options.upi.discountPercent}%`}
++                  </strong>
++                  <small>
++                    {formatPrice(quote.options.upi.total)} · GPay, PhonePe, Paytm, cards · Faster delivery
++                  </small>
++                </span>
++              </label>
++            )}
+ 
+-            {error && (
+-              <div
+-                className="ge-checkout-error"
+-                role="alert"
+-                style={{
+-                  padding: "12px",
+-                  marginTop: "12px",
+-                  borderRadius: "8px",
+-                  background: "#fff0f0",
+-                  color: "#c62828",
+-                  display: "flex",
+-                  gap: "8px",
+-                  alignItems: "center",
+-                  fontSize: "13px",
+-                }}
+-              >
+-                <AlertCircle size={18} />
+-                {error}
+-              </div>
++            {quote?.options?.cod?.enabled && (
++              <label className={`ge-payment-option ${paymentMethod === "cod" ? "selected" : ""}`}>
++                <input type="radio" name="paymentMethod" checked={paymentMethod === "cod"} onChange={() => setPaymentMethod("cod")} />
++                <span className="ge-custom-radio" />
++                <Banknote size={30} />
++                <span className="ge-payment-option-text">
++                  <strong>Cash on Delivery (COD)</strong>
++                  <small>{formatPrice(quote.options.cod.total)} · Pay in cash when your order is delivered</small>
++                </span>
++              </label>
+             )}
+ 
+-            {/* PLACE ORDER */}
++            {error && <p style={{ marginTop: 12, padding: 10, borderRadius: 8, background: "#fde2e1", color: "#9b1c1c", fontSize: 13 }}>{error}</p>}
+ 
+-            <button
+-              type="submit"
+-              className="ge-place-order"
+-              disabled={loading}
+-            >
+-              {loading ? (
+-                <>
+-                  <RefreshCw
+-                    size={20}
+-                    className="ge-checkout-spinner"
+-                  />
+-                  PROCESSING...
+-                </>
+-              ) : (
+-                <>
+-                  <LockKeyhole size={21} />
+-                  PLACE ORDER
+-                  <ArrowRight size={21} />
+-                </>
+-              )}
++            <button type="submit" className="ge-place-order" disabled={loading || !quote || !quote.items.length}>
++              <LockKeyhole size={21} />
++              {loading
++                ? "PLEASE WAIT..."
++                : paymentMethod === "cod"
++                  ? `PLACE ORDER · ${formatPrice(option?.total)}`
++                  : `PAY ${formatPrice(option?.total)}`}
++              <ArrowRight size={21} />
+             </button>
+-
+           </section>
+-
+         </aside>
+-
+       </form>
+-
+     </main>
+   );
+ };
+ 
++// Step 2 for UPI: QR code of the Razorpay payment link + a Pay button.
++function UpiPayment({ order, onCancel }) {
++  const navigate = useNavigate();
++  const [checking, setChecking] = useState(false);
++  const [message, setMessage] = useState("");
++
++  const check = async (manual) => {
++    try {
++      if (manual) setChecking(true);
++      const status = await api(`/orders/${order.orderId}/status`);
++      if (status.placed) navigate(`/order-success?order=${order.orderId}`);
++      else if (status.status === "expired") navigate(`/order-failed?order=${order.orderId}`);
++      else if (manual) setMessage("We haven't received the payment yet. If you paid, wait a few seconds.");
++    } catch {
++      /* try again next time */
++    } finally {
++      if (manual) setChecking(false);
++    }
++  };
++
++  // Ask the server every 4 seconds whether the payment came through.
++  useEffect(() => {
++    const timer = setInterval(() => check(false), 4000);
++    return () => clearInterval(timer);
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [order.orderId]);
++
++  return (
++    <main className="ge-checkout-page">
++      <section className="ge-checkout-heading">
++        <h1>PAY<span>NOW.</span></h1>
++        <div className="ge-checkout-heading-description">ORDER {order.orderNumber}<br />{formatPrice(order.total)}</div>
++      </section>
++
++      <section className="ge-payment-card" style={{ maxWidth: 460, margin: "0 auto", textAlign: "center" }}>
++        <p style={{ marginBottom: 14 }}>Scan with your phone camera or any UPI app, or tap the button below.</p>
++        <div style={{ display: "inline-block", padding: 14, background: "#fff", borderRadius: 12 }}>
++          <QRCodeSVG value={order.paymentUrl} size={230} level="M" />
++        </div>
++        <a className="ge-place-order" href={order.paymentUrl}>
++          PAY {formatPrice(order.total)} WITH UPI / RAZORPAY <ArrowRight size={20} />
++        </a>
++        <p style={{ marginTop: 14, fontSize: 13 }}>⏳ Waiting for payment… this page updates automatically.</p>
++        {message && <p style={{ fontSize: 13, color: "#eff04c" }}>{message}</p>}
++        <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
++          <button type="button" className="ge-place-order" style={{ width: "auto", minHeight: 44, background: "transparent", color: "#fff", border: "1px solid #fff" }} disabled={checking} onClick={() => check(true)}>
++            <RefreshCw size={16} /> {checking ? "CHECKING…" : "I'VE PAID — CHECK NOW"}
++          </button>
++          <button type="button" className="ge-place-order" style={{ width: "auto", minHeight: 44, background: "transparent", color: "#fff", border: "1px solid #fff" }} onClick={onCancel}>
++            ← CHANGE DETAILS
++          </button>
++        </div>
++      </section>
++    </main>
++  );
++}
++
+ export default Checkout;
+diff --git a/frontend/src/Pages/OrderResult.jsx b/frontend/src/Pages/OrderResult.jsx
+new file mode 100644
+index 0000000..16f85ff
+--- /dev/null
++++ b/frontend/src/Pages/OrderResult.jsx
+@@ -0,0 +1,97 @@
++import { useEffect, useState } from "react";
++import { Link, useSearchParams } from "react-router-dom";
++import { Check, X, ShoppingBag, ArrowRight } from "lucide-react";
++import { api, clearCart, formatPrice, imageUrl } from "../shopApi";
++import "../Style/Checkout.css";
++
++// /order-success?order=…  and  /order-failed?order=…
++export default function OrderResult({ success = false }) {
++  const [params] = useSearchParams();
++  const token = params.get("order");
++  const [order, setOrder] = useState(null);
++
++  useEffect(() => {
++    if (success) clearCart();
++    if (!token) return;
++    api(`/orders/${token}`).then((data) => setOrder(data.order)).catch(() => {});
++  }, [success, token]);
++
++  const box = { maxWidth: 620, margin: "0 auto" };
++
++  if (!success) {
++    return (
++      <main className="ge-checkout-page">
++        <div className="ge-checkout-empty">
++          <X size={55} />
++          <h1>PAYMENT NOT <span>COMPLETED.</span></h1>
++          <p>No money was taken. Your cart is still saved, so you can try again.</p>
++          <Link to="/checkout" className="ge-place-order" style={{ maxWidth: 320 }}>TRY AGAIN <ArrowRight size={20} /></Link>
++        </div>
++      </main>
++    );
++  }
++
++  const cod = order?.payment?.method === "cod";
++
++  return (
++    <main className="ge-checkout-page">
++      <section className="ge-checkout-heading">
++        <h1>THANK <span>YOU.</span></h1>
++        <div className="ge-checkout-heading-description">
++          YOUR ORDER IS CONFIRMED.<br />
++          {order ? `ORDER ${order.orderNumber}` : ""}
++        </div>
++      </section>
++
++      <section className="ge-order-summary" style={box}>
++        <div className="ge-summary-heading">
++          <h2><Check size={26} /> ORDER <span>PLACED.</span></h2>
++        </div>
++        {order ? (
++          <>
++            <p style={{ marginBottom: 12 }}>
++              {cod
++                ? `Please keep ${formatPrice(order.total)} ready to pay in cash on delivery.`
++                : "Your payment was successful."}{" "}
++              A confirmation email has been sent to {order.customer.email}.
++            </p>
++            <div className="ge-checkout-products">
++              {order.items.map((item, index) => (
++                <div className="ge-checkout-product" key={index}>
++                  <div className="ge-checkout-product-image">
++                    {item.image ? <img src={imageUrl(item.image)} alt={item.name} /> : <ShoppingBag size={25} />}
++                  </div>
++                  <div className="ge-checkout-product-info"><h3>{item.name}</h3><p>{item.color || "Standard"}</p></div>
++                  <span className="ge-checkout-quantity">× {item.quantity}</span>
++                  <strong className="ge-checkout-price">{formatPrice(item.price * item.quantity)}</strong>
++                </div>
++              ))}
++            </div>
++            <div className="ge-checkout-summary-divider" />
++            {order.discount > 0 && (
++              <div className="ge-checkout-summary-row"><span>UPI discount</span><strong>−{formatPrice(order.discount)}</strong></div>
++            )}
++            <div className="ge-checkout-total"><span>{cod ? "To pay on delivery" : "Total paid"}</span><strong>{formatPrice(order.total)}</strong></div>
++            {order.estimatedDelivery && (
++              <p style={{ marginTop: 10, fontSize: 13 }}>
++                Estimated delivery: {new Date(order.estimatedDelivery.from).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} –{" "}
++                {new Date(order.estimatedDelivery.to).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
++              </p>
++            )}
++          </>
++        ) : (
++          <p>Loading your order…</p>
++        )}
++      </section>
++
++      <div style={{ ...box, display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
++        {order && (
++          <Link to={`/track-order?order=${order.orderNumber}`} className="ge-place-order" style={{ flex: 1 }}>
++            TRACK ORDER <ArrowRight size={20} />
++          </Link>
++        )}
++        <Link to="/shop" className="ge-place-order" style={{ flex: 1 }}>CONTINUE SHOPPING <ArrowRight size={20} /></Link>
++      </div>
++    </main>
++  );
++}
+diff --git a/frontend/src/Pages/OrderSuccess.jsx b/frontend/src/Pages/OrderSuccess.jsx
+index 60560fd..f8da4e1 100644
+--- a/frontend/src/Pages/OrderSuccess.jsx
++++ b/frontend/src/Pages/OrderSuccess.jsx
+@@ -14,7 +14,7 @@ import {
+ import "../Style/OrderSuccess.css";
+ 
+ const API_URL = (
+-  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
++  import.meta.env.VITE_API_URL || "/api"
+ ).replace(/\/+$/, "");
+ 
+ export default function OrderSuccess() {
+diff --git a/frontend/src/Pages/TrackOrder.jsx b/frontend/src/Pages/TrackOrder.jsx
+index 292197a..3075769 100644
+--- a/frontend/src/Pages/TrackOrder.jsx
++++ b/frontend/src/Pages/TrackOrder.jsx
+@@ -24,7 +24,7 @@ import "../Style/TrackOrder.css";
+ // API CONFIGURATION
+ // ==========================================
+ 
+-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
++const API_URL = import.meta.env.VITE_API_URL || "/api";
+ 
+ // ==========================================
+ // HELPER FUNCTIONS
+diff --git a/frontend/src/shopApi.js b/frontend/src/shopApi.js
+new file mode 100644
+index 0000000..7071d7a
+--- /dev/null
++++ b/frontend/src/shopApi.js
+@@ -0,0 +1,63 @@
++// Storefront helpers for talking to the backend.
++import { getProductById } from "./data/products";
++
++export const API = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
++export const CART_KEY = "gadgete_cart";
++
++export async function api(path, { body, method } = {}) {
++  const response = await fetch(`${API}${path}`, {
++    method: method || (body ? "POST" : "GET"),
++    headers: body ? { "Content-Type": "application/json" } : undefined,
++    body: body ? JSON.stringify(body) : undefined,
++  });
++  const data = await response.json().catch(() => ({}));
++  if (!response.ok) {
++    const error = new Error(data.message || "Something went wrong. Please try again.");
++    error.code = data.code;
++    throw error;
++  }
++  return data;
++}
++
++export const getCart = () => {
++  try {
++    const cart = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
++    return Array.isArray(cart) ? cart : [];
++  } catch {
++    return [];
++  }
++};
++
++export const clearCart = () => {
++  localStorage.setItem(CART_KEY, "[]");
++  window.dispatchEvent(new CustomEvent("gadgete-cart-updated", { detail: [] }));
++};
++
++// Cart items saved by the older pages only have id "01"; the backend wants the slug.
++export const cartToApiItems = (cart) =>
++  cart.map((item, index) => ({
++    key: String(index),
++    slug: item.slug || getProductById(item.id)?.slug || "",
++    productId: /^[0-9a-f]{24}$/i.test(String(item.id)) ? item.id : undefined,
++    quantity: Number(item.quantity) || 1,
++    color: item.color || "",
++  }));
++
++export function imageUrl(path) {
++  if (!path) return "";
++  if (/^https?:\/\//i.test(path)) return path;
++  if (/^https?:\/\//i.test(API)) return `${new URL(API).origin}${path}`;
++  return path;
++}
++
++export const formatPrice = (price) =>
++  `₹${Number(price || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
++
++const shortDate = (date) =>
++  new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
++
++// "16 Nov – 18 Nov"
++export function deliveryWindow({ minDays, maxDays }, from = new Date()) {
++  const add = (days) => new Date(new Date(from).getTime() + days * 86400000);
++  return `${shortDate(add(minDays))} – ${shortDate(add(maxDays))}`;
++}
+-- 
+2.43.0
+
