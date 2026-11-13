@@ -16,6 +16,7 @@ import Hero from "./components/Hero";
 import HomeSections from "./components/HomeSections";
 import Footer from "./components/Footer";
 import OrderSuccess from "./Pages/OrderSuccess";
+import OrderResult from "./Pages/OrderResult";
 
 // ==========================================
 // PUBLIC WEBSITE PAGES
@@ -454,6 +455,19 @@ function App() {
         <Route
           path="/order-success"
           element={<OrderSuccessPage />}
+        />
+
+        <Route
+          path="/order-failed"
+          element={
+            <div className="gadgete-app">
+              <Navbar />
+              <main>
+                <OrderResult />
+              </main>
+              <Footer />
+            </div>
+          }
         />
 
         {/* ADMIN ROUTES */}

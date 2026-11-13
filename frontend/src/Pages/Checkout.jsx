@@ -1,1085 +1,360 @@
-
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
+import { QRCodeSVG } from "qrcode.react";
 import {
   ArrowRight,
   LockKeyhole,
-  CreditCard,
+  Smartphone,
   Banknote,
   ChevronDown,
   ShoppingBag,
   RefreshCw,
-  AlertCircle,
-  QrCode,
-  Clock,
-  CheckCircle2,
 } from "lucide-react";
-
+import {
+  api,
+  cartToApiItems,
+  deliveryWindow,
+  formatPrice,
+  getCart,
+  imageUrl,
+} from "../shopApi";
 import "../Style/Checkout.css";
 
-const CART_KEY = "gadgete_cart";
+const STATES = [
+  "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chandigarh",
+  "Chhattisgarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Goa", "Gujarat", "Haryana",
+  "Himachal Pradesh", "Jammu and Kashmir", "Jharkhand", "Karnataka", "Kerala", "Ladakh", "Lakshadweep",
+  "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Puducherry",
+  "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand",
+  "West Bengal",
+];
 
-const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
-).replace(/\/+$/, "");
-
-// ==========================================
-// CART HELPERS
-// ==========================================
-
-const getCart = () => {
-  try {
-    const cart = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
-    return Array.isArray(cart) ? cart : [];
-  } catch {
-    return [];
-  }
-};
-
-const getName = (item) =>
-  item.name || item.title || item.productName || "GADGETÉ Product";
-
-const getImage = (item) => {
-  const image =
-    item.image ||
-    item.images?.[0] ||
-    item.thumbnail ||
-    item.productImage ||
-    "";
-
-  return typeof image === "string" ? image : image?.url || "";
-};
-
-const getPrice = (item) => {
-  const value = item.price ?? item.salePrice ?? item.amount ?? 0;
-
-  if (typeof value === "number") return value;
-
-  return Number(String(value).replace(/[^\d.]/g, "")) || 0;
-};
-
-const formatPrice = (price) =>
-  `₹${Number(price || 0).toLocaleString("en-IN", {
-    maximumFractionDigits: 2,
-  })}`;
-
-// ==========================================
-// API REQUEST
-// ==========================================
-
-async function createOrder(payload) {
-  const response = await fetch(`${API_URL}/orders/checkout`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || "Unable to place your order. Please try again."
-    );
-  }
-
-  return data;
-}
-
-// ==========================================
-// CHECKOUT COMPONENT
-// ==========================================
+const newKey = () =>
+  (crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`).replace(/[^A-Za-z0-9_-]/g, "");
 
 const Checkout = () => {
   const navigate = useNavigate();
-
-  const [cart, setCart] = useState(getCart);
-  const [paymentMethod, setPaymentMethod] = useState("online");
+  const [cart] = useState(getCart);
+  const [quote, setQuote] = useState(null);
+  const [quoteError, setQuoteError] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("upi");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [paymentOrder, setPaymentOrder] = useState(null);
-  const [paymentExpired, setPaymentExpired] = useState(false);
-  const [paymentMessage, setPaymentMessage] = useState("");
-  const [clockNow, setClockNow] = useState(Date.now());
+  const [upiOrder, setUpiOrder] = useState(null);
+  const checkoutKey = useRef(newKey());
 
   const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    phone: "",
-    email: "",
-    address1: "",
-    address2: "",
-    city: "",
-    state: "",
-    pincode: "",
+    firstName: "", lastName: "", phone: "", email: "",
+    address1: "", address2: "", city: "", state: "", pincode: "",
   });
 
-  // ==========================================
-  // CART UPDATE LISTENERS
-  // ==========================================
+  const items = useMemo(() => cartToApiItems(cart), [cart]);
 
+  // Real prices and stock from the server.
   useEffect(() => {
-    const updateCart = () => {
-      setCart(getCart());
-    };
+    if (!items.length) return;
+    api("/orders/quote", { body: { items } })
+      .then((data) => {
+        setQuote(data);
+        if (!data.options.upi.enabled) setPaymentMethod("cod");
+      })
+      .catch((err) => setQuoteError(err.message));
+  }, [items]);
 
-    window.addEventListener("gadgete-cart-updated", updateCart);
-    window.addEventListener("storage", updateCart);
-
-    return () => {
-      window.removeEventListener("gadgete-cart-updated", updateCart);
-      window.removeEventListener("storage", updateCart);
-    };
-  }, []);
-
-  // ==========================================
-  // QR PAYMENT STATUS POLLING
-  // ==========================================
-
-  useEffect(() => {
-    if (!paymentOrder?.orderId) return undefined;
-
-    let active = true;
-    let checking = false;
-
-    const checkPayment = async () => {
-      if (checking) return;
-      checking = true;
-
-      try {
-        const response = await fetch(
-          `${API_URL}/orders/${encodeURIComponent(paymentOrder.orderId)}/status`,
-          { method: "GET", cache: "no-store" }
-        );
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data.message || "Unable to verify payment status.");
-        }
-
-        if (!active) return;
-
-        if (data.paymentStatus === "paid") {
-          localStorage.removeItem(CART_KEY);
-          window.dispatchEvent(
-            new CustomEvent("gadgete-cart-updated", { detail: [] })
-          );
-          navigate(
-            `/order-success?order=${encodeURIComponent(paymentOrder.orderId)}`,
-            { replace: true }
-          );
-          return;
-        }
-
-        if (
-          ["expired", "cancelled", "failed"].includes(data.status) ||
-          data.paymentStatus === "failed"
-        ) {
-          setPaymentExpired(true);
-          setPaymentMessage(
-            "This payment QR has expired or been cancelled. Please return to checkout and place a new order."
-          );
-        }
-      } catch (err) {
-        if (active) {
-          setPaymentMessage(
-            err.message || "Payment status check failed. We will keep checking."
-          );
-        }
-      } finally {
-        checking = false;
-      }
-    };
-
-    checkPayment();
-    const interval = window.setInterval(checkPayment, 2500);
-
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-    };
-  }, [paymentOrder, navigate]);
-
-  useEffect(() => {
-    if (!paymentOrder?.expiresAt || paymentExpired) return undefined;
-    const interval = window.setInterval(() => setClockNow(Date.now()), 1000);
-    return () => window.clearInterval(interval);
-  }, [paymentOrder, paymentExpired]);
-
-  // ==========================================
-  // CART CALCULATIONS
-  // ==========================================
-
-  const itemCount = useMemo(
-    () =>
-      cart.reduce(
-        (total, item) =>
-          total + Math.max(0, Number(item.quantity) || 0),
-        0
-      ),
-    [cart]
-  );
-
-  const subtotal = useMemo(
-    () =>
-      cart.reduce(
-        (total, item) =>
-          total + getPrice(item) * (Number(item.quantity) || 1),
-        0
-      ),
-    [cart]
-  );
-
-  // Display estimate only.
-  // Backend calculates the actual shipping and discount.
-
-  const shipping = 0;
-  const total = subtotal + shipping;
-
-  // ==========================================
-  // FORM HANDLING
-  // ==========================================
+  const option = quote?.options?.[paymentMethod];
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
-
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-
-    setError("");
+    const { name } = event.target;
+    let { value } = event.target;
+    if (name === "phone") value = value.replace(/\D/g, "").slice(0, 10);
+    if (name === "pincode") {
+      value = value.replace(/\D/g, "").slice(0, 6);
+      // Fill in city and state from the PIN code.
+      if (/^[1-9]\d{5}$/.test(value)) {
+        api(`/store/pincode/${value}`)
+          .then(({ city, state }) =>
+            setForm((f) => ({
+              ...f,
+              city: f.city || city,
+              state: f.state || STATES.find((s) => s.toLowerCase() === String(state).toLowerCase()) || f.state,
+            })),
+          )
+          .catch(() => {});
+      }
+    }
+    setForm((previous) => ({ ...previous, [name]: value }));
   };
-
-  // ==========================================
-  // PLACE ORDER
-  // ==========================================
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-
-    if (loading) return;
-
-    if (!cart.length) {
-      setError("Your cart is empty.");
-      navigate("/shop");
-      return;
-    }
-
-    if (!/^[6-9]\d{9}$/.test(form.phone)) {
-      setError("Please enter a valid 10-digit Indian mobile number.");
-      return;
-    }
-
-    if (!/^\d{6}$/.test(form.pincode)) {
-      setError("Please enter a valid 6-digit PIN code.");
-      return;
-    }
-
-    if (!form.firstName.trim() || !form.lastName.trim()) {
-      setError("Please enter your full name.");
-      return;
-    }
-
-    if (!form.address1.trim() || !form.city.trim() || !form.state) {
-      setError("Please complete your delivery address.");
-      return;
-    }
-
-    if (!form.email.trim()) {
-      setError("Please enter your email address.");
-      return;
-    }
-
-    setLoading(true);
     setError("");
 
+    if (!/^[6-9]\d{9}$/.test(form.phone)) return setError("Please enter a valid 10-digit Indian mobile number.");
+    if (!/^[1-9]\d{5}$/.test(form.pincode)) return setError("Please enter a valid 6-digit PIN code.");
+
+    setLoading(true);
     try {
-      // Backend accepts "upi" or "cod".
-      const selectedPayment =
-        paymentMethod === "online" ? "upi" : "cod";
-
-      // Never trust browser prices.
-      // Backend fetches product prices and stock from MongoDB.
-
-      const orderItems = cart.map((item) => ({
-        productId: item.productId || item.id || item._id || "",
-        slug: item.slug || "",
-        quantity: Math.max(1, Number(item.quantity) || 1),
-        color: item.color || "",
-      }));
-
-      const payload = {
-        checkoutKey: crypto.randomUUID().replace(/-/g, ""),
-
-        paymentMethod: selectedPayment,
-
-        items: orderItems,
-
-        customer: {
-          firstName: form.firstName.trim(),
-          lastName: form.lastName.trim(),
-          phone: form.phone,
-          email: form.email.trim(),
+      const order = await api("/orders/checkout", {
+        body: {
+          items,
+          paymentMethod,
+          checkoutKey: checkoutKey.current,
+          customer: { firstName: form.firstName, lastName: form.lastName, email: form.email, phone: form.phone },
+          shippingAddress: {
+            line1: form.address1, line2: form.address2, city: form.city, state: form.state, pincode: form.pincode,
+          },
         },
+      });
 
-        shippingAddress: {
-          line1: form.address1.trim(),
-          line2: form.address2.trim(),
-          city: form.city.trim(),
-          state: form.state,
-          pincode: form.pincode,
-        },
-      };
-
-      // Send order to existing Express backend.
-
-      const data = await createOrder(payload);
-
-      console.log("Checkout response:", data);
-
-      // ======================================
-      // ONLINE PAYMENT - RAZORPAY
-      // ======================================
-
-      if (selectedPayment === "upi") {
-        if (!data.orderId || !data.qrImageUrl) {
-          throw new Error(
-            "The server did not return a payment QR code. Please try again or contact support."
-          );
-        }
-
-        // Keep the cart until the backend confirms that the payment is captured.
-        setPaymentExpired(false);
-        setPaymentMessage("");
-        setPaymentOrder({
-          orderId: data.orderId,
-          orderNumber: data.orderNumber,
-          qrId: data.qrId,
-          qrImageUrl: data.qrImageUrl,
-          expiresAt: data.expiresAt,
-          total: data.total,
-        });
-        return;
-      }
-
-      // ======================================
-      // CASH ON DELIVERY
-      // ======================================
-
-      if (selectedPayment === "cod") {
-        if (!data.orderId) {
-          throw new Error(
-            "Order was created but the confirmation token was not returned."
-          );
-        }
-
-        localStorage.removeItem(CART_KEY);
-
-        window.dispatchEvent(
-          new CustomEvent("gadgete-cart-updated", {
-            detail: [],
-          })
-        );
-
-        navigate(
-          `/order-success?order=${encodeURIComponent(data.orderId)}`
-        );
-
-        return;
+      if (order.paymentMethod === "cod") {
+        navigate(`/order-success?order=${order.orderId}`);
+      } else {
+        setUpiOrder(order);
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
     } catch (err) {
-      console.error("Checkout error:", err);
-
-      setError(
-        err.message || "Something went wrong. Please try again."
-      );
+      setError(err.message);
+      checkoutKey.current = newKey();
     } finally {
       setLoading(false);
     }
   };
-
-  // ==========================================
-  // QR PAYMENT SCREEN
-  // ==========================================
-
-  if (paymentOrder) {
-    const expiresAtMs = paymentOrder.expiresAt
-      ? new Date(paymentOrder.expiresAt).getTime()
-      : null;
-    const secondsLeft = expiresAtMs
-      ? Math.max(0, Math.floor((expiresAtMs - clockNow) / 1000))
-      : null;
-    const countdown =
-      secondsLeft === null
-        ? "Waiting for payment"
-        : `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(
-            secondsLeft % 60
-          ).padStart(2, "0")}`;
-
-    const cancelQrPayment = async () => {
-      setLoading(true);
-      setPaymentMessage("");
-      try {
-        const response = await fetch(
-          `${API_URL}/orders/${encodeURIComponent(paymentOrder.orderId)}/cancel-payment`,
-          { method: "POST", cache: "no-store" }
-        );
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(data.message || "Unable to cancel this payment.");
-        }
-        if (data.paymentStatus === "paid") {
-          navigate(
-            `/order-success?order=${encodeURIComponent(paymentOrder.orderId)}`,
-            { replace: true }
-          );
-          return;
-        }
-        setPaymentOrder(null);
-        setPaymentExpired(false);
-        setPaymentMessage("");
-        setError("Payment cancelled. You can place a new order.");
-      } catch (err) {
-        setPaymentMessage(err.message || "Unable to cancel payment.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    return (
-      <main className="ge-checkout-page">
-        <section
-          className="ge-payment-card"
-          style={{
-            maxWidth: "560px",
-            margin: "50px auto",
-            padding: "32px",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
-            {paymentExpired ? (
-              <AlertCircle size={34} color="#d32f2f" />
-            ) : (
-              <QrCode size={34} />
-            )}
-          </div>
-
-          <h1 style={{ marginBottom: "8px" }}>
-            {paymentExpired ? "PAYMENT QR EXPIRED." : "SCAN TO PAY."}
-          </h1>
-          <p>
-            Order <strong>{paymentOrder.orderNumber || ""}</strong>
-          </p>
-
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: "14px",
-              padding: "16px",
-              display: "inline-flex",
-              justifyContent: "center",
-              margin: "18px auto",
-            }}
-          >
-            <img
-              src={paymentOrder.qrImageUrl}
-              alt="Razorpay payment QR code"
-              style={{
-                display: "block",
-                width: "min(280px, 65vw)",
-                height: "auto",
-                objectFit: "contain",
-              }}
-            />
-          </div>
-
-          <h2 style={{ margin: "4px 0 12px" }}>
-            {formatPrice(paymentOrder.total)}
-          </h2>
-
-          {!paymentExpired && (
-            <p style={{ display: "flex", justifyContent: "center", gap: "8px", alignItems: "center" }}>
-              <Clock size={18} />
-              QR expires in <strong>{countdown}</strong>
-            </p>
-          )}
-
-          <p style={{ marginTop: "12px" }}>
-            {paymentExpired
-              ? paymentMessage || "This QR code is no longer valid."
-              : "Open any supported UPI app, scan this QR code, and pay the exact amount shown. Keep this page open while we verify your payment."}
-          </p>
-
-          {!paymentExpired && (
-            <p style={{ display: "flex", justifyContent: "center", gap: "8px", alignItems: "center", marginTop: "14px" }}>
-              <RefreshCw size={16} className="ge-checkout-spinner" />
-              Waiting for payment confirmation…
-            </p>
-          )}
-
-          {paymentMessage && !paymentExpired && (
-            <p role="status" style={{ color: "#b45309", marginTop: "10px" }}>
-              {paymentMessage}
-            </p>
-          )}
-
-          {paymentExpired && (
-            <button
-              type="button"
-              className="ge-place-order"
-              onClick={() => {
-                setPaymentOrder(null);
-                setPaymentExpired(false);
-                setPaymentMessage("");
-              }}
-              style={{ marginTop: "18px" }}
-            >
-              RETURN TO CHECKOUT <ArrowRight size={20} />
-            </button>
-          )}
-
-          {!paymentExpired && (
-            <button
-              type="button"
-              className="ge-place-order"
-              onClick={cancelQrPayment}
-              disabled={loading}
-              style={{ marginTop: "18px" }}
-            >
-              {loading ? "CANCELLING..." : "CANCEL PAYMENT"}
-            </button>
-          )}
-        </section>
-      </main>
-    );
-  }
-
-  // ==========================================
-  // EMPTY CART
-  // ==========================================
 
   if (!cart.length) {
     return (
       <main className="ge-checkout-page">
         <div className="ge-checkout-empty">
           <ShoppingBag size={55} />
-
-          <h1>
-            YOUR CART IS <span>EMPTY.</span>
-          </h1>
-
+          <h1>YOUR CART IS <span>EMPTY.</span></h1>
           <p>Add some products before proceeding to checkout.</p>
-
-          <Link to="/shop" className="ge-place-order">
-            EXPLORE PRODUCTS <ArrowRight size={20} />
-          </Link>
+          <Link to="/shop" className="ge-place-order">EXPLORE PRODUCTS <ArrowRight size={20} /></Link>
         </div>
       </main>
     );
   }
 
-  // ==========================================
-  // RENDER
-  // ==========================================
+  if (upiOrder) {
+    return (
+      <UpiPayment
+        order={upiOrder}
+        onCancel={() => {
+          api(`/orders/${upiOrder.orderId}/cancel-payment`, { method: "POST" }).catch(() => {});
+          checkoutKey.current = newKey();
+          setUpiOrder(null);
+        }}
+      />
+    );
+  }
+
+  const field = (name, label, props = {}) => (
+    <div className={`ge-form-group ${props.wrapClass || ""}`}>
+      <label htmlFor={name}>{label}</label>
+      <input id={name} name={name} value={form[name]} onChange={handleChange} {...props} wrapClass={undefined} />
+    </div>
+  );
 
   return (
     <main className="ge-checkout-page">
-
-      {/* BREADCRUMB */}
-
       <div className="ge-checkout-breadcrumb">
-        <Link to="/">HOME</Link>
-        <span>›</span>
-        <Link to="/cart">CART</Link>
-        <span>›</span>
-        <strong>CHECKOUT</strong>
+        <Link to="/">HOME</Link><span>›</span><Link to="/cart">CART</Link><span>›</span><strong>CHECKOUT</strong>
       </div>
 
-      {/* PAGE HEADING */}
-
       <section className="ge-checkout-heading">
-        <h1>
-          CHECK<span>OUT.</span>
-        </h1>
-
-        <div className="ge-checkout-heading-description">
-          COMPLETE YOUR ORDER
-          <br />
-          IN A FEW SIMPLE STEPS.
-        </div>
-
+        <h1>CHECK<span>OUT.</span></h1>
+        <div className="ge-checkout-heading-description">COMPLETE YOUR ORDER<br />IN A FEW SIMPLE STEPS.</div>
         <div className="ge-checkout-steps">
-          <div className="ge-step active">
-            <span>1</span>
-            DETAILS
-          </div>
-
-          <i />
-
-          <div className="ge-step">
-            <span>2</span>
-            PAYMENT
-          </div>
-
-          <i />
-
-          <div className="ge-step">
-            <span>3</span>
-            CONFIRM
-          </div>
+          <div className="ge-step active"><span>1</span>DETAILS</div><i />
+          <div className="ge-step"><span>2</span>PAYMENT</div><i />
+          <div className="ge-step"><span>3</span>CONFIRM</div>
         </div>
       </section>
 
       <form className="ge-checkout-layout" onSubmit={handleSubmit}>
-
-        {/* SHIPPING DETAILS */}
-
         <section className="ge-shipping-card">
-
-          <h2>
-            SHIPPING <span>DETAILS.</span>
-          </h2>
-
-          <p className="ge-shipping-subtitle">
-            ENTER YOUR INFORMATION FOR DELIVERY.
-          </p>
+          <h2>SHIPPING <span>DETAILS.</span></h2>
+          <p className="ge-shipping-subtitle">ENTER YOUR INFORMATION FOR DELIVERY.</p>
 
           <div className="ge-form-grid">
-
-            {/* FIRST NAME */}
-
-            <div className="ge-form-group">
-              <label htmlFor="firstName">First Name *</label>
-
-              <input
-                id="firstName"
-                name="firstName"
-                type="text"
-                placeholder="Enter first name"
-                value={form.firstName}
-                onChange={handleChange}
-                required
-                autoComplete="given-name"
-              />
-            </div>
-
-            {/* LAST NAME */}
-
-            <div className="ge-form-group">
-              <label htmlFor="lastName">Last Name *</label>
-
-              <input
-                id="lastName"
-                name="lastName"
-                type="text"
-                placeholder="Enter last name"
-                value={form.lastName}
-                onChange={handleChange}
-                required
-                autoComplete="family-name"
-              />
-            </div>
-
-            {/* PHONE */}
-
+            {field("firstName", "First Name *", { required: true, autoComplete: "given-name" })}
+            {field("lastName", "Last Name *", { required: true, autoComplete: "family-name" })}
             <div className="ge-form-group">
               <label htmlFor="phone">Phone Number *</label>
-
               <div className="ge-phone-input">
                 <span>+91</span>
-
-                <input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  inputMode="numeric"
-                  placeholder="98765 43210"
-                  value={form.phone}
-                  onChange={(e) =>
-                    handleChange({
-                      target: {
-                        name: "phone",
-                        value: e.target.value.replace(/\D/g, "").slice(0, 10),
-                      },
-                    })
-                  }
-                  required
-                  autoComplete="tel-national"
-                />
+                <input id="phone" name="phone" type="tel" inputMode="numeric" placeholder="98765 43210"
+                  value={form.phone} onChange={handleChange} required autoComplete="tel-national" />
               </div>
             </div>
-
-            {/* EMAIL */}
-
+            {field("email", "Email Address *", { type: "email", required: true, autoComplete: "email", placeholder: "Order confirmation is sent here" })}
+            {field("pincode", "PIN Code *", { inputMode: "numeric", required: true, autoComplete: "postal-code", placeholder: "400001" })}
+            {field("address1", "Address Line 1 *", { required: true, autoComplete: "address-line1", placeholder: "House number, street name" })}
+            {field("address2", "Address Line 2", { autoComplete: "address-line2", placeholder: "Apartment, landmark, area" })}
+            {field("city", "City *", { required: true, autoComplete: "address-level2" })}
             <div className="ge-form-group">
-              <label htmlFor="email">Email Address *</label>
-
-              <input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="yourname@gmail.com"
-                value={form.email}
-                onChange={handleChange}
-                required
-                autoComplete="email"
-              />
-            </div>
-
-            {/* ADDRESS 1 */}
-
-            <div className="ge-form-group">
-              <label htmlFor="address1">Address Line 1 *</label>
-
-              <input
-                id="address1"
-                name="address1"
-                type="text"
-                placeholder="House number, street name"
-                value={form.address1}
-                onChange={handleChange}
-                required
-                autoComplete="address-line1"
-              />
-            </div>
-
-            {/* ADDRESS 2 */}
-
-            <div className="ge-form-group">
-              <label htmlFor="address2">Address Line 2</label>
-
-              <input
-                id="address2"
-                name="address2"
-                type="text"
-                placeholder="Apartment, landmark, area"
-                value={form.address2}
-                onChange={handleChange}
-                autoComplete="address-line2"
-              />
-            </div>
-
-            {/* CITY */}
-
-            <div className="ge-form-group ge-city">
-              <label htmlFor="city">City *</label>
-
-              <input
-                id="city"
-                name="city"
-                type="text"
-                placeholder="Enter city"
-                value={form.city}
-                onChange={handleChange}
-                required
-                autoComplete="address-level2"
-              />
-            </div>
-
-            {/* STATE */}
-
-            <div className="ge-form-group ge-state">
               <label htmlFor="state">State *</label>
-
               <div className="ge-select-wrapper">
-                <select
-                  id="state"
-                  name="state"
-                  value={form.state}
-                  onChange={handleChange}
-                  required
-                  autoComplete="address-level1"
-                >
+                <select id="state" name="state" value={form.state} onChange={handleChange} required>
                   <option value="">Select State</option>
-
-                  {[
-                    "Andaman and Nicobar Islands",
-                    "Andhra Pradesh",
-                    "Arunachal Pradesh",
-                    "Assam",
-                    "Bihar",
-                    "Chandigarh",
-                    "Chhattisgarh",
-                    "Dadra and Nagar Haveli and Daman and Diu",
-                    "Delhi",
-                    "Goa",
-                    "Gujarat",
-                    "Haryana",
-                    "Himachal Pradesh",
-                    "Jammu and Kashmir",
-                    "Jharkhand",
-                    "Karnataka",
-                    "Kerala",
-                    "Ladakh",
-                    "Lakshadweep",
-                    "Madhya Pradesh",
-                    "Maharashtra",
-                    "Manipur",
-                    "Meghalaya",
-                    "Mizoram",
-                    "Nagaland",
-                    "Odisha",
-                    "Puducherry",
-                    "Punjab",
-                    "Rajasthan",
-                    "Sikkim",
-                    "Tamil Nadu",
-                    "Telangana",
-                    "Tripura",
-                    "Uttar Pradesh",
-                    "Uttarakhand",
-                    "West Bengal",
-                  ].map((state) => (
-                    <option key={state} value={state}>
-                      {state}
-                    </option>
-                  ))}
+                  {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
-
                 <ChevronDown size={19} />
               </div>
             </div>
-
-            {/* PIN CODE */}
-
-            <div className="ge-form-group ge-pincode">
-              <label htmlFor="pincode">PIN Code *</label>
-
-              <input
-                id="pincode"
-                name="pincode"
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="400001"
-                value={form.pincode}
-                onChange={(e) =>
-                  handleChange({
-                    target: {
-                      name: "pincode",
-                      value: e.target.value.replace(/\D/g, "").slice(0, 6),
-                    },
-                  })
-                }
-                required
-                autoComplete="postal-code"
-              />
-            </div>
-
           </div>
-
         </section>
 
-        {/* RIGHT SIDE */}
-
         <aside className="ge-checkout-right">
-
-          {/* ORDER SUMMARY */}
-
           <section className="ge-order-summary">
-
             <div className="ge-summary-heading">
-              <h2>
-                ORDER <span>SUMMARY.</span>
-              </h2>
-
-              <strong>
-                {String(itemCount).padStart(2, "0")}
-                <small> ITEMS</small>
-              </strong>
+              <h2>ORDER <span>SUMMARY.</span></h2>
+              <strong>{String(quote?.itemCount ?? 0).padStart(2, "0")} <small>ITEMS</small></strong>
             </div>
+
+            {quoteError && <p>{quoteError}</p>}
+            {quote?.problems?.map((p, i) => <p key={i} style={{ color: "#eff04c", fontSize: 13 }}>⚠ {p.message}</p>)}
 
             <div className="ge-checkout-products">
-
-              {cart.map((item, index) => {
-                const image = getImage(item);
-                const name = getName(item);
-                const quantity = Number(item.quantity) || 1;
-                const price = getPrice(item);
-
-                return (
-                  <div
-                    className="ge-checkout-product"
-                    key={`${item.id || item.slug || name}-${index}`}
-                  >
-
-                    <div className="ge-checkout-product-image">
-                      {image ? (
-                        <img src={image} alt={name} />
-                      ) : (
-                        <ShoppingBag size={25} />
-                      )}
-                    </div>
-
-                    <div className="ge-checkout-product-info">
-                      <h3>{name}</h3>
-                      <p>Color: {item.color || "Standard"}</p>
-                    </div>
-
-                    <span className="ge-checkout-quantity">
-                      × {quantity}
-                    </span>
-
-                    <strong className="ge-checkout-price">
-                      {formatPrice(price * quantity)}
-                    </strong>
-
+              {(quote?.items || []).map((item) => (
+                <div className="ge-checkout-product" key={`${item.slug}-${item.color}`}>
+                  <div className="ge-checkout-product-image">
+                    {item.image ? <img src={imageUrl(item.image)} alt={item.name} /> : <ShoppingBag size={25} />}
                   </div>
-                );
-              })}
-
+                  <div className="ge-checkout-product-info">
+                    <h3>{item.name}</h3>
+                    <p>Color: {item.color || "Standard"}</p>
+                  </div>
+                  <span className="ge-checkout-quantity">× {item.quantity}</span>
+                  <strong className="ge-checkout-price">{formatPrice(item.lineTotal)}</strong>
+                </div>
+              ))}
             </div>
 
             <div className="ge-checkout-summary-divider" />
-
-            <div className="ge-checkout-summary-row">
-              <span>Subtotal ({itemCount} items)</span>
-              <strong>{formatPrice(subtotal)}</strong>
-            </div>
-
+            <div className="ge-checkout-summary-row"><span>Subtotal</span><strong>{formatPrice(option?.subtotal)}</strong></div>
+            {option?.discount > 0 && (
+              <div className="ge-checkout-summary-row">
+                <span>UPI discount ({option.discountPercent}%)</span>
+                <strong className="ge-free-shipping">−{formatPrice(option.discount)}</strong>
+              </div>
+            )}
             <div className="ge-checkout-summary-row">
               <span>Shipping</span>
-              <strong className="ge-free-shipping">FREE</strong>
+              <strong className="ge-free-shipping">{option?.shippingFee ? formatPrice(option.shippingFee) : "FREE"}</strong>
             </div>
-
             <div className="ge-checkout-summary-divider" />
-
-            <div className="ge-checkout-total">
-              <span>Total*</span>
-              <strong>{formatPrice(total)}</strong>
-            </div>
-
-            <small>*Final total and applicable discounts are calculated by the server.</small>
-
+            <div className="ge-checkout-total"><span>Total</span><strong>{formatPrice(option?.total)}</strong></div>
+            {option?.delivery && (
+              <p style={{ fontSize: 12, marginTop: 8 }}>Estimated delivery: {deliveryWindow(option.delivery)}</p>
+            )}
           </section>
 
-          {/* PAYMENT METHOD */}
-
           <section className="ge-payment-card">
-
             <div className="ge-payment-heading">
-              <h2>
-                PAYMENT <span>METHOD.</span>
-              </h2>
-
+              <h2>PAYMENT <span>METHOD.</span></h2>
               <small>CHOOSE HOW YOU'D LIKE TO PAY.</small>
             </div>
 
-            {/* ONLINE PAYMENT */}
-
-            <label
-              className={`ge-payment-option ${
-                paymentMethod === "online" ? "selected" : ""
-              }`}
-            >
-              <input
-                type="radio"
-                name="paymentMethod"
-                value="online"
-                checked={paymentMethod === "online"}
-                onChange={() => setPaymentMethod("online")}
-              />
-
-              <span className="ge-custom-radio" />
-
-              <CreditCard size={30} />
-
-              <span className="ge-payment-option-text">
-                <strong>Pay Online</strong>
-
-                <small>
-                  UPI, Cards, Net Banking and Wallets
-                </small>
-              </span>
-            </label>
-
-            {/* COD */}
-
-            <label
-              className={`ge-payment-option ${
-                paymentMethod === "cod" ? "selected" : ""
-              }`}
-            >
-              <input
-                type="radio"
-                name="paymentMethod"
-                value="cod"
-                checked={paymentMethod === "cod"}
-                onChange={() => setPaymentMethod("cod")}
-              />
-
-              <span className="ge-custom-radio" />
-
-              <Banknote size={30} />
-
-              <span className="ge-payment-option-text">
-                <strong>Cash on Delivery (COD)</strong>
-
-                <small>
-                  Pay in cash when your order is delivered
-                </small>
-              </span>
-            </label>
-
-            {/* ERROR */}
-
-            {error && (
-              <div
-                className="ge-checkout-error"
-                role="alert"
-                style={{
-                  padding: "12px",
-                  marginTop: "12px",
-                  borderRadius: "8px",
-                  background: "#fff0f0",
-                  color: "#c62828",
-                  display: "flex",
-                  gap: "8px",
-                  alignItems: "center",
-                  fontSize: "13px",
-                }}
-              >
-                <AlertCircle size={18} />
-                {error}
-              </div>
+            {quote?.options?.upi?.enabled && (
+              <label className={`ge-payment-option ${paymentMethod === "upi" ? "selected" : ""}`}>
+                <input type="radio" name="paymentMethod" checked={paymentMethod === "upi"} onChange={() => setPaymentMethod("upi")} />
+                <span className="ge-custom-radio" />
+                <Smartphone size={30} />
+                <span className="ge-payment-option-text">
+                  <strong>
+                    Pay Online (UPI) {quote.options.upi.discountPercent > 0 && `— SAVE ${quote.options.upi.discountPercent}%`}
+                  </strong>
+                  <small>
+                    {formatPrice(quote.options.upi.total)} · GPay, PhonePe, Paytm, cards · Faster delivery
+                  </small>
+                </span>
+              </label>
             )}
 
-            {/* PLACE ORDER */}
+            {quote?.options?.cod?.enabled && (
+              <label className={`ge-payment-option ${paymentMethod === "cod" ? "selected" : ""}`}>
+                <input type="radio" name="paymentMethod" checked={paymentMethod === "cod"} onChange={() => setPaymentMethod("cod")} />
+                <span className="ge-custom-radio" />
+                <Banknote size={30} />
+                <span className="ge-payment-option-text">
+                  <strong>Cash on Delivery (COD)</strong>
+                  <small>{formatPrice(quote.options.cod.total)} · Pay in cash when your order is delivered</small>
+                </span>
+              </label>
+            )}
 
-            <button
-              type="submit"
-              className="ge-place-order"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <RefreshCw
-                    size={20}
-                    className="ge-checkout-spinner"
-                  />
-                  PROCESSING...
-                </>
-              ) : (
-                <>
-                  <LockKeyhole size={21} />
-                  PLACE ORDER
-                  <ArrowRight size={21} />
-                </>
-              )}
+            {error && <p style={{ marginTop: 12, padding: 10, borderRadius: 8, background: "#fde2e1", color: "#9b1c1c", fontSize: 13 }}>{error}</p>}
+
+            <button type="submit" className="ge-place-order" disabled={loading || !quote || !quote.items.length}>
+              <LockKeyhole size={21} />
+              {loading
+                ? "PLEASE WAIT..."
+                : paymentMethod === "cod"
+                  ? `PLACE ORDER · ${formatPrice(option?.total)}`
+                  : `PAY ${formatPrice(option?.total)}`}
+              <ArrowRight size={21} />
             </button>
-
           </section>
-
         </aside>
-
       </form>
-
     </main>
   );
 };
+
+// Step 2 for UPI: QR code of the Razorpay payment link + a Pay button.
+function UpiPayment({ order, onCancel }) {
+  const navigate = useNavigate();
+  const [checking, setChecking] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const check = async (manual) => {
+    try {
+      if (manual) setChecking(true);
+      const status = await api(`/orders/${order.orderId}/status`);
+      if (status.placed) navigate(`/order-success?order=${order.orderId}`);
+      else if (status.status === "expired") navigate(`/order-failed?order=${order.orderId}`);
+      else if (manual) setMessage("We haven't received the payment yet. If you paid, wait a few seconds.");
+    } catch {
+      /* try again next time */
+    } finally {
+      if (manual) setChecking(false);
+    }
+  };
+
+  // Ask the server every 4 seconds whether the payment came through.
+  useEffect(() => {
+    const timer = setInterval(() => check(false), 4000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.orderId]);
+
+  return (
+    <main className="ge-checkout-page">
+      <section className="ge-checkout-heading">
+        <h1>PAY<span>NOW.</span></h1>
+        <div className="ge-checkout-heading-description">ORDER {order.orderNumber}<br />{formatPrice(order.total)}</div>
+      </section>
+
+      <section className="ge-payment-card" style={{ maxWidth: 460, margin: "0 auto", textAlign: "center" }}>
+        <p style={{ marginBottom: 14 }}>Scan with your phone camera or any UPI app, or tap the button below.</p>
+        <div style={{ display: "inline-block", padding: 14, background: "#fff", borderRadius: 12 }}>
+          <QRCodeSVG value={order.paymentUrl} size={230} level="M" />
+        </div>
+        <a className="ge-place-order" href={order.paymentUrl}>
+          PAY {formatPrice(order.total)} WITH UPI / RAZORPAY <ArrowRight size={20} />
+        </a>
+        <p style={{ marginTop: 14, fontSize: 13 }}>⏳ Waiting for payment… this page updates automatically.</p>
+        {message && <p style={{ fontSize: 13, color: "#eff04c" }}>{message}</p>}
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
+          <button type="button" className="ge-place-order" style={{ width: "auto", minHeight: 44, background: "transparent", color: "#fff", border: "1px solid #fff" }} disabled={checking} onClick={() => check(true)}>
+            <RefreshCw size={16} /> {checking ? "CHECKING…" : "I'VE PAID — CHECK NOW"}
+          </button>
+          <button type="button" className="ge-place-order" style={{ width: "auto", minHeight: 44, background: "transparent", color: "#fff", border: "1px solid #fff" }} onClick={onCancel}>
+            ← CHANGE DETAILS
+          </button>
+        </div>
+      </section>
+    </main>
+  );
+}
 
 export default Checkout;
