@@ -14,6 +14,7 @@ import { HttpError, badRequest, conflict, notFound } from "../utils/httpError.js
 import { normalizeOrderNumber } from "../utils/orderNumber.js";
 import { email, integer, isObjectId, line, phone, pincode } from "../utils/validate.js";
 import * as razorpay from "../services/razorpay.js";
+import { checkCoupon, couponDiscountFor } from "../services/couponService.js";
 import {
   expireOrder,
   markPaid,
@@ -158,6 +159,28 @@ const toOrderItem = ({ product, color, quantity }) => ({
 export async function quote(req, res) {
   const { lines, problems, subtotal } = await resolveCart(req.body?.items, { strict: false });
 
+  // Optional coupon: checked here so the checkout page can show it straight away.
+  const { coupon, error: couponError } = await checkCoupon(req.body?.couponCode, { subtotal });
+  const couponDiscount = coupon ? couponDiscountFor(coupon, subtotal) : 0;
+  const couponInfo = coupon
+    ? {
+        code: coupon.code,
+        description: coupon.description,
+        paymentMethod: coupon.paymentMethod,
+        discount: couponDiscount,
+      }
+    : couponError
+      ? { error: couponError }
+      : null;
+
+  // A coupon limited to one payment method only applies to that option.
+  const optionPrice = (method) =>
+    priceOrder(
+      subtotal,
+      method,
+      coupon && (coupon.paymentMethod === "any" || coupon.paymentMethod === method) ? couponDiscount : 0,
+    );
+
   res.set("Cache-Control", "no-store");
   res.json({
     items: lines.map(({ key, product, color, quantity }) => ({
@@ -181,9 +204,10 @@ export async function quote(req, res) {
     problems,
     itemCount: lines.reduce((sum, entry) => sum + entry.quantity, 0),
     subtotal,
+    coupon: couponInfo,
     options: {
-      upi: { enabled: isUpiAvailable(), ...priceOrder(subtotal, "upi") },
-      cod: { enabled: isCodAvailable(), ...priceOrder(subtotal, "cod") },
+      upi: { enabled: isUpiAvailable(), ...optionPrice("upi") },
+      cod: { enabled: isCodAvailable(), ...optionPrice("cod") },
     },
   });
 }
@@ -232,6 +256,8 @@ function checkoutResponse(order) {
     paymentStatus: order.payment.status,
     subtotal: order.subtotal,
     discount: order.discount,
+    couponCode: order.coupon?.code || "",
+    couponDiscount: order.couponDiscount || 0,
     discountPercent: order.payment.discountPercent,
     shippingFee: order.shippingFee,
     total: order.total,
@@ -294,7 +320,16 @@ export async function checkout(req, res) {
 
   const { lines, subtotal } = await resolveCart(body.items, { strict: true });
   const items = lines.map(toOrderItem);
-  const price = priceOrder(subtotal, method);
+  const customer = cleanCustomer(body.customer);
+
+  let coupon = null;
+  if (body.couponCode) {
+    const result = await checkCoupon(body.couponCode, { subtotal, method, phone: customer.phone });
+    if (result.error) throw badRequest(result.error, { code: "COUPON_INVALID" });
+    coupon = result.coupon;
+  }
+
+  const price = priceOrder(subtotal, method, couponDiscountFor(coupon, subtotal));
 
   // The shopper agreed to the total on their screen. If a price changed since
   // the page loaded, show them the new total instead of charging it silently.
@@ -309,10 +344,12 @@ export async function checkout(req, res) {
     orderNumber: "PENDING", // replaced with a real number when saved
     accessToken: newAccessToken(),
     items,
-    customer: cleanCustomer(body.customer),
+    customer,
     shippingAddress: cleanAddress(body.shippingAddress),
     subtotal: price.subtotal,
     discount: price.discount,
+    coupon: coupon ? { code: coupon.code, description: coupon.description } : undefined,
+    couponDiscount: price.couponDiscount,
     shippingFee: price.shippingFee,
     total: price.total,
     payment: { method, status: "pending", discountPercent: price.discountPercent },
@@ -593,6 +630,8 @@ function publicOrder(order, { includeEmail = false } = {}) {
     },
     subtotal: order.subtotal,
     discount: order.discount,
+    couponCode: order.coupon?.code || "",
+    couponDiscount: order.couponDiscount || 0,
     shippingFee: order.shippingFee,
     total: order.total,
     items: order.items.map((item) => ({
@@ -609,9 +648,16 @@ function publicOrder(order, { includeEmail = false } = {}) {
       courier: order.shipping?.courier || "",
       awb: order.shipping?.awb || "",
       trackingUrl: order.shipping?.trackingUrl || "",
+      status: order.shipping?.srStatus || "",
       shippedAt: order.shipping?.shippedAt || null,
       deliveredAt: order.shipping?.deliveredAt || null,
     },
+    // Courier scans from Shiprocket (newest first), then our own updates.
+    courierEvents: (order.shipping?.events || []).map((event) => ({
+      message: event.status,
+      location: event.location || "",
+      date: event.date,
+    })),
     timeline: [...order.timeline]
       .filter((entry) => entry.status !== "awaiting_payment")
       .reverse()

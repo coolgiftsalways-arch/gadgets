@@ -239,6 +239,7 @@ export default function TrackOrder() {
   const normalizedStatus = getStatus(status);
 
   const timeline =
+    (order?.courierEvents?.length ? [...order.courierEvents, ...(order.timeline || [])] : null) ||
     tracking.activities ||
     tracking.tracking_data?.shipment_track_activities ||
     tracking.tracking_data?.track_activities ||
@@ -629,6 +630,7 @@ export default function TrackOrder() {
                     activity.activity_date;
 
                   const activityStatus =
+                    activity.message ||
                     activity.activity ||
                     activity.status ||
                     activity.description ||

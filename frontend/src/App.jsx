@@ -40,6 +40,7 @@ import AdminDashboard from "./Admin/AdminDashboard";
 import AdminCustomers from "./Admin/AdminCustomers";
 import AdminOrders from "./Admin/AdminOrders";
 import AdminProducts from "./Admin/AdminProducts";
+import AdminCoupons from "./Admin/AdminCoupons";
 
 // ==========================================
 // GLOBAL CSS
@@ -479,6 +480,7 @@ function App() {
           <Route path="customers" element={<AdminCustomers />} />
           <Route path="orders" element={<AdminOrders />} />
           <Route path="products" element={<AdminProducts />} />
+          <Route path="coupons" element={<AdminCoupons />} />
         </Route>
 
       </Routes>

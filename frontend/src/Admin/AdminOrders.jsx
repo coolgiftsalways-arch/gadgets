@@ -403,8 +403,10 @@ function OrderDrawer({ id, onClose, onChanged }) {
               </section>
             )}
 
+            {placed && <ShiprocketSection order={order} onUpdated={(fresh) => { apply(fresh); onChanged(); }} />}
+
             <section className="gad-order-detail-section">
-              <h3><Truck size={16} /> SHIPPING / TRACKING</h3>
+              <h3><Truck size={16} /> SHIPPING / TRACKING (MANUAL)</h3>
               {[
                 ["courier", "Courier (e.g. Delhivery)"],
                 ["awb", "Tracking number / AWB"],
@@ -474,6 +476,7 @@ function OrderDrawer({ id, onClose, onChanged }) {
 
             <section className="gad-order-total-breakdown">
               <div><span>Subtotal</span><strong>{money(order.subtotal)}</strong></div>
+              {order.couponDiscount > 0 && <div><span>Coupon {order.coupon?.code}</span><strong>−{money(order.couponDiscount)}</strong></div>}
               {order.discount > 0 && <div><span>UPI discount</span><strong>−{money(order.discount)}</strong></div>}
               <div><span>Shipping</span><strong>{order.shippingFee ? money(order.shippingFee) : "FREE"}</strong></div>
               <div className="grand-total"><span>ORDER TOTAL</span><strong>{money(order.total)}</strong></div>
@@ -522,6 +525,88 @@ function OrderDrawer({ id, onClose, onChanged }) {
         )}
       </aside>
     </div>
+  );
+}
+
+// Shiprocket: create shipment, courier + AWB, pickup, label, live tracking.
+function ShiprocketSection({ order, onUpdated }) {
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const ship = order.shipping || {};
+  const shippable = ["pending", "processing", "shipped"].includes(order.status);
+  const done = Boolean(ship.awb && ship.pickupDate && !ship.testMode);
+
+  const run = async (kind) => {
+    if (kind === "ship" && !window.confirm("Send this order to Shiprocket?\n\nThis books a courier (charged to your Shiprocket wallet) and schedules a pickup.")) return;
+    setBusy(kind);
+    setError("");
+    try {
+      const result = await adminFetch(`/orders/${order._id}/${kind === "ship" ? "ship" : "tracking"}`, { method: "POST" });
+      onUpdated(result.order);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const row = (label, value) =>
+    value ? (
+      <div className="gad-order-meta-row">
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </div>
+    ) : null;
+
+  return (
+    <section className="gad-order-detail-section">
+      <h3><Truck size={16} /> SHIPROCKET</h3>
+      {ship.testMode && (
+        <p className="gad-orders-note">
+          {ship.testMode === "mock" ? "TEST shipment — nothing was sent to Shiprocket." : "TEST — created in Shiprocket only, no courier booked."}
+        </p>
+      )}
+      {ship.shipmentId ? (
+        <>
+          {row("Status", ship.srStatus)}
+          {row("Courier", ship.courier)}
+          {row("AWB", ship.awb)}
+          {row("Pickup", ship.pickupDate)}
+          {row("Expected", ship.etd)}
+          {row("Shiprocket ID", ship.srOrderId)}
+        </>
+      ) : (
+        <p>{shippable ? "Not sent to Shiprocket yet." : "Only Pending or Processing orders can be shipped."}</p>
+      )}
+      {ship.lastError && <p className="gad-orders-note" style={{ color: "#9b1c1c" }}>{ship.lastError}</p>}
+      {error && <p className="gad-orders-note" style={{ color: "#9b1c1c" }}>{error}</p>}
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+        {shippable && !done && (
+          <button type="button" className="gad-orders-export" disabled={!!busy} onClick={() => run("ship")}>
+            <Truck size={15} /> {busy === "ship" ? "SENDING…" : ship.shipmentId ? "CONTINUE / RETRY" : "SHIP WITH SHIPROCKET"}
+          </button>
+        )}
+        {ship.awb && ship.testMode !== "mock" && (
+          <button type="button" className="gad-orders-export" disabled={!!busy} onClick={() => run("track")}>
+            {busy === "track" ? "REFRESHING…" : "REFRESH TRACKING"}
+          </button>
+        )}
+        {ship.labelUrl && <a className="gad-orders-export" href={ship.labelUrl} target="_blank" rel="noreferrer">PRINT LABEL</a>}
+        {ship.trackingUrl && <a className="gad-orders-export" href={ship.trackingUrl} target="_blank" rel="noreferrer">TRACK</a>}
+      </div>
+
+      {ship.events?.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          {ship.events.slice(0, 6).map((event, index) => (
+            <div className="gad-order-meta-row" key={index}>
+              <span>{event.date}{event.location ? ` · ${event.location}` : ""}</span>
+              <strong>{event.status}</strong>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

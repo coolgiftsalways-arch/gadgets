@@ -104,6 +104,23 @@ export const env = {
     lowStockThreshold: clamp(int("LOW_STOCK_THRESHOLD", 5), 0, 1000),
   },
 
+  shiprocket: {
+    email: str("SHIPROCKET_EMAIL"),
+    password: process.env.SHIPROCKET_PASSWORD ? String(process.env.SHIPROCKET_PASSWORD) : "",
+    // live = real courier booking (charges your Shiprocket wallet)
+    // create_only = only creates the order in Shiprocket (no courier, no charge)
+    // mock = never calls Shiprocket; fake test data for trying the admin panel
+    mode: ["mock", "create_only"].includes(str("SHIPROCKET_MODE").toLowerCase())
+      ? str("SHIPROCKET_MODE").toLowerCase()
+      : "live",
+    pickupLocation: str("SHIPROCKET_PICKUP_LOCATION", "Primary"),
+    webhookToken: str("SHIPROCKET_WEBHOOK_TOKEN"),
+    itemWeightKg: Number(str("SHIPROCKET_ITEM_WEIGHT_KG", "0.5")) || 0.5,
+    boxLengthCm: int("SHIPROCKET_BOX_LENGTH_CM", 15),
+    boxBreadthCm: int("SHIPROCKET_BOX_BREADTH_CM", 15),
+    boxHeightCm: int("SHIPROCKET_BOX_HEIGHT_CM", 10),
+  },
+
   forcePublicDns: bool("FORCE_PUBLIC_DNS", false),
 };
 

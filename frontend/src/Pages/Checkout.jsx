@@ -37,6 +37,8 @@ const Checkout = () => {
   const [cart] = useState(getCart);
   const [quote, setQuote] = useState(null);
   const [quoteError, setQuoteError] = useState("");
+  const [couponInput, setCouponInput] = useState("");
+  const [couponCode, setCouponCode] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("upi");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -53,13 +55,18 @@ const Checkout = () => {
   // Real prices and stock from the server.
   useEffect(() => {
     if (!items.length) return;
-    api("/orders/quote", { body: { items } })
+    api("/orders/quote", { body: { items, couponCode } })
       .then((data) => {
         setQuote(data);
         if (!data.options.upi.enabled) setPaymentMethod("cod");
       })
       .catch((err) => setQuoteError(err.message));
-  }, [items]);
+  }, [items, couponCode]);
+
+  const coupon = quote?.coupon;
+  // A coupon limited to one payment method only counts for that option.
+  const couponApplies =
+    coupon?.code && (coupon.paymentMethod === "any" || coupon.paymentMethod === paymentMethod);
 
   const option = quote?.options?.[paymentMethod];
 
@@ -98,6 +105,7 @@ const Checkout = () => {
         body: {
           items,
           paymentMethod,
+          couponCode: couponApplies ? coupon.code : undefined,
           checkoutKey: checkoutKey.current,
           customer: { firstName: form.firstName, lastName: form.lastName, email: form.email, phone: form.phone },
           shippingAddress: {
@@ -230,7 +238,42 @@ const Checkout = () => {
             </div>
 
             <div className="ge-checkout-summary-divider" />
+
+            {/* COUPON */}
+            <div style={{ display: "flex", gap: 8, margin: "4px 0 10px" }}>
+              <input
+                value={couponInput}
+                onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                placeholder="Coupon code"
+                aria-label="Coupon code"
+                style={{ flex: 1, minWidth: 0, height: 42, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,.6)", background: "transparent", color: "#fff", fontSize: 15, textTransform: "uppercase" }}
+              />
+              {coupon?.code ? (
+                <button type="button" onClick={() => { setCouponCode(""); setCouponInput(""); }}
+                  style={{ height: 42, padding: "0 14px", borderRadius: 8, border: "1px solid #fff", background: "transparent", color: "#fff", fontWeight: 700 }}>
+                  REMOVE
+                </button>
+              ) : (
+                <button type="button" onClick={() => setCouponCode(couponInput.trim())} disabled={!couponInput.trim()}
+                  style={{ height: 42, padding: "0 16px", borderRadius: 8, border: 0, background: "#eff04c", color: "#10100e", fontWeight: 700 }}>
+                  APPLY
+                </button>
+              )}
+            </div>
+            {coupon?.error && <p style={{ color: "#ffb4ab", fontSize: 13, marginBottom: 8 }}>{coupon.error}</p>}
+            {coupon?.code && !couponApplies && (
+              <p style={{ color: "#ffb4ab", fontSize: 13, marginBottom: 8 }}>
+                {coupon.code} only works with {coupon.paymentMethod === "upi" ? "online (UPI) payment" : "Cash on Delivery"}.
+              </p>
+            )}
+
             <div className="ge-checkout-summary-row"><span>Subtotal</span><strong>{formatPrice(option?.subtotal)}</strong></div>
+            {option?.couponDiscount > 0 && (
+              <div className="ge-checkout-summary-row">
+                <span>Coupon {coupon?.code}</span>
+                <strong className="ge-free-shipping">−{formatPrice(option.couponDiscount)}</strong>
+              </div>
+            )}
             {option?.discount > 0 && (
               <div className="ge-checkout-summary-row">
                 <span>UPI discount ({option.discountPercent}%)</span>

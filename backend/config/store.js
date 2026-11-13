@@ -123,21 +123,26 @@ export function deliveryFor(method) {
   return { minDays, maxDays };
 }
 
-// All amounts are whole rupees. UPI orders get the discount; the total can
-// never drop below ₹1 (Razorpay's minimum charge).
-export function priceOrder(subtotal, method) {
+// All amounts are whole rupees. A coupon comes off the subtotal first, then
+// UPI orders get their discount on what is left. The total can never drop
+// below ₹1 (Razorpay's minimum charge).
+export function priceOrder(subtotal, method, couponDiscount = 0) {
   const discountPercent = method === "upi" ? env.store.upiDiscountPercent : 0;
   const shippingFee = shippingFor(subtotal);
 
-  let discount = Math.round((subtotal * discountPercent) / 100);
-  discount = Math.max(0, Math.min(discount, subtotal + shippingFee - 1));
+  const coupon = Math.max(0, Math.min(couponDiscount, subtotal + shippingFee - 1));
+  const afterCoupon = subtotal - coupon;
+
+  let discount = Math.round((afterCoupon * discountPercent) / 100);
+  discount = Math.max(0, Math.min(discount, afterCoupon + shippingFee - 1));
 
   return {
     subtotal,
+    couponDiscount: coupon,
     discount,
     discountPercent,
     shippingFee,
-    total: subtotal - discount + shippingFee,
+    total: afterCoupon - discount + shippingFee,
     delivery: deliveryFor(method),
   };
 }

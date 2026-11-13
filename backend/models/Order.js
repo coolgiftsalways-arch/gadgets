@@ -108,7 +108,13 @@ const orderSchema = new mongoose.Schema(
 
     // All amounts are whole rupees.
     subtotal: { type: Number, required: true, min: 0 },
-    discount: { type: Number, default: 0, min: 0 },
+    discount: { type: Number, default: 0, min: 0 }, // UPI discount
+    // Coupon used at checkout (code is copied so deleting the coupon is safe).
+    coupon: {
+      code: { type: String, default: "" },
+      description: { type: String, default: "" },
+    },
+    couponDiscount: { type: Number, default: 0, min: 0 },
     shippingFee: { type: Number, default: 0, min: 0 },
     total: { type: Number, required: true, min: 1 },
     currency: { type: String, default: "INR" },
@@ -152,6 +158,21 @@ const orderSchema = new mongoose.Schema(
       estimatedDelivery: Date,
       shippedAt: Date,
       deliveredAt: Date,
+
+      // Shiprocket (filled in by "Ship with Shiprocket" in the admin panel)
+      srOrderId: String,
+      shipmentId: String,
+      labelUrl: String,
+      pickupDate: String,
+      srStatus: String, // latest status text from Shiprocket, e.g. "IN TRANSIT"
+      etd: String, // courier's expected delivery date
+      lastError: String,
+      testMode: String, // "mock" / "create_only" while testing
+      syncedAt: Date,
+      events: {
+        type: [{ date: String, status: String, location: String, _id: false }],
+        default: undefined,
+      },
     },
 
     timeline: { type: [timelineSchema], default: [] },

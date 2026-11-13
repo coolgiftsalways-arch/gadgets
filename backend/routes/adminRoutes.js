@@ -34,6 +34,13 @@ import {
   updateMessage,
 } from "../controllers/adminInboxController.js";
 import { uploadMedia } from "../controllers/mediaController.js";
+import { ship, track } from "../controllers/shippingController.js";
+import {
+  createCoupon,
+  deleteCoupon,
+  listCoupons,
+  updateCoupon,
+} from "../controllers/adminCouponController.js";
 
 const router = Router();
 
@@ -55,6 +62,13 @@ router.get("/orders/:id", getOrder);
 router.patch("/orders/:id", updateOrder);
 router.post("/orders/:id/email", resendEmail);
 router.post("/orders/:id/recheck-payment", recheckPayment);
+router.post("/orders/:id/ship", ship);
+router.post("/orders/:id/tracking", track);
+
+router.get("/coupons", listCoupons);
+router.post("/coupons", createCoupon);
+router.patch("/coupons/:id", updateCoupon);
+router.delete("/coupons/:id", deleteCoupon);
 
 router.get("/customers", listCustomers);
 router.get("/customers/:phone", getCustomer);

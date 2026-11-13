@@ -12,6 +12,8 @@ import * as razorpay from "./razorpay.js";
 import { sendMail } from "./mailer.js";
 import { customerOrderEmail, newOrderAlert } from "./emailTemplates.js";
 import { runInBackground } from "./background.js";
+import { countCouponUse } from "./couponService.js";
+import * as shiprocket from "./shiprocket.js";
 
 // Statuses the admin can move a placed order between.
 export const ADMIN_STATUSES = PLACED_STATUSES;
@@ -101,6 +103,7 @@ async function sendAdminAlert(orderId) {
 
 // Called once, the moment an order becomes real (COD placed / UPI paid).
 function announceNewOrder(order) {
+  runInBackground(`coupon count ${order.orderNumber}`, () => countCouponUse(order.coupon?.code, 1));
   runInBackground(`confirmation email ${order.orderNumber}`, () =>
     sendOrderEmail(order._id, "confirmation"),
   );
@@ -304,6 +307,17 @@ export async function changeOrderStatus(order, nextStatus, { reason = "", notify
   const isCod = order.payment.method === "cod";
 
   if (nextStatus === "cancelled") {
+    // Free up the coupon use and cancel the shipment in Shiprocket (best effort;
+    // it can't be cancelled once the courier has picked it up).
+    runInBackground(`coupon release ${order.orderNumber}`, () => countCouponUse(order.coupon?.code, -1));
+    if (order.shipping?.srOrderId && !order.shipping.testMode && shiprocket.isConfigured()) {
+      try {
+        await shiprocket.cancelOrders([order.shipping.srOrderId]);
+        order.shipping.srStatus = "CANCELED";
+      } catch (error) {
+        order.shipping.lastError = `Couldn't cancel in Shiprocket: ${error.message}`;
+      }
+    }
     if (order.stockReserved) {
       await releaseStock(order.items);
       order.stockReserved = false;
@@ -313,6 +327,7 @@ export async function changeOrderStatus(order, nextStatus, { reason = "", notify
     if (isCod && order.payment.status === "pending") order.payment.status = "failed";
   } else {
     if (previous === "cancelled") {
+      runInBackground(`coupon reuse ${order.orderNumber}`, () => countCouponUse(order.coupon?.code, 1));
       if (order.payment.status === "refunded") {
         throw conflict(
           "This order has been refunded, so it can't be re-opened. Ask the customer to place a new order.",

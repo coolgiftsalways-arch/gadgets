@@ -180,6 +180,7 @@ function itemsTable(order) {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;">
     ${line("Subtotal", rupees(order.subtotal))}
+    ${order.couponDiscount > 0 ? line(`Coupon ${esc(order.coupon?.code || "")}`, `−${rupees(order.couponDiscount)}`, "color:#1d7a3a;") : ""}
     ${order.discount > 0 ? line(`UPI discount${order.payment?.discountPercent ? ` (${order.payment.discountPercent}%)` : ""}`, `−${rupees(order.discount)}`, "color:#1d7a3a;") : ""}
     ${line("Shipping", order.shippingFee > 0 ? rupees(order.shippingFee) : "FREE")}
     <tr><td style="padding:12px 0 0;border-top:2px solid ${COLORS.black};font-size:17px;font-weight:700;">${order.payment?.method === "cod" && order.payment?.status !== "paid" ? "To pay on delivery" : "Total"}</td>
@@ -219,6 +220,7 @@ function textSummary(order) {
     ),
     "",
     `Subtotal: ${rupees(order.subtotal)}`,
+    order.couponDiscount > 0 ? `Coupon ${order.coupon?.code}: -${rupees(order.couponDiscount)}` : "",
     order.discount > 0 ? `UPI discount: -${rupees(order.discount)}` : "",
     `Shipping: ${order.shippingFee > 0 ? rupees(order.shippingFee) : "FREE"}`,
     `Total: ${rupees(order.total)}`,
