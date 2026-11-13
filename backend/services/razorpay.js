@@ -1,110 +1,247 @@
-// Razorpay Payment Links — the same payment method lights.bio uses.
-//
-// For every UPI order we create one fixed-amount payment link. The checkout
-// page shows it as a QR code plus a "Pay" button; Razorpay then tells us the
-// result three ways (any one is enough): the signed redirect back to our
-// site, a webhook, and our own status check.
-//
-// Docs: https://razorpay.com/docs/api/payments/payment-links/
-import crypto from "node:crypto";
-import { env, isRazorpayConfigured } from "../config/env.js";
 
-export const isConfigured = isRazorpayConfigured;
+import crypto from "crypto";
 
-async function request(path, { method = "GET", body } = {}) {
+const RAZORPAY_BASE_URL = "https://api.razorpay.com/v1";
+
+const KEY_ID = process.env.RAZORPAY_KEY_ID;
+const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+// ==========================================
+// CONFIGURATION
+// ==========================================
+
+export function isConfigured() {
+  return Boolean(KEY_ID && KEY_SECRET);
+}
+
+function getAuthHeader() {
   if (!isConfigured()) {
-    throw new Error("Razorpay is not set up (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET).");
+    throw new Error("Razorpay credentials are not configured.");
   }
 
-  const { keyId, keySecret, apiUrl } = env.razorpay;
+  return `Basic ${Buffer.from(`${KEY_ID}:${KEY_SECRET}`).toString("base64")}`;
+}
 
-  const response = await fetch(`${apiUrl}${path}`, {
-    method,
+// ==========================================
+// RAZORPAY API REQUEST HELPER
+// ==========================================
+
+async function request(endpoint, options = {}) {
+  const response = await fetch(`${RAZORPAY_BASE_URL}${endpoint}`, {
+    method: options.method || "GET",
     headers: {
-      Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`,
+      Authorization: getAuthHeader(),
       "Content-Type": "application/json",
+      ...(options.headers || {}),
     },
-    body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(20000),
+    ...(options.body ? { body: JSON.stringify(options.body) } : {}),
   });
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const error = new Error(
-      data?.error?.description || `Razorpay request failed (${response.status})`,
-    );
-    error.status = response.status;
-    error.code = data?.error?.code;
+    const message =
+      data?.error?.description ||
+      data?.error?.reason ||
+      `Razorpay API error (${response.status})`;
+
+    const error = new Error(message);
+    error.statusCode = response.status;
+    error.razorpayError = data.error || data;
     throw error;
   }
 
   return data;
 }
 
-// amount is in rupees; Razorpay wants paise.
-export function createPaymentLink({
-  amount,
-  referenceId,
-  description,
-  customer,
-  expiresAt,
-  callbackUrl,
-  notes,
-}) {
-  const payload = {
-    amount: Math.round(amount * 100),
-    currency: "INR",
-    accept_partial: false,
-    reference_id: referenceId,
-    description: description.slice(0, 250),
-    customer,
-    notify: { sms: false, email: false },
-    reminder_enable: false,
-    expire_by: Math.floor(expiresAt.getTime() / 1000),
-    callback_url: callbackUrl,
-    callback_method: "get",
-    notes,
-  };
+// ==========================================
+// PAYMENT LINK FUNCTIONS - EXISTING SUPPORT
+// ==========================================
 
-  if (env.razorpay.upiOnly) {
-    payload.options = {
-      checkout: { method: { upi: true, card: false, netbanking: false, wallet: false } },
-    };
+export async function createPaymentLink(payload) {
+  return request("/payment_links", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function fetchPaymentLink(paymentLinkId) {
+  if (!paymentLinkId) {
+    throw new Error("Payment Link ID is required.");
   }
 
-  return request("/payment_links", { method: "POST", body: payload });
+  return request(`/payment_links/${encodeURIComponent(paymentLinkId)}`);
 }
 
-export const fetchPaymentLink = (linkId) =>
-  request(`/payment_links/${encodeURIComponent(linkId)}`);
+export async function cancelPaymentLink(paymentLinkId) {
+  if (!paymentLinkId) {
+    throw new Error("Payment Link ID is required.");
+  }
 
-export const cancelPaymentLink = (linkId) =>
-  request(`/payment_links/${encodeURIComponent(linkId)}/cancel`, { method: "POST" });
-
-const hmac = (secret, value) =>
-  crypto.createHmac("sha256", secret).update(value).digest("hex");
-
-function safeEqual(a, b) {
-  const left = Buffer.from(String(a));
-  const right = Buffer.from(String(b));
-  return left.length === right.length && crypto.timingSafeEqual(left, right);
-}
-
-// Proves the "you have paid" redirect really came from Razorpay.
-export function verifyCallbackSignature({ linkId, referenceId, status, paymentId, signature }) {
-  if (!isConfigured() || !signature) return false;
-  const expected = hmac(
-    env.razorpay.keySecret,
-    `${linkId}|${referenceId}|${status}|${paymentId}`,
+  return request(
+    `/payment_links/${encodeURIComponent(paymentLinkId)}/cancel`,
+    { method: "POST" }
   );
-  return safeEqual(expected, signature);
 }
 
-// Proves a webhook body really came from Razorpay. rawBody must be the exact
-// bytes received, before any JSON parsing.
+// ==========================================
+// CREATE SINGLE-USE UPI QR CODE
+// ==========================================
+
+export async function createQrCode({
+  amount,
+  orderNumber,
+  orderId,
+  expiresAt,
+  description,
+}) {
+  if (!Number.isInteger(amount) || amount <= 0) {
+    throw new Error("QR amount must be a positive integer in paise.");
+  }
+
+  if (!orderNumber || !orderId) {
+    throw new Error("Order details are required to create a QR code.");
+  }
+
+  const closeBy = Math.floor(new Date(expiresAt).getTime() / 1000);
+
+  if (!Number.isFinite(closeBy)) {
+    throw new Error("A valid QR expiry date is required.");
+  }
+
+  const minimumCloseBy = Math.floor(Date.now() / 1000) + 15 * 60;
+
+  if (closeBy < minimumCloseBy) {
+    throw new Error(
+      "Razorpay QR expiry must be at least 15 minutes after creation."
+    );
+  }
+
+  return request("/payments/qr_codes", {
+    method: "POST",
+    body: {
+      type: "upi_qr",
+      name: `GADGETE ${orderNumber}`,
+      usage: "single_use",
+      fixed_amount: true,
+      payment_amount: amount,
+      description:
+        description || `Payment for GADGETE order ${orderNumber}`,
+      close_by: closeBy,
+      notes: {
+        orderId: String(orderId),
+        orderNumber: String(orderNumber),
+      },
+    },
+  });
+}
+
+// ==========================================
+// FETCH QR CODE
+// ==========================================
+
+export async function fetchQrCode(qrId) {
+  if (!qrId) {
+    throw new Error("QR Code ID is required.");
+  }
+
+  return request(`/payments/qr_codes/${encodeURIComponent(qrId)}`);
+}
+
+// ==========================================
+// FETCH PAYMENTS MADE THROUGH QR CODE
+// ==========================================
+
+export async function fetchQrPayments(qrId, count = 10) {
+  if (!qrId) {
+    throw new Error("QR Code ID is required.");
+  }
+
+  const safeCount = Math.min(Math.max(Number(count) || 10, 1), 100);
+
+  return request(
+    `/payments/qr_codes/${encodeURIComponent(qrId)}/payments?count=${safeCount}`
+  );
+}
+
+// ==========================================
+// CLOSE QR CODE
+// ==========================================
+
+export async function closeQrCode(qrId) {
+  if (!qrId) {
+    throw new Error("QR Code ID is required.");
+  }
+
+  return request(
+    `/payments/qr_codes/${encodeURIComponent(qrId)}/close`,
+    { method: "POST" }
+  );
+}
+
+// ==========================================
+// PAYMENT SIGNATURE VERIFICATION
+// ==========================================
+
+export function verifyCallbackSignature({
+  paymentLinkId,
+  paymentId,
+  signature,
+}) {
+  if (!KEY_SECRET || !paymentLinkId || !paymentId || !signature) {
+    return false;
+  }
+
+  const body = `${paymentLinkId}|${paymentId}`;
+
+  const expectedSignature = crypto
+    .createHmac("sha256", KEY_SECRET)
+    .update(body)
+    .digest("hex");
+
+  return safeCompare(expectedSignature, signature);
+}
+
+// ==========================================
+// WEBHOOK SIGNATURE VERIFICATION
+// ==========================================
+
 export function verifyWebhookSignature(rawBody, signature) {
-  const secret = env.razorpay.webhookSecret;
-  if (!secret || !signature || !rawBody) return false;
-  return safeEqual(hmac(secret, rawBody), signature);
+  if (!WEBHOOK_SECRET || !rawBody || !signature) {
+    return false;
+  }
+
+  const body = Buffer.isBuffer(rawBody)
+    ? rawBody
+    : Buffer.from(rawBody);
+
+  const expectedSignature = crypto
+    .createHmac("sha256", WEBHOOK_SECRET)
+    .update(body)
+    .digest("hex");
+
+  return safeCompare(expectedSignature, signature);
+}
+
+// ==========================================
+// TIMING-SAFE SIGNATURE COMPARISON
+// ==========================================
+
+function safeCompare(expected, received) {
+  try {
+    const expectedBuffer = Buffer.from(expected, "hex");
+    const receivedBuffer = Buffer.from(received, "hex");
+
+    if (
+      expectedBuffer.length === 0 ||
+      expectedBuffer.length !== receivedBuffer.length
+    ) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
+  } catch {
+    return false;
+  }
 }

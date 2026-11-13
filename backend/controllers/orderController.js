@@ -221,6 +221,7 @@ function requestLinks(req) {
   return { site, api: env.serverUrl || self };
 }
 
+
 function checkoutResponse(order) {
   const awaiting = order.status === "awaiting_payment";
 
@@ -236,28 +237,40 @@ function checkoutResponse(order) {
     shippingFee: order.shippingFee,
     total: order.total,
     delivery: order.delivery,
-    paymentUrl: awaiting ? order.payment.linkUrl || null : null,
-    expiresAt: awaiting ? order.payment.linkExpiresAt || null : null,
+
+    paymentUrl: null,
+
+    qrId: awaiting ? order.payment.qrId || null : null,
+    qrImageUrl: awaiting ? order.payment.qrImageUrl || null : null,
+
+    expiresAt: awaiting ? order.payment.qrExpiresAt || null : null,
   };
 }
 
+
 // The same checkout sent twice (double click, flaky network retry) returns
 // the order that already exists instead of creating another.
+
 async function existingCheckout(checkoutKey) {
   if (!checkoutKey) return null;
 
   let order = await Order.findOne({ checkoutKey });
 
-  // The first request may still be creating its payment link.
+  // Wait while the first request is creating its QR code.
   for (let tries = 0; order && tries < 12; tries += 1) {
-    const linkPending = order.status === "awaiting_payment" && !order.payment.linkUrl;
-    if (!linkPending) break;
+    const qrPending =
+      order.status === "awaiting_payment" &&
+      !order.payment.qrId;
+
+    if (!qrPending) break;
+
     await sleep(400);
     order = await Order.findOne({ checkoutKey });
   }
 
   return order;
 }
+
 
 function describeOrder(order) {
   const list = order.items.map((item) => `${item.name} x${item.quantity}`).join(", ");
@@ -356,32 +369,48 @@ export async function checkout(req, res) {
     throw error;
   }
 
-  // UPI: one fixed-amount Razorpay payment link for this order.
+  // UPI: create a unique, fixed-amount, single-use QR code.
   try {
-    const expiresAt = new Date(Date.now() + env.store.paymentWindowMinutes * 60 * 1000);
+    const expiresAt = new Date(
+      Date.now() + env.store.paymentWindowMinutes * 60 * 1000
+    );
 
-    const link = await razorpay.createPaymentLink({
-      amount: order.total,
-      referenceId: order.orderNumber,
-      description: describeOrder(order),
-      customer: {
-        name: `${order.customer.firstName} ${order.customer.lastName}`.trim(),
-        email: order.customer.email,
-        contact: `+91${order.customer.phone}`,
-      },
+    const qr = await razorpay.createQrCode({
+      amount: Math.round(order.total * 100),
+      orderNumber: order.orderNumber,
+      orderId: order._id.toString(),
       expiresAt,
-      callbackUrl: `${order.links.api}/api/orders/payment-callback`,
-      notes: { brand: env.store.name, orderNumber: order.orderNumber },
+      description: describeOrder(order),
     });
 
-    order.payment.linkId = link.id;
-    order.payment.linkUrl = link.short_url;
-    order.payment.linkExpiresAt = expiresAt;
+    if (!qr?.id || !qr?.image_url) {
+      throw new Error("Razorpay did not return a QR ID and image URL.");
+    }
+
+    order.payment.qrId = qr.id;
+    order.payment.qrImageUrl = qr.image_url;
+
+    // Use Razorpay's actual expiry when available.
+    order.payment.qrExpiresAt = qr.close_by
+      ? new Date(qr.close_by * 1000)
+      : expiresAt;
+
     await order.save();
   } catch (error) {
-    console.error(`Razorpay payment link error for ${order.orderNumber}:`, error.message);
-    await expireOrder(order._id, { cancelLink: false, message: "Payment could not be started." });
-    throw new HttpError(502, "We couldn't start the payment. Please try again in a moment.");
+    console.error(
+      `Razorpay QR creation failed for ${order.orderNumber}:`,
+      error.message
+    );
+
+    await expireOrder(order._id, {
+      cancelLink: false,
+      message: "Payment could not be started.",
+    });
+
+    throw new HttpError(
+      502,
+      "We couldn't generate your payment QR code. Please try again."
+    );
   }
 
   res.status(201).json(checkoutResponse(order));
@@ -392,38 +421,22 @@ export async function checkout(req, res) {
 // GET /api/orders/payment-callback
 // Razorpay sends the customer's browser here after they pay through the link.
 export async function paymentCallback(req, res) {
-  const {
-    razorpay_payment_id: paymentId,
-    razorpay_payment_link_id: linkId,
-    razorpay_payment_link_reference_id: referenceId,
-    razorpay_payment_link_status: status,
-    razorpay_signature: signature,
-  } = req.query;
+  // QR payments are confirmed only by the signed server-to-server webhook
+  // or by syncPayment querying Razorpay. Never trust a browser redirect.
+  const token =
+    typeof req.query?.order === "string" &&
+    TOKEN_PATTERN.test(req.query.order)
+      ? req.query.order
+      : "";
 
-  const allStrings = [paymentId, linkId, referenceId, status, signature].every(
-    (value) => typeof value === "string" && value.length > 0 && value.length < 200,
-  );
-
-  const order = allStrings ? await Order.findOne({ "payment.linkId": linkId }) : null;
+  const order = token ? await Order.findOne({ accessToken: token }) : null;
   const site = order?.links?.site || env.clientUrl;
 
-  if (!order) return res.redirect(`${site}/order-failed`);
-
-  // Proves this redirect really came from Razorpay and not a typed-in address.
-  const genuine = razorpay.verifyCallbackSignature({
-    linkId,
-    referenceId,
-    status,
-    paymentId,
-    signature,
-  });
-
-  if (!genuine || status !== "paid") {
-    return res.redirect(`${site}/order-failed?order=${order.accessToken}`);
-  }
-
-  await markPaid(order._id, paymentId);
-  res.redirect(`${site}/order-success?order=${order.accessToken}`);
+  return res.redirect(
+    order
+      ? `${site}/order-failed?order=${order.accessToken}`
+      : `${site}/order-failed`
+  );
 }
 
 // POST /api/payments/razorpay/webhook
@@ -447,25 +460,27 @@ export async function razorpayWebhook(req, res) {
     return res.status(400).json({ message: "Invalid payload." });
   }
 
-  // Always answer 200 from here on so Razorpay doesn't keep retrying;
-  // anything that goes wrong is logged instead.
+  // Confirm only the QR linked to this order and the exact captured INR amount.
   try {
-    const link = event?.payload?.payment_link?.entity;
-    const payment = event?.payload?.payment?.entity;
-    const order =
-      link?.id && typeof link.id === "string"
-        ? await Order.findOne({ "payment.linkId": link.id })
-        : null;
+    if (event?.event === "qr_code.credited") {
+      const qr = event?.payload?.qr_code?.entity;
+      const payment = event?.payload?.payment?.entity;
 
-    if (order) {
-      if (event.event === "payment_link.paid") {
-        await markPaid(order._id, typeof payment?.id === "string" ? payment.id : "");
-      } else if (["payment_link.expired", "payment_link.cancelled"].includes(event.event)) {
-        await expireOrder(order._id, { cancelLink: false });
+      if (typeof qr?.id === "string" && typeof payment?.id === "string") {
+        const order = await Order.findOne({ "payment.qrId": qr.id });
+
+        if (
+          order &&
+          payment.status === "captured" &&
+          payment.currency === "INR" &&
+          payment.amount === Math.round(order.total * 100)
+        ) {
+          await markPaid(order._id, payment.id);
+        }
       }
     }
   } catch (error) {
-    console.error("Razorpay webhook handling failed:", error.message);
+    console.error("Razorpay QR webhook handling failed:", error.message);
   }
 
   res.json({ ok: true });
@@ -485,7 +500,7 @@ const statusPayload = (order) => ({
   status: order.status,
   paymentStatus: order.payment.status,
   placed: PLACED_STATUSES.includes(order.status),
-  expiresAt: order.payment.linkExpiresAt || null,
+  expiresAt: order.payment.qrExpiresAt || null,
 });
 
 // The payment screen polls every few seconds; ask Razorpay at most this often per order.

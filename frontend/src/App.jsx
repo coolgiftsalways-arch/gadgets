@@ -15,6 +15,7 @@ import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import HomeSections from "./components/HomeSections";
 import Footer from "./components/Footer";
+import OrderSuccess from "./Pages/OrderSuccess";
 
 // ==========================================
 // PUBLIC WEBSITE PAGES
@@ -336,6 +337,18 @@ function ShopPage() {
   );
 }
 
+function OrderSuccessPage() {
+  return (
+    <div className="gadgete-app">
+      <Navbar />
+      <main>
+        <OrderSuccess />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
 function AboutPage() {
   return (
     <div className="gadgete-app">
@@ -426,6 +439,7 @@ function App() {
 
       <Routes>
         {/* PUBLIC WEBSITE ROUTES */}
+
         <Route path="/" element={<Home />} />
         <Route path="/shop" element={<ShopPage />} />
         <Route path="/product/:id" element={<ProductPage />} />
@@ -435,14 +449,24 @@ function App() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
 
+        {/* ORDER SUCCESS - KEEP OUTSIDE ADMIN */}
+
+        <Route
+          path="/order-success"
+          element={<OrderSuccessPage />}
+        />
+
         {/* ADMIN ROUTES */}
+
         <Route path="/admin/login" element={<AdminLogin />} />
+
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="customers" element={<AdminCustomers />} />
           <Route path="orders" element={<AdminOrders />} />
           <Route path="products" element={<AdminProducts />} />
         </Route>
+
       </Routes>
     </BrowserRouter>
   );
