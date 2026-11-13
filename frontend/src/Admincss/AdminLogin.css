@@ -1,0 +1,93 @@
+.gad-login-page {
+     min-height: 100vh;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     padding: 20px 16px;
+     background: #164e74;
+     font-family: "Space Grotesk", sans-serif;
+}
+
+.gad-login-card {
+     width: 100%;
+     max-width: 400px;
+     display: flex;
+     flex-direction: column;
+     gap: 16px;
+     padding: 32px 26px;
+     border-radius: 16px;
+     background: #f4edda;
+     color: #10100e;
+}
+
+.gad-login-logo {
+     font-family: "Anton", sans-serif;
+     font-size: 34px;
+     line-height: 1;
+     color: #164e74;
+}
+
+.gad-login-logo span { color: #10100e; background: #eff04c; padding: 0 3px; }
+.gad-login-logo sup { font-size: 10px; }
+
+.gad-login-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #77766e; }
+
+.gad-login-card h1 {
+     margin: 0;
+     font-family: "Anton", sans-serif;
+     font-size: 44px;
+     font-weight: 400;
+     color: #164e74;
+}
+
+.gad-login-card h1 span { color: #10100e; }
+
+.gad-login-card label {
+     display: flex;
+     flex-direction: column;
+     gap: 7px;
+     font-size: 12px;
+     font-weight: 700;
+     letter-spacing: 1.2px;
+}
+
+.gad-login-card input {
+     height: 48px;
+     padding: 0 14px;
+     border: 1.3px solid #4c504e;
+     border-radius: 8px;
+     background: transparent;
+     font: inherit;
+     font-size: 16px;
+     letter-spacing: 0;
+     outline: none;
+}
+
+.gad-login-card input:focus { border-color: #164e74; }
+
+.gad-login-error {
+     margin: 0;
+     padding: 10px 12px;
+     border-radius: 8px;
+     background: #fde2e1;
+     color: #9b1c1c;
+     font-size: 13px;
+}
+
+.gad-login-card button {
+     height: 54px;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     gap: 10px;
+     border: 0;
+     border-radius: 9px;
+     background: #eff04c;
+     color: #10100e;
+     font: inherit;
+     font-weight: 700;
+     letter-spacing: 1.6px;
+     cursor: pointer;
+}
+
+.gad-login-card button:disabled { opacity: 0.6; cursor: wait; }

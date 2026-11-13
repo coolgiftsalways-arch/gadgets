@@ -20,19 +20,20 @@ import Footer from "./components/Footer";
 // PUBLIC WEBSITE PAGES
 // ==========================================
 
-import Shop from "./pages/Shop";
-import About from "./pages/About";
-import CustomerCare from "./pages/CustomerCare";
-import ProductDetails from "./pages/ProductDetails";
-import TrackOrder from "./pages/TrackOrder";
-import Cart from "./pages/Cart";
-import Checkout from "./pages/Checkout";
+import Shop from "./Pages/Shop";
+import About from "./Pages/About";
+import CustomerCare from "./Pages/CustomerCare";
+import ProductDetails from "./Pages/ProductDetails";
+import TrackOrder from "./Pages/TrackOrder";
+import Cart from "./Pages/Cart";
+import Checkout from "./Pages/Checkout";
 
 // ==========================================
 // ADMIN
 // ==========================================
 
 import AdminLayout from "./Admin/AdminLayout";
+import AdminLogin from "./Admin/AdminLogin";
 import AdminDashboard from "./Admin/AdminDashboard";
 import AdminCustomers from "./Admin/AdminCustomers";
 import AdminOrders from "./Admin/AdminOrders";
@@ -435,6 +436,7 @@ function App() {
         <Route path="/checkout" element={<CheckoutPage />} />
 
         {/* ADMIN ROUTES */}
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="customers" element={<AdminCustomers />} />

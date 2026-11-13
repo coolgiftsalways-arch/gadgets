@@ -13,6 +13,7 @@ import {
   LogOut,
 } from "lucide-react";
 
+import { adminFetch, logout } from "./api";
 import "../Admincss/AdminSidebar.css";
 
 const AdminSidebar = () => {
@@ -21,6 +22,24 @@ const AdminSidebar = () => {
   });
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  // Live count of new (unopened) orders, refreshed every 30 seconds.
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      adminFetch("/notifications")
+        .then((data) => alive && setUnread(data.unread))
+        .catch(() => {});
+    load();
+    const timer = setInterval(load, 30000);
+    window.addEventListener("gadgete-admin-refresh", load);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      window.removeEventListener("gadgete-admin-refresh", load);
+    };
+  }, []);
 
   // APPLY THEME
   useEffect(() => {
@@ -122,9 +141,9 @@ const AdminSidebar = () => {
 
                 <span>{item.name}</span>
 
-                {item.name === "Orders" && (
+                {item.name === "Orders" && unread > 0 && (
                   <span className="gad-sidebar-order-badge">
-                    {/* Replace with live unread order count */}0
+                    {unread > 99 ? "99+" : unread}
                   </span>
                 )}
               </NavLink>
@@ -169,10 +188,7 @@ const AdminSidebar = () => {
               type="button"
               className="gad-admin-logout"
               title="Logout"
-              onClick={() => {
-                // Connect your existing admin logout logic here.
-                console.log("Admin logout clicked");
-              }}
+              onClick={logout}
             >
               <LogOut size={17} />
             </button>

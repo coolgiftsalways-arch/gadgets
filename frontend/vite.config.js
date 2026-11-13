@@ -8,5 +8,9 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5173,
     strictPort: false,
+    // Sends /api requests to the backend while developing.
+    proxy: {
+      "/api": "http://localhost:5000",
+    },
   },
 });

@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Search,
   ShoppingBag,
@@ -7,7 +8,6 @@ import {
   PackageCheck,
   Truck,
   CheckCircle2,
-  XCircle,
   Download,
   SlidersHorizontal,
   ChevronDown,
@@ -19,336 +19,116 @@ import {
   Phone,
   Mail,
   UserRound,
-  ArrowUpRight,
+  Send,
+  Save,
+  AlertTriangle,
 } from "lucide-react";
+import {
+  STATUS_OPTIONS,
+  adminDownload,
+  adminFetch,
+  customerName,
+  formatDate,
+  formatDateTime,
+  formatTime,
+  imageUrl,
+  initials,
+  money,
+  paymentLabel,
+  statusClass,
+  statusLabel,
+} from "./api";
 import "../Admincss/AdminOrders.css";
 
-// UI preview data only. Replace with orders fetched from your backend API.
-const demoOrders = [
-  {
-    id: "GAD-2026-1028",
-    customer: "Aarav Sharma",
-    email: "aarav.sharma@example.com",
-    phone: "+91 98765 43210",
-    date: "11 Nov 2026",
-    time: "11:42 AM",
-    status: "Processing",
-    payment: "Paid Online",
-    paymentStatus: "Paid",
-    subtotal: 3499,
-    shipping: 0,
-    total: 3499,
-    source: "Website",
-    address: "12 MG Road, Andheri West, Mumbai, Maharashtra - 400053",
-    items: [
-      {
-        id: "G-01",
-        name: "Air Pods Pro",
-        color: "White",
-        quantity: 1,
-        price: 3499,
-        image:
-          "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=240&q=80",
-      },
-    ],
-  },
-  {
-    id: "GAD-2026-1027",
-    customer: "Meera Patel",
-    email: "meera.patel@example.com",
-    phone: "+91 98201 12345",
-    date: "11 Nov 2026",
-    time: "10:18 AM",
-    status: "Pending",
-    payment: "Cash on Delivery",
-    paymentStatus: "Pay on delivery",
-    subtotal: 1999,
-    shipping: 0,
-    total: 1999,
-    source: "Website",
-    address: "Flat 4B, FC Road, Shivajinagar, Pune, Maharashtra - 411005",
-    items: [
-      {
-        id: "G-02",
-        name: "Power Core",
-        color: "Black",
-        quantity: 1,
-        price: 1999,
-        image:
-          "https://images.unsplash.com/photo-1609592424758-3a1f3a9f6f17?w=240&q=80",
-      },
-    ],
-  },
-  {
-    id: "GAD-2026-1026",
-    customer: "Rohan Mehta",
-    email: "rohan.mehta@example.com",
-    phone: "+91 98190 45678",
-    date: "10 Nov 2026",
-    time: "06:35 PM",
-    status: "Shipped",
-    payment: "Paid Online",
-    paymentStatus: "Paid",
-    subtotal: 5999,
-    shipping: 0,
-    total: 5999,
-    source: "Instagram",
-    address: "22 Satellite Road, Ahmedabad, Gujarat - 380015",
-    items: [
-      {
-        id: "G-04",
-        name: "Smart Watch",
-        color: "Blue",
-        quantity: 1,
-        price: 5999,
-        image:
-          "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=240&q=80",
-      },
-    ],
-  },
-  {
-    id: "GAD-2026-1025",
-    customer: "Ananya Rao",
-    email: "ananya.rao@example.com",
-    phone: "+91 98920 56789",
-    date: "10 Nov 2026",
-    time: "01:09 PM",
-    status: "Delivered",
-    payment: "Paid Online",
-    paymentStatus: "Paid",
-    subtotal: 6998,
-    shipping: 0,
-    total: 6998,
-    source: "Website",
-    address: "18 Indiranagar, Bengaluru, Karnataka - 560038",
-    items: [
-      {
-        id: "G-01",
-        name: "Air Pods Pro",
-        color: "White",
-        quantity: 2,
-        price: 3499,
-        image:
-          "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=240&q=80",
-      },
-    ],
-  },
-  {
-    id: "GAD-2026-1024",
-    customer: "Kabir Shah",
-    email: "kabir.shah@example.com",
-    phone: "+91 97690 23456",
-    date: "09 Nov 2026",
-    time: "09:22 AM",
-    status: "Cancelled",
-    payment: "Cash on Delivery",
-    paymentStatus: "Not collected",
-    subtotal: 1999,
-    shipping: 0,
-    total: 1999,
-    source: "Website",
-    address: "7 Ring Road, Surat, Gujarat - 395002",
-    items: [
-      {
-        id: "G-02",
-        name: "Power Core",
-        color: "Black",
-        quantity: 1,
-        price: 1999,
-        image:
-          "https://images.unsplash.com/photo-1609592424758-3a1f3a9f6f17?w=240&q=80",
-      },
-    ],
-  },
-];
-
-const money = (value) =>
-  `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
-
-const statusKey = (value) => value.toLowerCase().replaceAll(" ", "-");
-
 const AdminOrders = () => {
-  const [orders, setOrders] = useState(demoOrders);
+  const [params, setParams] = useSearchParams();
+  const openId = params.get("open");
+
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All orders");
-  const [paymentFilter, setPaymentFilter] = useState("All payments");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("");
   const [sortBy, setSortBy] = useState("newest");
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [page, setPage] = useState(1);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
 
-  const summary = useMemo(
-    () => ({
-      total: orders.length,
-      pending: orders.filter((order) => order.status === "Pending").length,
-      processing: orders.filter((order) => order.status === "Processing")
-        .length,
-      shipped: orders.filter((order) => order.status === "Shipped").length,
-      delivered: orders.filter((order) => order.status === "Delivered").length,
-      revenue: orders
-        .filter((order) => order.paymentStatus === "Paid")
-        .reduce((sum, order) => sum + order.total, 0),
-    }),
-    [orders],
-  );
+  const filters = useCallback(() => {
+    const qs = new URLSearchParams({ sort: sortBy });
+    if (query.trim()) qs.set("q", query.trim());
+    if (statusFilter) qs.set("status", statusFilter);
+    if (paymentFilter) qs.set("payment", paymentFilter);
+    return qs;
+  }, [query, statusFilter, paymentFilter, sortBy]);
 
-  const filteredOrders = useMemo(() => {
-    let result = orders.filter((order) => {
-      const searchable =
-        `${order.id} ${order.customer} ${order.email} ${order.phone}`.toLowerCase();
-      const matchesQuery = searchable.includes(query.toLowerCase());
-      const matchesStatus =
-        statusFilter === "All orders" || order.status === statusFilter;
-      const matchesPayment =
-        paymentFilter === "All payments" || order.payment === paymentFilter;
-      return matchesQuery && matchesStatus && matchesPayment;
-    });
+  const load = useCallback(() => {
+    const qs = filters();
+    qs.set("page", page);
+    adminFetch(`/orders?${qs}`)
+      .then((result) => {
+        setData(result);
+        setError("");
+      })
+      .catch((err) => setError(err.message));
+  }, [filters, page]);
 
-    if (sortBy === "highest")
-      result = [...result].sort((a, b) => b.total - a.total);
-    else if (sortBy === "lowest")
-      result = [...result].sort((a, b) => a.total - b.total);
-    return result;
-  }, [orders, query, statusFilter, paymentFilter, sortBy]);
+  // Small delay while typing in the search box.
+  useEffect(() => {
+    const timer = setTimeout(load, 250);
+    return () => clearTimeout(timer);
+  }, [load]);
 
-  const updateStatus = (orderId, newStatus) => {
-    setOrders((current) =>
-      current.map((order) =>
-        order.id === orderId ? { ...order, status: newStatus } : order,
-      ),
+  const openOrder = (id) => setParams(id ? { open: id } : {});
+
+  const exportOrders = () =>
+    adminDownload(`/orders/export.csv?${filters()}`, "gadgete-orders.csv").catch((err) =>
+      alert(err.message),
     );
-    setSelectedOrder((current) =>
-      current?.id === orderId ? { ...current, status: newStatus } : current,
-    );
-  };
 
-  const exportOrders = () => {
-    const headers = [
-      "Order ID",
-      "Customer",
-      "Email",
-      "Phone",
-      "Date",
-      "Time",
-      "Status",
-      "Payment",
-      "Total",
-      "Source",
-      "Address",
-    ];
-    const rows = filteredOrders.map((order) => [
-      order.id,
-      order.customer,
-      order.email,
-      order.phone,
-      order.date,
-      order.time,
-      order.status,
-      order.payment,
-      order.total,
-      order.source,
-      order.address,
-    ]);
-    const csv = [headers, ...rows]
-      .map((row) =>
-        row
-          .map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`)
-          .join(","),
-      )
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "gadgete-orders.csv";
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
+  const summary = data?.summary || {};
+  const orders = data?.items || [];
+
+  const statCards = [
+    ["TOTAL ORDERS", summary.total, "All received orders", ShoppingBag, ""],
+    ["PENDING", summary.pending, "Awaiting confirmation", Clock3, "pending"],
+    ["PROCESSING", summary.processing, "Being prepared", PackageCheck, "processing"],
+    ["SHIPPED", summary.shipped, "On the way", Truck, "shipped"],
+    ["DELIVERED", summary.delivered, "Successfully delivered", CheckCircle2, "delivered"],
+    ["PAID REVENUE", money(summary.revenue), "Money received", IndianRupee, "revenue"],
+  ];
 
   return (
     <div className="gad-orders-page">
       <header className="gad-orders-header">
         <div>
-          <span className="gad-orders-eyebrow">
-            GADGETÉ / SALES & FULFILMENT
-          </span>
-          <h1>
-            ORDERS<span>.</span>
-          </h1>
+          <span className="gad-orders-eyebrow">GADGETÉ / SALES & FULFILMENT</span>
+          <h1>ORDERS<span>.</span></h1>
           <p>Every order, every detail — all in one place.</p>
         </div>
-        <button
-          type="button"
-          className="gad-orders-export"
-          onClick={exportOrders}
-        >
+        <button type="button" className="gad-orders-export" onClick={exportOrders}>
           <Download size={16} /> EXPORT ORDERS
         </button>
       </header>
 
       <section className="gad-orders-stats">
-        <article className="gad-orders-stat">
-          <span className="gad-orders-stat-icon">
-            <ShoppingBag size={19} />
-          </span>
-          <small>TOTAL ORDERS</small>
-          <strong>{summary.total}</strong>
-          <em>All received orders</em>
-        </article>
-        <article className="gad-orders-stat">
-          <span className="gad-orders-stat-icon pending">
-            <Clock3 size={19} />
-          </span>
-          <small>PENDING</small>
-          <strong>{summary.pending}</strong>
-          <em>Awaiting confirmation</em>
-        </article>
-        <article className="gad-orders-stat">
-          <span className="gad-orders-stat-icon processing">
-            <PackageCheck size={19} />
-          </span>
-          <small>PROCESSING</small>
-          <strong>{summary.processing}</strong>
-          <em>Being prepared</em>
-        </article>
-        <article className="gad-orders-stat">
-          <span className="gad-orders-stat-icon shipped">
-            <Truck size={19} />
-          </span>
-          <small>SHIPPED</small>
-          <strong>{summary.shipped}</strong>
-          <em>On the way</em>
-        </article>
-        <article className="gad-orders-stat">
-          <span className="gad-orders-stat-icon delivered">
-            <CheckCircle2 size={19} />
-          </span>
-          <small>DELIVERED</small>
-          <strong>{summary.delivered}</strong>
-          <em>Successfully delivered</em>
-        </article>
-        <article className="gad-orders-stat">
-          <span className="gad-orders-stat-icon revenue">
-            <IndianRupee size={19} />
-          </span>
-          <small>PAID REVENUE</small>
-          <strong>{money(summary.revenue)}</strong>
-          <em>Paid orders only</em>
-        </article>
+        {statCards.map(([label, value, note, Icon, tone]) => (
+          <article className="gad-orders-stat" key={label}>
+            <span className={`gad-orders-stat-icon ${tone}`}><Icon size={19} /></span>
+            <small>{label}</small>
+            <strong>{value ?? "—"}</strong>
+            <em>{note}</em>
+          </article>
+        ))}
       </section>
 
       <section className="gad-orders-panel">
         <div className="gad-orders-panel-heading">
           <div>
             <span className="gad-orders-eyebrow">ORDER MANAGEMENT</span>
-            <h2>
-              ALL <span>ORDERS.</span>
-            </h2>
-            <p>
-              Search orders, review customer details and update fulfilment
-              status.
-            </p>
+            <h2>ALL <span>ORDERS.</span></h2>
+            <p>Search orders, review customer details and update fulfilment status.</p>
           </div>
           <span className="gad-orders-record-count">
-            {filteredOrders.length.toString().padStart(2, "0")} RECORDS
+            {String(data?.total ?? 0).padStart(2, "0")} RECORDS
           </span>
         </div>
 
@@ -357,16 +137,15 @@ const AdminOrders = () => {
             <Search size={17} />
             <input
               type="search"
-              placeholder="Search order ID, customer, email or phone..."
+              placeholder="Search order no., name, email, phone or city..."
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
             />
             {query && (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                aria-label="Clear search"
-              >
+              <button type="button" onClick={() => setQuery("")} aria-label="Clear search">
                 <X size={15} />
               </button>
             )}
@@ -374,44 +153,37 @@ const AdminOrders = () => {
 
           <label className="gad-orders-filter">
             <SlidersHorizontal size={15} />
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option>All orders</option>
-              <option>Pending</option>
-              <option>Processing</option>
-              <option>Shipped</option>
-              <option>Delivered</option>
-              <option>Cancelled</option>
+            <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
+              <option value="">All orders</option>
+              {STATUS_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+              <option value="unpaid">Unpaid UPI checkouts</option>
             </select>
             <ChevronDown size={14} />
           </label>
 
           <label className="gad-orders-filter">
-            <select
-              value={paymentFilter}
-              onChange={(event) => setPaymentFilter(event.target.value)}
-            >
-              <option>All payments</option>
-              <option>Paid Online</option>
-              <option>Cash on Delivery</option>
+            <select value={paymentFilter} onChange={(event) => { setPaymentFilter(event.target.value); setPage(1); }}>
+              <option value="">All payments</option>
+              <option value="upi">Online (UPI)</option>
+              <option value="cod">Cash on Delivery</option>
             </select>
             <ChevronDown size={14} />
           </label>
 
           <label className="gad-orders-filter gad-orders-sort">
-            <select
-              value={sortBy}
-              onChange={(event) => setSortBy(event.target.value)}
-            >
+            <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
               <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
               <option value="highest">Highest amount</option>
               <option value="lowest">Lowest amount</option>
             </select>
             <ChevronDown size={14} />
           </label>
         </div>
+
+        {error && <p className="gad-orders-note"><AlertTriangle size={14} /> {error}</p>}
 
         <div className="gad-orders-table-wrap">
           <table className="gad-orders-table">
@@ -428,146 +200,250 @@ const AdminOrders = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredOrders.map((order) => (
-                <tr key={order.id}>
-                  <td className="gad-order-id-cell">{order.id}</td>
-                  <td>
-                    <div className="gad-order-customer">
-                      <span>
-                        {order.customer
-                          .split(" ")
-                          .map((part) => part[0])
-                          .slice(0, 2)
-                          .join("")}
+              {orders.map((order) => {
+                const name = customerName(order.customer);
+                const when = order.placedAt || order.createdAt;
+                return (
+                  <tr key={order._id} onClick={() => openOrder(order._id)} style={{ cursor: "pointer" }}>
+                    <td className="gad-order-id-cell">
+                      {order.orderNumber}
+                      {order.seenByAdmin === false && <b style={{ color: "#c0392b" }}> • NEW</b>}
+                    </td>
+                    <td>
+                      <div className="gad-order-customer">
+                        <span>{initials(name)}</span>
+                        <strong>{name}</strong>
+                      </div>
+                    </td>
+                    <td className="gad-order-date-cell">
+                      <strong>{formatDate(when)}</strong>
+                      <small>{formatTime(when)}</small>
+                    </td>
+                    <td>{order.items.reduce((sum, item) => sum + item.quantity, 0)} item(s)</td>
+                    <td className="gad-order-total-cell">{money(order.total)}</td>
+                    <td>
+                      <span className={`gad-order-payment ${order.payment.method === "cod" ? "cod" : "online"}`}>
+                        {paymentLabel(order.payment)}
                       </span>
-                      <strong>{order.customer}</strong>
-                    </div>
-                  </td>
-                  <td className="gad-order-date-cell">
-                    <strong>{order.date}</strong>
-                    <small>{order.time}</small>
-                  </td>
-                  <td>
-                    {order.items.reduce((sum, item) => sum + item.quantity, 0)}{" "}
-                    item(s)
-                  </td>
-                  <td className="gad-order-total-cell">{money(order.total)}</td>
-                  <td>
-                    <span
-                      className={`gad-order-payment ${order.payment === "Paid Online" ? "online" : "cod"}`}
-                    >
-                      {order.payment}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      className={`gad-order-status-pill ${statusKey(order.status)}`}
-                    >
-                      {order.status}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="gad-order-view-button"
-                      onClick={() => setSelectedOrder(order)}
-                      aria-label={`View ${order.id}`}
-                    >
-                      <Eye size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td>
+                      <span className={`gad-order-status-pill ${statusClass(order.status)}`}>
+                        {statusLabel(order.status)}
+                      </span>
+                    </td>
+                    <td>
+                      <button type="button" className="gad-order-view-button" aria-label={`View ${order.orderNumber}`}>
+                        <Eye size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-          {filteredOrders.length === 0 && (
+          {data && orders.length === 0 && (
             <div className="gad-orders-empty">
               <ShoppingBag size={28} />
               <strong>No orders found</strong>
-              <span>Try changing your search or filters.</span>
+              <span>Orders placed on the website will appear here.</span>
             </div>
           )}
+          {!data && !error && <div className="gad-orders-empty"><strong>Loading orders…</strong></div>}
         </div>
 
         <div className="gad-orders-table-footer">
           <span>
-            Showing <strong>{filteredOrders.length}</strong> of{" "}
-            <strong>{orders.length}</strong> orders
+            Page <strong>{data?.page ?? 1}</strong> of <strong>{data?.pages ?? 1}</strong> ·{" "}
+            <strong>{data?.total ?? 0}</strong> orders
           </span>
-          <span>GADGETÉ® ORDER MANAGEMENT</span>
+          <span style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="gad-orders-export" disabled={page <= 1} onClick={() => setPage(page - 1)}>PREV</button>
+            <button type="button" className="gad-orders-export" disabled={!data || page >= data.pages} onClick={() => setPage(page + 1)}>NEXT</button>
+          </span>
         </div>
       </section>
 
-      {selectedOrder && (
-        <div
-          className="gad-order-drawer-backdrop"
-          onMouseDown={() => setSelectedOrder(null)}
-        >
-          <aside
-            className="gad-order-drawer"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className="gad-order-drawer-header">
-              <div>
-                <span className="gad-orders-eyebrow">ORDER DETAILS</span>
-                <h2>
-                  {selectedOrder.id}
-                  <span>.</span>
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedOrder(null)}
-                aria-label="Close order details"
-              >
-                <X size={20} />
-              </button>
+      {openId && <OrderDrawer id={openId} onClose={() => openOrder(null)} onChanged={load} />}
+    </div>
+  );
+};
+
+function OrderDrawer({ id, onClose, onChanged }) {
+  const [order, setOrder] = useState(null);
+  const [shipping, setShipping] = useState({ courier: "", awb: "", trackingUrl: "" });
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const apply = (fresh) => {
+    setOrder(fresh);
+    setShipping({
+      courier: fresh.shipping?.courier || "",
+      awb: fresh.shipping?.awb || "",
+      trackingUrl: fresh.shipping?.trackingUrl || "",
+    });
+    setNote(fresh.adminNote || "");
+  };
+
+  useEffect(() => {
+    adminFetch(`/orders/${id}`)
+      .then((result) => {
+        apply(result.order);
+        window.dispatchEvent(new Event("gadgete-admin-refresh")); // opening marks it as seen
+      })
+      .catch((err) => setError(err.message));
+  }, [id]);
+
+  const save = async (body, success) => {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await adminFetch(`/orders/${id}`, { method: "PATCH", body });
+      apply(result.order);
+      setMessage(success);
+      onChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const changeStatus = (status) => {
+    let cancelReason = "";
+    if (status === "cancelled") {
+      const answer = window.prompt("Cancel this order? Stock goes back and the customer is emailed.\n\nReason (optional):", "");
+      if (answer === null) return;
+      cancelReason = answer;
+    }
+    // Shipping details are saved together, so the "shipped" email includes them.
+    save({ status, cancelReason, shipping }, `Status changed to ${statusLabel(status)}. Customer emailed.`);
+  };
+
+  const resend = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await adminFetch(`/orders/${id}/email`, { method: "POST", body: { type: "confirmation" } });
+      apply(result.order);
+      setMessage(result.message);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const recheck = async () => {
+    setBusy(true);
+    try {
+      const result = await adminFetch(`/orders/${id}/recheck-payment`, { method: "POST" });
+      apply(result.order);
+      setMessage(result.message);
+      onChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const a = order?.shippingAddress;
+  const placed = order && !["awaiting_payment", "expired"].includes(order.status);
+
+  return (
+    <div className="gad-order-drawer-backdrop" onMouseDown={onClose}>
+      <aside className="gad-order-drawer" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="gad-order-drawer-header">
+          <div>
+            <span className="gad-orders-eyebrow">ORDER DETAILS</span>
+            <h2>{order?.orderNumber || "…"}<span>.</span></h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close order details"><X size={20} /></button>
+        </div>
+
+        {!order ? (
+          <p>{error || "Loading order…"}</p>
+        ) : (
+          <>
+            <div className="gad-order-drawer-status-row">
+              <span className={`gad-order-status-pill ${statusClass(order.status)}`}>{statusLabel(order.status)}</span>
+              <span><CalendarDays size={14} /> {formatDateTime(order.placedAt || order.createdAt)}</span>
             </div>
 
-            <div className="gad-order-drawer-status-row">
-              <span
-                className={`gad-order-status-pill ${statusKey(selectedOrder.status)}`}
-              >
-                {selectedOrder.status}
-              </span>
-              <span>
-                <CalendarDays size={14} /> {selectedOrder.date} ·{" "}
-                {selectedOrder.time}
-              </span>
-            </div>
+            {order.attention && (
+              <p className="gad-orders-note" style={{ color: "#9b1c1c" }}><AlertTriangle size={14} /> {order.attention}</p>
+            )}
+            {message && <p className="gad-orders-note">{message}</p>}
+            {error && <p className="gad-orders-note" style={{ color: "#9b1c1c" }}>{error}</p>}
+
+            {placed ? (
+              <section className="gad-order-update-section">
+                <label htmlFor="gad-order-status-select">UPDATE ORDER STATUS</label>
+                <select
+                  id="gad-order-status-select"
+                  value={order.status}
+                  disabled={busy}
+                  onChange={(event) => changeStatus(event.target.value)}
+                >
+                  {STATUS_OPTIONS.map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+                <p>The customer gets an email when an order is shipped, out for delivery, delivered or cancelled.</p>
+              </section>
+            ) : (
+              <section className="gad-order-update-section">
+                <p>This UPI checkout was never paid, so it isn't a real order yet.</p>
+                <button type="button" className="gad-orders-export" disabled={busy} onClick={recheck}>
+                  CHECK PAYMENT WITH RAZORPAY
+                </button>
+              </section>
+            )}
 
             <section className="gad-order-detail-section">
-              <h3>
-                <UserRound size={16} /> CUSTOMER INFORMATION
-              </h3>
-              <div className="gad-order-customer-detail">
-                <strong>{selectedOrder.customer}</strong>
-              </div>
+              <h3><Truck size={16} /> SHIPPING / TRACKING</h3>
+              {[
+                ["courier", "Courier (e.g. Delhivery)"],
+                ["awb", "Tracking number / AWB"],
+                ["trackingUrl", "Tracking link (https://…)"],
+              ].map(([key, label]) => (
+                <input
+                  key={key}
+                  placeholder={label}
+                  value={shipping[key]}
+                  onChange={(event) => setShipping({ ...shipping, [key]: event.target.value })}
+                  style={{ width: "100%", height: 42, margin: "4px 0", padding: "0 12px", borderRadius: 8, border: "1px solid currentColor", background: "transparent", color: "inherit", fontSize: 15 }}
+                />
+              ))}
+              <button type="button" className="gad-orders-export" disabled={busy} onClick={() => save({ shipping }, "Shipping details saved.")}>
+                <Save size={15} /> SAVE TRACKING
+              </button>
+              <p style={{ fontSize: 12, opacity: 0.7 }}>Tip: fill these in first, then set the status to Shipped — the email will include them.</p>
+            </section>
+
+            <section className="gad-order-detail-section">
+              <h3><UserRound size={16} /> CUSTOMER INFORMATION</h3>
+              <div className="gad-order-customer-detail"><strong>{customerName(order.customer)}</strong></div>
+              <p><Mail size={15} /> <a href={`mailto:${order.customer.email}`}>{order.customer.email}</a></p>
+              <p><Phone size={15} /> <a href={`tel:+91${order.customer.phone}`}>+91 {order.customer.phone}</a></p>
               <p>
-                <Mail size={15} /> {selectedOrder.email}
-              </p>
-              <p>
-                <Phone size={15} /> {selectedOrder.phone}
-              </p>
-              <p>
-                <MapPin size={15} /> {selectedOrder.address}
+                <MapPin size={15} /> {a.line1}{a.line2 ? `, ${a.line2}` : ""}, {a.city}, {a.state} – {a.pincode}
               </p>
             </section>
 
             <section className="gad-order-detail-section">
-              <h3>
-                <ShoppingBag size={16} /> ITEMS ORDERED
-              </h3>
+              <h3><ShoppingBag size={16} /> ITEMS ORDERED</h3>
               <div className="gad-order-item-list">
-                {selectedOrder.items.map((item) => (
-                  <div className="gad-order-item" key={item.id}>
-                    <img src={item.image} alt={item.name} />
+                {order.items.map((item, index) => (
+                  <div className="gad-order-item" key={`${item.sku}-${index}`}>
+                    {item.image ? <img src={imageUrl(item.image)} alt={item.name} /> : <span />}
                     <div className="gad-order-item-copy">
                       <strong>{item.name}</strong>
-                      <span>
-                        SKU / {item.id} · {item.color}
-                      </span>
-                      <small>Qty: {item.quantity}</small>
+                      <span>SKU / {item.sku}{item.color ? ` · ${item.color}` : ""}</span>
+                      <small>Qty: {item.quantity} × {money(item.price)}</small>
                     </div>
                     <b>{money(item.price * item.quantity)}</b>
                   </div>
@@ -576,75 +452,77 @@ const AdminOrders = () => {
             </section>
 
             <section className="gad-order-detail-section">
-              <h3>
-                <CreditCard size={16} /> PAYMENT & SOURCE
-              </h3>
-              <div className="gad-order-meta-row">
-                <span>Payment method</span>
-                <strong>{selectedOrder.payment}</strong>
-              </div>
-              <div className="gad-order-meta-row">
-                <span>Payment status</span>
-                <strong>{selectedOrder.paymentStatus}</strong>
-              </div>
-              <div className="gad-order-meta-row">
-                <span>Order source</span>
-                <strong>{selectedOrder.source}</strong>
-              </div>
+              <h3><CreditCard size={16} /> PAYMENT & SOURCE</h3>
+              <div className="gad-order-meta-row"><span>Payment</span><strong>{paymentLabel(order.payment)}</strong></div>
+              {order.payment.paymentId && (
+                <div className="gad-order-meta-row"><span>Razorpay ID</span><strong>{order.payment.paymentId}</strong></div>
+              )}
+              <div className="gad-order-meta-row"><span>Order source</span><strong>{order.source}</strong></div>
+              {order.payment.method === "upi" && ["paid", "refunded"].includes(order.payment.status) && (
+                <button
+                  type="button"
+                  className="gad-orders-export"
+                  disabled={busy}
+                  onClick={() =>
+                    save({ refunded: order.payment.status !== "refunded" }, "Refund status updated.")
+                  }
+                >
+                  {order.payment.status === "refunded" ? "UNDO REFUNDED" : "MARK AS REFUNDED"}
+                </button>
+              )}
             </section>
 
             <section className="gad-order-total-breakdown">
-              <div>
-                <span>Subtotal</span>
-                <strong>{money(selectedOrder.subtotal)}</strong>
-              </div>
-              <div>
-                <span>Shipping</span>
-                <strong>
-                  {selectedOrder.shipping === 0
-                    ? "FREE"
-                    : money(selectedOrder.shipping)}
-                </strong>
-              </div>
-              <div className="grand-total">
-                <span>ORDER TOTAL</span>
-                <strong>{money(selectedOrder.total)}</strong>
-              </div>
+              <div><span>Subtotal</span><strong>{money(order.subtotal)}</strong></div>
+              {order.discount > 0 && <div><span>UPI discount</span><strong>−{money(order.discount)}</strong></div>}
+              <div><span>Shipping</span><strong>{order.shippingFee ? money(order.shippingFee) : "FREE"}</strong></div>
+              <div className="grand-total"><span>ORDER TOTAL</span><strong>{money(order.total)}</strong></div>
             </section>
 
-            <section className="gad-order-update-section">
-              <label htmlFor="gad-order-status-select">
-                UPDATE ORDER STATUS
-              </label>
-              <select
-                id="gad-order-status-select"
-                value={selectedOrder.status}
-                onChange={(event) =>
-                  updateStatus(selectedOrder.id, event.target.value)
-                }
-              >
-                <option>Pending</option>
-                <option>Processing</option>
-                <option>Shipped</option>
-                <option>Delivered</option>
-                <option>Cancelled</option>
-              </select>
-              <p>
-                Status changes here are local preview state until connected to
-                your orders API.
-              </p>
+            <section className="gad-order-detail-section">
+              <h3>INTERNAL NOTE</h3>
+              <textarea
+                rows={3}
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder="Only visible to you"
+                style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid currentColor", background: "transparent", color: "inherit", fontSize: 15 }}
+              />
+              <button type="button" className="gad-orders-export" disabled={busy} onClick={() => save({ adminNote: note }, "Note saved.")}>
+                <Save size={15} /> SAVE NOTE
+              </button>
             </section>
-          </aside>
-        </div>
-      )}
 
-      <div className="gad-orders-note">
-        <ArrowUpRight size={14} />
-        Sample order records are shown for layout preview. Connect the orders
-        API to manage live customer orders.
-      </div>
+            {placed && (
+              <section className="gad-order-detail-section">
+                <h3><Send size={16} /> EMAILS</h3>
+                {(order.emails || []).slice(-6).reverse().map((entry, index) => (
+                  <div className="gad-order-meta-row" key={index}>
+                    <span>{entry.type} · {formatDateTime(entry.at)}</span>
+                    <strong style={{ color: entry.ok ? "#1d7a3a" : "#9b1c1c" }}>{entry.ok ? "Sent" : "Failed"}</strong>
+                  </div>
+                ))}
+                {!order.emails?.length && <p>No emails sent yet (is SMTP set up in backend/.env?).</p>}
+                <button type="button" className="gad-orders-export" disabled={busy} onClick={resend}>
+                  <Send size={15} /> RESEND CONFIRMATION EMAIL
+                </button>
+              </section>
+            )}
+
+            <section className="gad-order-detail-section">
+              <h3>HISTORY</h3>
+              {[...order.timeline].reverse().map((entry, index) => (
+                <div className="gad-order-meta-row" key={index}>
+                  <span>{formatDateTime(entry.at)}</span>
+                  <strong>{entry.message}</strong>
+                </div>
+              ))}
+            </section>
+          </>
+        )}
+      </aside>
     </div>
   );
-};
+}
 
 export default AdminOrders;
