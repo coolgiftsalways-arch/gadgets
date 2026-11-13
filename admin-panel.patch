@@ -1,0 +1,4124 @@
+From e0d5365b12939f2d06ba3d6a4b90cdbb0d95b3ed Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 13 Nov 2026 09:14:01 +0000
+Subject: [PATCH] Connect admin panel to backend: login, live dashboard,
+ orders, products, customers
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HALAYwtR84NkZ9xzqNu8Jr
+---
+ frontend/src/Admin/AdminCustomers.jsx | 865 ++++++-------------------
+ frontend/src/Admin/AdminDashboard.jsx | 448 +++++--------
+ frontend/src/Admin/AdminLayout.jsx    |   6 +-
+ frontend/src/Admin/AdminLogin.jsx     |  75 +++
+ frontend/src/Admin/AdminOrders.jsx    | 882 +++++++++++---------------
+ frontend/src/Admin/AdminProducts.jsx  | 774 ++++++++--------------
+ frontend/src/Admin/AdminSidebar.jsx   |  28 +-
+ frontend/src/Admin/api.js             | 111 ++++
+ frontend/src/Admincss/AdminLogin.css  |  93 +++
+ frontend/src/App.jsx                  |  16 +-
+ frontend/vite.config.js               |   4 +
+ 11 files changed, 1317 insertions(+), 1985 deletions(-)
+ create mode 100644 frontend/src/Admin/AdminLogin.jsx
+ create mode 100644 frontend/src/Admin/api.js
+ create mode 100644 frontend/src/Admincss/AdminLogin.css
+
+diff --git a/frontend/src/Admin/AdminCustomers.jsx b/frontend/src/Admin/AdminCustomers.jsx
+index 6de8683..eb93c25 100644
+--- a/frontend/src/Admin/AdminCustomers.jsx
++++ b/frontend/src/Admin/AdminCustomers.jsx
+@@ -1,11 +1,10 @@
+-import  { useMemo, useState } from "react";
++import { useEffect, useState } from "react";
+ import {
+   Search,
+   Users,
+   UserRound,
+   ShoppingBag,
+   IndianRupee,
+-  ArrowUpRight,
+   Download,
+   SlidersHorizontal,
+   X,
+@@ -15,364 +14,58 @@ import {
+   CalendarDays,
+   ChevronDown,
+   Eye,
+-  Clock3,
+   CreditCard,
+   PackageCheck,
+   Globe2,
+   Smartphone,
+   Hash,
+ } from "lucide-react";
++import {
++  adminFetch,
++  formatDate,
++  formatDateTime,
++  imageUrl,
++  initials,
++  money,
++  paymentLabel,
++  statusLabel,
++} from "./api";
+ import "../Admincss/AdminCustomers.css";
+ 
+-// Demonstration records for the UI preview.
+-// Replace this array with the customers returned by your backend API.
+-const demoCustomers = [
+-  {
+-    id: "CUS-1001",
+-    name: "Aarav Sharma",
+-    email: "aarav.sharma@example.com",
+-    phone: "+91 98765 43210",
+-    city: "Mumbai",
+-    state: "Maharashtra",
+-    orders: 5,
+-    spent: 18495,
+-    joined: "08 Nov 2026",
+-    status: "Active",
+-    initials: "AS",
+-    address: "Flat 402, Sea View Apartments, Linking Road",
+-    pincode: "400050",
+-    ordersHistory: [
+-      {
+-        orderId: "GAD-2026-1028",
+-        placedAt: "2026-11-11T14:32:00+05:30",
+-        status: "Processing",
+-        payment: "Paid online",
+-        source: "Website",
+-        subtotal: 6998,
+-        shipping: 0,
+-        total: 6998,
+-        address:
+-          "Flat 402, Sea View Apartments, Linking Road, Bandra West, Mumbai, Maharashtra 400050",
+-        items: [
+-          {
+-            name: "Air Pods Pro",
+-            sku: "G-01",
+-            quantity: 1,
+-            price: 3499,
+-            image:
+-              "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=240&auto=format&fit=crop&q=85",
+-          },
+-          {
+-            name: "Power Core",
+-            sku: "G-02",
+-            quantity: 1,
+-            price: 3499,
+-            image:
+-              "https://images.unsplash.com/photo-1609592806596-b43bada0f4b5?w=240&auto=format&fit=crop&q=85",
+-          },
+-        ],
+-      },
+-      {
+-        orderId: "GAD-2026-0981",
+-        placedAt: "2026-11-03T10:18:00+05:30",
+-        status: "Delivered",
+-        payment: "Cash on delivery",
+-        source: "Mobile website",
+-        subtotal: 5999,
+-        shipping: 0,
+-        total: 5999,
+-        address:
+-          "Flat 402, Sea View Apartments, Linking Road, Bandra West, Mumbai, Maharashtra 400050",
+-        items: [
+-          {
+-            name: "Smart Watch",
+-            sku: "G-04",
+-            quantity: 1,
+-            price: 5999,
+-            image:
+-              "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=240&auto=format&fit=crop&q=85",
+-          },
+-        ],
+-      },
+-      {
+-        orderId: "GAD-2026-0912",
+-        placedAt: "2026-10-21T19:46:00+05:30",
+-        status: "Delivered",
+-        payment: "Paid online",
+-        source: "Website",
+-        subtotal: 5498,
+-        shipping: 0,
+-        total: 5498,
+-        address:
+-          "Flat 402, Sea View Apartments, Linking Road, Bandra West, Mumbai, Maharashtra 400050",
+-        items: [
+-          {
+-            name: "Air Pods Pro",
+-            sku: "G-01",
+-            quantity: 1,
+-            price: 3499,
+-            image:
+-              "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=240&auto=format&fit=crop&q=85",
+-          },
+-          {
+-            name: "Charging Cable",
+-            sku: "G-08",
+-            quantity: 1,
+-            price: 1999,
+-            image:
+-              "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=240&auto=format&fit=crop&q=85",
+-          },
+-        ],
+-      },
+-    ],
+-  },
+-  {
+-    id: "CUS-1002",
+-    name: "Meera Patel",
+-    email: "meera.patel@example.com",
+-    phone: "+91 98201 12345",
+-    city: "Pune",
+-    state: "Maharashtra",
+-    orders: 3,
+-    spent: 8997,
+-    joined: "06 Nov 2026",
+-    status: "Active",
+-    initials: "MP",
+-    address: "B-12, Koregaon Park",
+-    pincode: "411001",
+-    ordersHistory: [
+-      {
+-        orderId: "GAD-2026-1021",
+-        placedAt: "2026-11-06T12:05:00+05:30",
+-        status: "Delivered",
+-        payment: "Paid online",
+-        source: "Website",
+-        subtotal: 8997,
+-        shipping: 0,
+-        total: 8997,
+-        address: "B-12, Koregaon Park, Pune, Maharashtra 411001",
+-        items: [
+-          {
+-            name: "Smart Watch",
+-            sku: "G-04",
+-            quantity: 1,
+-            price: 5999,
+-            image:
+-              "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=240&auto=format&fit=crop&q=85",
+-          },
+-          {
+-            name: "Air Pods Pro",
+-            sku: "G-01",
+-            quantity: 1,
+-            price: 2998,
+-            image:
+-              "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=240&auto=format&fit=crop&q=85",
+-          },
+-        ],
+-      },
+-    ],
+-  },
+-  {
+-    id: "CUS-1003",
+-    name: "Rohan Mehta",
+-    email: "rohan.mehta@example.com",
+-    phone: "+91 98190 45678",
+-    city: "Ahmedabad",
+-    state: "Gujarat",
+-    orders: 2,
+-    spent: 7498,
+-    joined: "02 Nov 2026",
+-    status: "Active",
+-    initials: "RM",
+-    address: "21 Riverfront Residency",
+-    pincode: "380009",
+-    ordersHistory: [
+-      {
+-        orderId: "GAD-2026-0995",
+-        placedAt: "2026-11-02T16:41:00+05:30",
+-        status: "Shipped",
+-        payment: "Cash on delivery",
+-        source: "Instagram shop link",
+-        subtotal: 7498,
+-        shipping: 0,
+-        total: 7498,
+-        address: "21 Riverfront Residency, Ahmedabad, Gujarat 380009",
+-        items: [
+-          {
+-            name: "Air Pods Pro",
+-            sku: "G-01",
+-            quantity: 1,
+-            price: 3499,
+-            image:
+-              "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=240&auto=format&fit=crop&q=85",
+-          },
+-          {
+-            name: "Power Core",
+-            sku: "G-02",
+-            quantity: 2,
+-            price: 1999.5,
+-            image:
+-              "https://images.unsplash.com/photo-1609592806596-b43bada0f4b5?w=240&auto=format&fit=crop&q=85",
+-          },
+-        ],
+-      },
+-    ],
+-  },
+-  {
+-    id: "CUS-1004",
+-    name: "Ananya Rao",
+-    email: "ananya.rao@example.com",
+-    phone: "+91 98920 56789",
+-    city: "Bengaluru",
+-    state: "Karnataka",
+-    orders: 1,
+-    spent: 3499,
+-    joined: "30 Oct 2026",
+-    status: "Active",
+-    initials: "AR",
+-    address: "18 Indiranagar Main Road",
+-    pincode: "560038",
+-    ordersHistory: [
+-      {
+-        orderId: "GAD-2026-0950",
+-        placedAt: "2026-10-30T09:22:00+05:30",
+-        status: "Delivered",
+-        payment: "Paid online",
+-        source: "Website",
+-        subtotal: 3499,
+-        shipping: 0,
+-        total: 3499,
+-        address: "18 Indiranagar Main Road, Bengaluru, Karnataka 560038",
+-        items: [
+-          {
+-            name: "Air Pods Pro",
+-            sku: "G-01",
+-            quantity: 1,
+-            price: 3499,
+-            image:
+-              "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=240&auto=format&fit=crop&q=85",
+-          },
+-        ],
+-      },
+-    ],
+-  },
+-  {
+-    id: "CUS-1005",
+-    name: "Kabir Shah",
+-    email: "kabir.shah@example.com",
+-    phone: "+91 97690 23456",
+-    city: "Surat",
+-    state: "Gujarat",
+-    orders: 0,
+-    spent: 0,
+-    joined: "27 Oct 2026",
+-    status: "New",
+-    initials: "KS",
+-    address: "7 Adajan Circle",
+-    pincode: "395009",
+-    ordersHistory: [],
+-  },
+-];
+-
+-const currency = (amount) =>
+-  `₹${Number(amount || 0).toLocaleString("en-IN", {
+-    maximumFractionDigits: 0,
+-  })}`;
+-
+-const formatOrderDate = (value) =>
+-  new Date(value).toLocaleString("en-IN", {
+-    day: "2-digit",
+-    month: "long",
+-    year: "numeric",
+-    hour: "2-digit",
+-    minute: "2-digit",
+-    hour12: true,
+-  });
+-
+ const AdminCustomers = () => {
+-  const [customers] = useState(demoCustomers);
++  const [data, setData] = useState(null);
++  const [error, setError] = useState("");
+   const [query, setQuery] = useState("");
+-  const [statusFilter, setStatusFilter] = useState("All customers");
+-  const [selectedCustomer, setSelectedCustomer] = useState(null);
++  const [statusFilter, setStatusFilter] = useState("");
+   const [sortBy, setSortBy] = useState("newest");
+-
+-  const totalSpent = customers.reduce(
+-    (sum, customer) => sum + customer.spent,
+-    0,
+-  );
+-  const totalOrders = customers.reduce(
+-    (sum, customer) => sum + customer.orders,
+-    0,
+-  );
+-  const newCustomers = customers.filter(
+-    (customer) => customer.status === "New",
+-  ).length;
+-
+-  const filteredCustomers = useMemo(() => {
+-    let result = customers.filter((customer) => {
+-      const searchable = [
+-        customer.name,
+-        customer.email,
+-        customer.phone,
+-        customer.id,
+-        customer.city,
+-      ]
+-        .join(" ")
+-        .toLowerCase();
+-
+-      const matchesQuery = searchable.includes(query.toLowerCase());
+-      const matchesStatus =
+-        statusFilter === "All customers" || customer.status === statusFilter;
+-
+-      return matchesQuery && matchesStatus;
+-    });
+-
+-    if (sortBy === "highest-spend") {
+-      result = [...result].sort((a, b) => b.spent - a.spent);
+-    } else if (sortBy === "most-orders") {
+-      result = [...result].sort((a, b) => b.orders - a.orders);
+-    } else {
+-      result = [...result];
+-    }
+-
+-    return result;
+-  }, [customers, query, statusFilter, sortBy]);
++  const [page, setPage] = useState(1);
++  const [selectedPhone, setSelectedPhone] = useState(null);
++
++  useEffect(() => {
++    const timer = setTimeout(() => {
++      const qs = new URLSearchParams({ sort: sortBy, page });
++      if (query.trim()) qs.set("q", query.trim());
++      if (statusFilter) qs.set("status", statusFilter);
++      adminFetch(`/customers?${qs}`)
++        .then((result) => {
++          setData(result);
++          setError("");
++        })
++        .catch((err) => setError(err.message));
++    }, 250);
++    return () => clearTimeout(timer);
++  }, [query, statusFilter, sortBy, page]);
++
++  const customers = data?.items || [];
++  const summary = data?.summary || {};
+ 
+   const exportCustomers = () => {
+-    const headers = [
+-      "Customer ID",
+-      "Name",
+-      "Email",
+-      "Phone",
+-      "City",
+-      "Orders",
+-      "Total Spent",
+-      "Joined",
+-      "Status",
++    const rows = [
++      ["Name", "Email", "Phone", "City", "State", "Orders", "Total Spent", "First order", "Status"],
++      ...customers.map((c) => [c.name, c.email, c.phone, c.city, c.state, c.orders, c.spent, formatDate(c.firstOrderAt), c.status]),
+     ];
+-
+-    const rows = filteredCustomers.map((customer) => [
+-      customer.id,
+-      customer.name,
+-      customer.email,
+-      customer.phone,
+-      customer.city,
+-      customer.orders,
+-      customer.spent,
+-      customer.joined,
+-      customer.status,
+-    ]);
+-
+-    const csv = [headers, ...rows]
+-      .map((row) =>
+-        row
+-          .map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`)
+-          .join(","),
+-      )
+-      .join("\n");
+-
+-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+-    const url = URL.createObjectURL(blob);
++    const csv = rows.map((row) => row.map((v) => `"${String(v ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
++    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+     const anchor = document.createElement("a");
+     anchor.href = url;
+     anchor.download = "gadgete-customers.csv";
+@@ -384,116 +77,63 @@ const AdminCustomers = () => {
+     <div className="gad-customers-page">
+       <header className="gad-customers-header">
+         <div>
+-          <span className="gad-customers-eyebrow">
+-            GADGETÉ / CUSTOMER RELATIONSHIPS
+-          </span>
+-          <h1>
+-            CUSTOMERS<span>.</span>
+-          </h1>
+-          <p>Know your customers. Understand their orders. Build loyalty.</p>
++          <span className="gad-customers-eyebrow">GADGETÉ / CUSTOMER RELATIONSHIPS</span>
++          <h1>CUSTOMERS<span>.</span></h1>
++          <p>Everyone who has ordered from your store, grouped by mobile number.</p>
+         </div>
+-
+-        <button
+-          type="button"
+-          className="gad-customer-export"
+-          onClick={exportCustomers}
+-        >
+-          <Download size={16} />
+-          EXPORT CSV
++        <button type="button" className="gad-customer-export" onClick={exportCustomers}>
++          <Download size={16} /> EXPORT CSV
+         </button>
+       </header>
+ 
+       <section className="gad-customer-stats">
+-        <article className="gad-customer-stat-card">
+-          <div className="gad-customer-stat-icon">
+-            <Users size={19} />
+-          </div>
+-          <span>TOTAL CUSTOMERS</span>
+-          <strong>{customers.length.toLocaleString("en-IN")}</strong>
+-          <small>Customer accounts in this view</small>
+-        </article>
+-
+-        <article className="gad-customer-stat-card">
+-          <div className="gad-customer-stat-icon">
+-            <ShoppingBag size={19} />
+-          </div>
+-          <span>TOTAL ORDERS</span>
+-          <strong>{totalOrders.toLocaleString("en-IN")}</strong>
+-          <small>Orders placed by these customers</small>
+-        </article>
+-
+-        <article className="gad-customer-stat-card">
+-          <div className="gad-customer-stat-icon">
+-            <IndianRupee size={19} />
+-          </div>
+-          <span>CUSTOMER LIFETIME VALUE</span>
+-          <strong>{currency(totalSpent)}</strong>
+-          <small>Combined customer spend</small>
+-        </article>
+-
+-        <article className="gad-customer-stat-card">
+-          <div className="gad-customer-stat-icon">
+-            <UserRound size={19} />
+-          </div>
+-          <span>NEW CUSTOMERS</span>
+-          <strong>{newCustomers.toLocaleString("en-IN")}</strong>
+-          <small>Recently registered customers</small>
+-        </article>
++        {[
++          ["TOTAL CUSTOMERS", summary.customers ?? 0, "People who have ordered", Users],
++          ["TOTAL ORDERS", summary.orders ?? 0, "Not counting cancelled", ShoppingBag],
++          ["CUSTOMER LIFETIME VALUE", money(summary.spent), "Combined customer spend", IndianRupee],
++          ["NEW CUSTOMERS", summary.newCustomers ?? 0, "First order in last 30 days", UserRound],
++        ].map(([label, value, note, Icon]) => (
++          <article className="gad-customer-stat-card" key={label}>
++            <div className="gad-customer-stat-icon"><Icon size={19} /></div>
++            <span>{label}</span>
++            <strong>{value}</strong>
++            <small>{note}</small>
++          </article>
++        ))}
+       </section>
+ 
+       <section className="gad-customers-panel">
+         <div className="gad-customers-panel-heading">
+           <div>
+             <span className="gad-customers-eyebrow">CUSTOMER DATABASE</span>
+-            <h2>
+-              ALL <span>CUSTOMERS.</span>
+-            </h2>
++            <h2>ALL <span>CUSTOMERS.</span></h2>
+             <p>Search and review customer profiles and purchase activity.</p>
+           </div>
+-          <span className="gad-customer-record-count">
+-            {filteredCustomers.length.toString().padStart(2, "0")} RECORDS
+-          </span>
++          <span className="gad-customer-record-count">{String(data?.total ?? 0).padStart(2, "0")} RECORDS</span>
+         </div>
+ 
+         <div className="gad-customers-toolbar">
+           <label className="gad-customer-search">
+             <Search size={17} />
+-            <input
+-              type="search"
+-              placeholder="Search name, email, phone or customer ID..."
+-              value={query}
+-              onChange={(event) => setQuery(event.target.value)}
+-            />
+-            {query && (
+-              <button
+-                type="button"
+-                onClick={() => setQuery("")}
+-                aria-label="Clear search"
+-              >
+-                <X size={15} />
+-              </button>
+-            )}
++            <input type="search" placeholder="Search name, email, phone or city..." value={query}
++              onChange={(e) => { setQuery(e.target.value); setPage(1); }} />
++            {query && <button type="button" onClick={() => setQuery("")} aria-label="Clear search"><X size={15} /></button>}
+           </label>
+ 
+           <label className="gad-customer-filter">
+             <SlidersHorizontal size={15} />
+-            <select
+-              value={statusFilter}
+-              onChange={(event) => setStatusFilter(event.target.value)}
+-            >
+-              <option>All customers</option>
+-              <option>Active</option>
+-              <option>New</option>
++            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
++              <option value="">All customers</option>
++              <option value="active">Active</option>
++              <option value="new">New</option>
+             </select>
+             <ChevronDown size={14} />
+           </label>
+ 
+           <label className="gad-customer-filter gad-customer-sort">
+-            <select
+-              value={sortBy}
+-              onChange={(event) => setSortBy(event.target.value)}
+-            >
++            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+               <option value="newest">Newest first</option>
++              <option value="recent">Recently ordered</option>
+               <option value="highest-spend">Highest spend</option>
+               <option value="most-orders">Most orders</option>
+             </select>
+@@ -501,6 +141,8 @@ const AdminCustomers = () => {
+           </label>
+         </div>
+ 
++        {error && <p className="gad-customer-demo-note">{error}</p>}
++
+         <div className="gad-customers-table-wrap">
+           <table className="gad-customers-table">
+             <thead>
+@@ -510,321 +152,186 @@ const AdminCustomers = () => {
+                 <th>LOCATION</th>
+                 <th>ORDERS</th>
+                 <th>TOTAL SPENT</th>
+-                <th>JOINED</th>
++                <th>FIRST ORDER</th>
+                 <th>STATUS</th>
+                 <th aria-label="Actions" />
+               </tr>
+             </thead>
+             <tbody>
+-              {filteredCustomers.map((customer) => (
+-                <tr key={customer.id}>
++              {customers.map((customer) => (
++                <tr key={customer.phone} onClick={() => setSelectedPhone(customer.phone)} style={{ cursor: "pointer" }}>
+                   <td>
+                     <div className="gad-customer-name-cell">
+-                      <span className="gad-customer-avatar">
+-                        {customer.initials}
+-                      </span>
+-                      <span>
+-                        <strong>{customer.name}</strong>
+-                        <small>{customer.id}</small>
+-                      </span>
++                      <span className="gad-customer-avatar">{initials(customer.name)}</span>
++                      <span><strong>{customer.name}</strong><small>+91 {customer.phone}</small></span>
+                     </div>
+                   </td>
+                   <td>
+                     <div className="gad-customer-contact-cell">
+                       <span>{customer.email}</span>
+-                      <small>{customer.phone}</small>
++                      <small>+91 {customer.phone}</small>
+                     </div>
+                   </td>
++                  <td><span className="gad-customer-location">{customer.city}</span></td>
++                  <td className="gad-customer-orders-number">{customer.orders}</td>
++                  <td className="gad-customer-spend">{money(customer.spent)}</td>
++                  <td className="gad-customer-joined">{formatDate(customer.firstOrderAt)}</td>
++                  <td><span className={`gad-customer-status ${customer.status.toLowerCase()}`}>{customer.status}</span></td>
+                   <td>
+-                    <span className="gad-customer-location">
+-                      {customer.city}
+-                    </span>
+-                  </td>
+-                  <td className="gad-customer-orders-number">
+-                    {customer.orders}
+-                  </td>
+-                  <td className="gad-customer-spend">
+-                    {currency(customer.spent)}
+-                  </td>
+-                  <td className="gad-customer-joined">{customer.joined}</td>
+-                  <td>
+-                    <span
+-                      className={`gad-customer-status ${customer.status.toLowerCase()}`}
+-                    >
+-                      {customer.status}
+-                    </span>
+-                  </td>
+-                  <td>
+-                    <button
+-                      type="button"
+-                      className="gad-customer-view"
+-                      onClick={() => setSelectedCustomer(customer)}
+-                      aria-label={`View ${customer.name}`}
+-                    >
+-                      <Eye size={16} />
+-                    </button>
++                    <button type="button" className="gad-customer-view" aria-label={`View ${customer.name}`}><Eye size={16} /></button>
+                   </td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
+ 
+-          {filteredCustomers.length === 0 && (
++          {data && customers.length === 0 && (
+             <div className="gad-customers-empty">
+               <Users size={28} />
+               <strong>No customers found</strong>
+-              <span>Try a different name, email, phone number or filter.</span>
++              <span>Customers appear here after their first order.</span>
+             </div>
+           )}
+         </div>
+ 
+         <div className="gad-customers-table-footer">
+-          <span>
+-            Showing <strong>{filteredCustomers.length}</strong> of{" "}
+-            <strong>{customers.length}</strong> customers
++          <span>Page <strong>{data?.page ?? 1}</strong> of <strong>{data?.pages ?? 1}</strong></span>
++          <span style={{ display: "flex", gap: 8 }}>
++            <button type="button" className="gad-customer-export" disabled={page <= 1} onClick={() => setPage(page - 1)}>PREV</button>
++            <button type="button" className="gad-customer-export" disabled={!data || page >= data.pages} onClick={() => setPage(page + 1)}>NEXT</button>
+           </span>
+-          <span>GADGETÉ® CUSTOMER DIRECTORY</span>
+         </div>
+       </section>
+ 
+-      {selectedCustomer && (
+-        <div
+-          className="gad-customer-drawer-backdrop"
+-          onMouseDown={() => setSelectedCustomer(null)}
+-        >
+-          <aside
+-            className="gad-customer-drawer"
+-            onMouseDown={(event) => event.stopPropagation()}
+-            aria-label="Customer details"
+-          >
+-            <div className="gad-customer-drawer-header">
+-              <div>
+-                <span className="gad-customers-eyebrow">CUSTOMER PROFILE</span>
+-                <h2>
+-                  PROFILE<span>.</span>
+-                </h2>
+-              </div>
+-              <button
+-                type="button"
+-                onClick={() => setSelectedCustomer(null)}
+-                aria-label="Close details"
+-              >
+-                <X size={20} />
+-              </button>
+-            </div>
++      {selectedPhone && <CustomerDrawer phone={selectedPhone} onClose={() => setSelectedPhone(null)} />}
++    </div>
++  );
++};
++
++function CustomerDrawer({ phone, onClose }) {
++  const [data, setData] = useState(null);
++  const [error, setError] = useState("");
++
++  useEffect(() => {
++    adminFetch(`/customers/${phone}`).then(setData).catch((err) => setError(err.message));
++  }, [phone]);
++
++  const customer = data?.customer;
++  const orders = data?.orders || [];
++
++  return (
++    <div className="gad-customer-drawer-backdrop" onMouseDown={onClose}>
++      <aside className="gad-customer-drawer" onMouseDown={(e) => e.stopPropagation()} aria-label="Customer details">
++        <div className="gad-customer-drawer-header">
++          <div>
++            <span className="gad-customers-eyebrow">CUSTOMER PROFILE</span>
++            <h2>PROFILE<span>.</span></h2>
++          </div>
++          <button type="button" onClick={onClose} aria-label="Close details"><X size={20} /></button>
++        </div>
+ 
++        {!customer ? (
++          <p>{error || "Loading customer…"}</p>
++        ) : (
++          <>
+             <div className="gad-customer-profile-card">
+-              <div className="gad-customer-profile-avatar">
+-                {selectedCustomer.initials}
+-              </div>
+-              <h3>{selectedCustomer.name}</h3>
+-              <span>{selectedCustomer.id}</span>
+-              <b
+-                className={`gad-customer-status ${selectedCustomer.status.toLowerCase()}`}
+-              >
+-                {selectedCustomer.status}
+-              </b>
++              <div className="gad-customer-profile-avatar">{initials(customer.name)}</div>
++              <h3>{customer.name}</h3>
++              <span>+91 {customer.phone}</span>
++              <b className={`gad-customer-status ${customer.status.toLowerCase()}`}>{customer.status}</b>
+             </div>
+ 
+             <div className="gad-customer-detail-list">
+-              <div>
+-                <Mail size={17} />
+-                <span>
+-                  <small>EMAIL ADDRESS</small>
+-                  <a href={`mailto:${selectedCustomer.email}`}>
+-                    {selectedCustomer.email}
+-                  </a>
+-                </span>
+-              </div>
+-              <div>
+-                <Phone size={17} />
+-                <span>
+-                  <small>PHONE NUMBER</small>
+-                  <a href={`tel:${selectedCustomer.phone.replaceAll(" ", "")}`}>
+-                    {selectedCustomer.phone}
+-                  </a>
+-                </span>
+-              </div>
++              <div><Mail size={17} /><span><small>EMAIL ADDRESS</small><a href={`mailto:${customer.email}`}>{customer.email}</a></span></div>
++              <div><Phone size={17} /><span><small>PHONE NUMBER</small><a href={`tel:+91${customer.phone}`}>+91 {customer.phone}</a></span></div>
+               <div>
+                 <MapPin size={17} />
+                 <span>
+-                  <small>REGISTERED LOCATION</small>
++                  <small>LATEST ADDRESS</small>
+                   <strong>
+-                    {selectedCustomer.city}, {selectedCustomer.state}
++                    {customer.address.line1}{customer.address.line2 ? `, ${customer.address.line2}` : ""}, {customer.address.city}, {customer.address.state} {customer.address.pincode}
+                   </strong>
+                 </span>
+               </div>
+-              <div>
+-                <MapPin size={17} />
+-                <span>
+-                  <small>DEFAULT ADDRESS</small>
+-                  <strong>
+-                    {selectedCustomer.address}, {selectedCustomer.city},{" "}
+-                    {selectedCustomer.state} {selectedCustomer.pincode}
+-                  </strong>
+-                </span>
+-              </div>
+-              <div>
+-                <CalendarDays size={17} />
+-                <span>
+-                  <small>MEMBER SINCE</small>
+-                  <strong>{selectedCustomer.joined}</strong>
+-                </span>
+-              </div>
++              <div><CalendarDays size={17} /><span><small>FIRST ORDER</small><strong>{formatDate(customer.firstOrderAt)}</strong></span></div>
+             </div>
+ 
+             <div className="gad-customer-profile-metrics">
+-              <div>
+-                <span>TOTAL ORDERS</span>
+-                <strong>{selectedCustomer.orders}</strong>
+-              </div>
+-              <div>
+-                <span>TOTAL SPENT</span>
+-                <strong>{currency(selectedCustomer.spent)}</strong>
+-              </div>
++              <div><span>TOTAL ORDERS</span><strong>{customer.orders}</strong></div>
++              <div><span>TOTAL SPENT</span><strong>{money(customer.spent)}</strong></div>
+             </div>
+ 
+             <section className="gad-customer-order-history">
+               <div className="gad-customer-order-history-heading">
+                 <div>
+-                  <span className="gad-customers-eyebrow">
+-                    PURCHASE ACTIVITY
+-                  </span>
+-                  <h3>
+-                    ORDER <em>HISTORY.</em>
+-                  </h3>
++                  <span className="gad-customers-eyebrow">PURCHASE ACTIVITY</span>
++                  <h3>ORDER <em>HISTORY.</em></h3>
+                 </div>
+-                <span>
+-                  {(selectedCustomer.ordersHistory || []).length
+-                    .toString()
+-                    .padStart(2, "0")}{" "}
+-                  ORDERS
+-                </span>
++                <span>{String(orders.length).padStart(2, "0")} ORDERS</span>
+               </div>
+ 
+-              {(selectedCustomer.ordersHistory || []).length > 0 ? (
+-                selectedCustomer.ordersHistory.map((order) => (
+-                  <article
+-                    className="gad-customer-order-card"
+-                    key={order.orderId}
+-                  >
+-                    <div className="gad-customer-order-card-top">
+-                      <div>
+-                        <span className="gad-order-label">ORDER NUMBER</span>
+-                        <strong className="gad-order-number">
+-                          <Hash size={13} /> {order.orderId}
+-                        </strong>
+-                      </div>
+-                      <span
+-                        className={`gad-customer-order-status ${order.status.toLowerCase()}`}
+-                      >
+-                        {order.status}
+-                      </span>
+-                    </div>
+-
+-                    <div className="gad-customer-order-date">
+-                      <CalendarDays size={14} />
+-                      <span>{formatOrderDate(order.placedAt)}</span>
++              {orders.map((order) => (
++                <article className="gad-customer-order-card" key={order._id}>
++                  <div className="gad-customer-order-card-top">
++                    <div>
++                      <span className="gad-order-label">ORDER NUMBER</span>
++                      <strong className="gad-order-number"><Hash size={13} /> {order.orderNumber}</strong>
+                     </div>
+-
+-                    <div className="gad-customer-order-products">
+-                      {order.items.map((item, index) => (
+-                        <div
+-                          className="gad-customer-order-product"
+-                          key={`${order.orderId}-${item.sku}-${index}`}
+-                        >
+-                          <img
+-                            src={item.image}
+-                            alt={item.name}
+-                            loading="lazy"
+-                            onError={(event) => {
+-                              event.currentTarget.style.visibility = "hidden";
+-                            }}
+-                          />
+-                          <div className="gad-customer-order-product-info">
+-                            <strong>{item.name}</strong>
+-                            <small>
+-                              SKU / {item.sku} · Qty {item.quantity}
+-                            </small>
+-                          </div>
+-                          <b>{currency(item.price * item.quantity)}</b>
++                    <span className={`gad-customer-order-status ${order.status.replaceAll("_", "-")}`}>{statusLabel(order.status)}</span>
++                  </div>
++
++                  <div className="gad-customer-order-date">
++                    <CalendarDays size={14} />
++                    <span>{formatDateTime(order.placedAt)}</span>
++                  </div>
++
++                  <div className="gad-customer-order-products">
++                    {order.items.map((item, index) => (
++                      <div className="gad-customer-order-product" key={`${order._id}-${index}`}>
++                        {item.image ? <img src={imageUrl(item.image)} alt={item.name} loading="lazy" /> : <span />}
++                        <div className="gad-customer-order-product-info">
++                          <strong>{item.name}</strong>
++                          <small>SKU / {item.sku} · Qty {item.quantity}</small>
+                         </div>
+-                      ))}
+-                    </div>
+-
+-                    <div className="gad-customer-order-meta">
+-                      <div>
+-                        <CreditCard size={14} />
+-                        <span>
+-                          <small>PAYMENT</small>
+-                          <strong>{order.payment}</strong>
+-                        </span>
+-                      </div>
+-                      <div>
+-                        {order.source.toLowerCase().includes("mobile") ? (
+-                          <Smartphone size={14} />
+-                        ) : (
+-                          <Globe2 size={14} />
+-                        )}
+-                        <span>
+-                          <small>ORDER SOURCE</small>
+-                          <strong>{order.source}</strong>
+-                        </span>
+-                      </div>
+-                      <div>
+-                        <PackageCheck size={14} />
+-                        <span>
+-                          <small>ITEMS</small>
+-                          <strong>
+-                            {order.items.reduce(
+-                              (sum, item) => sum + item.quantity,
+-                              0,
+-                            )}{" "}
+-                            item(s)
+-                          </strong>
+-                        </span>
++                        <b>{money(item.price * item.quantity)}</b>
+                       </div>
++                    ))}
++                  </div>
++
++                  <div className="gad-customer-order-meta">
++                    <div><CreditCard size={14} /><span><small>PAYMENT</small><strong>{paymentLabel(order.payment)}</strong></span></div>
++                    <div>
++                      {order.source?.toLowerCase().includes("mobile") ? <Smartphone size={14} /> : <Globe2 size={14} />}
++                      <span><small>ORDER SOURCE</small><strong>{order.source}</strong></span>
+                     </div>
+-
+-                    <div className="gad-customer-order-delivery">
+-                      <MapPin size={14} />
+-                      <span>
+-                        <small>DELIVERY ADDRESS</small>
+-                        <strong>{order.address}</strong>
+-                      </span>
++                    <div>
++                      <PackageCheck size={14} />
++                      <span><small>ITEMS</small><strong>{order.items.reduce((sum, item) => sum + item.quantity, 0)} item(s)</strong></span>
+                     </div>
++                  </div>
+ 
+-                    <div className="gad-customer-order-total">
+-                      <span>
+-                        Subtotal {currency(order.subtotal)} · Shipping{" "}
+-                        {order.shipping === 0
+-                          ? "FREE"
+-                          : currency(order.shipping)}
+-                      </span>
+-                      <strong>{currency(order.total)}</strong>
+-                    </div>
+-                  </article>
+-                ))
+-              ) : (
+-                <div className="gad-customer-no-orders">
+-                  <ShoppingBag size={24} />
+-                  <strong>No orders placed yet</strong>
+-                  <span>This customer has not completed an order.</span>
+-                </div>
+-              )}
+-            </section>
++                  <div className="gad-customer-order-delivery">
++                    <MapPin size={14} />
++                    <span>
++                      <small>DELIVERY ADDRESS</small>
++                      <strong>{order.shippingAddress.line1}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.pincode}</strong>
++                    </span>
++                  </div>
+ 
+-            <p className="gad-customer-demo-note">
+-              This profile currently uses sample order history and product
+-              images for layout preview. Connect your orders API to show
+-              verified customer orders, exact timestamps, images, prices,
+-              addresses and order sources.
+-            </p>
+-          </aside>
+-        </div>
+-      )}
++                  <div className="gad-customer-order-total">
++                    <span>
++                      Subtotal {money(order.subtotal)}{order.discount ? ` · Discount −${money(order.discount)}` : ""} · Shipping {order.shippingFee ? money(order.shippingFee) : "FREE"}
++                    </span>
++                    <strong>{money(order.total)}</strong>
++                  </div>
++                </article>
++              ))}
++            </section>
++          </>
++        )}
++      </aside>
+     </div>
+   );
+-};
++}
+ 
+ export default AdminCustomers;
+diff --git a/frontend/src/Admin/AdminDashboard.jsx b/frontend/src/Admin/AdminDashboard.jsx
+index 49e8587..928d380 100644
+--- a/frontend/src/Admin/AdminDashboard.jsx
++++ b/frontend/src/Admin/AdminDashboard.jsx
+@@ -1,207 +1,126 @@
+-import { useEffect, useMemo, useRef, useState } from "react";
++import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+ import {
+   Bell,
+-  Search,
+   TrendingUp,
+   ShoppingBag,
+   Users,
+   Package,
+   IndianRupee,
+   ArrowUpRight,
+-  ArrowDownRight,
+   Clock3,
+   CheckCircle2,
+   Truck,
+   X,
+   ExternalLink,
++  AlertTriangle,
+ } from "lucide-react";
+ import { useNavigate } from "react-router-dom";
++import {
++  adminFetch,
++  customerName,
++  formatDateTime,
++  money,
++  statusClass,
++  statusLabel,
++} from "./api";
+ import "../Admincss/AdminDashboard.css";
+ 
+-const NOTIFICATIONS_KEY = "gadgete_admin_notifications";
+-
+-const readNotifications = () => {
+-  try {
+-    const value = JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || "[]");
+-    return Array.isArray(value) ? value : [];
+-  } catch {
+-    return [];
+-  }
+-};
+-
+-const money = (value) =>
+-  `₹${Number(value || 0).toLocaleString("en-IN", {
+-    maximumFractionDigits: 0,
+-  })}`;
+-
+ const AdminDashboard = () => {
+   const navigate = useNavigate();
+-  const [notifications, setNotifications] = useState(readNotifications);
++  const [stats, setStats] = useState(null);
++  const [notes, setNotes] = useState({ unread: 0, items: [] });
++  const [days, setDays] = useState(7);
++  const [error, setError] = useState("");
+   const [bellOpen, setBellOpen] = useState(false);
+-  const [search, setSearch] = useState("");
+   const bellRef = useRef(null);
+ 
+-  // Unread count is derived from the notification list.
+-  const unreadCount = useMemo(
+-    () => notifications.filter((item) => !item.read).length,
+-    [notifications],
+-  );
+-
+-  // Keep notifications in sync with same-tab events and other tabs.
++  const load = useCallback(async () => {
++    try {
++      const [statsData, notesData] = await Promise.all([
++        adminFetch(`/stats?days=${days}`),
++        adminFetch("/notifications"),
++      ]);
++      setStats(statsData);
++      setNotes(notesData);
++      setError("");
++    } catch (err) {
++      setError(err.message);
++    }
++  }, [days]);
++
++  // Load now, then refresh every 20 seconds so new orders show up.
+   useEffect(() => {
+-    const syncNotifications = () => setNotifications(readNotifications());
+-
+-    const receiveNewOrder = (event) => {
+-      const order = event?.detail || {};
+-      const notification = {
+-        id: order.id || order._id || `new-${Date.now()}`,
+-        orderId: order.orderId || order.orderNumber || order.id || "New order",
+-        customer:
+-          order.customerName ||
+-          order.customer?.name ||
+-          [order.customer?.firstName, order.customer?.lastName]
+-            .filter(Boolean)
+-            .join(" ") ||
+-          "New customer",
+-        amount: Number(order.total || order.amount || 0),
+-        createdAt: order.createdAt || new Date().toISOString(),
+-        read: false,
+-      };
+-
+-      setNotifications((current) => {
+-        const exists = current.some(
+-          (item) => String(item.id) === String(notification.id),
+-        );
+-        if (exists) return current;
+-        const updated = [notification, ...current].slice(0, 50);
+-        localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updated));
+-        return updated;
+-      });
+-    };
+-
+-    window.addEventListener("storage", syncNotifications);
+-    window.addEventListener("gadgete-new-order", receiveNewOrder);
+-    window.addEventListener(
+-      "gadgete-admin-notifications-updated",
+-      syncNotifications,
+-    );
+-
+-    return () => {
+-      window.removeEventListener("storage", syncNotifications);
+-      window.removeEventListener("gadgete-new-order", receiveNewOrder);
+-      window.removeEventListener(
+-        "gadgete-admin-notifications-updated",
+-        syncNotifications,
+-      );
+-    };
+-  }, []);
++    load();
++    const timer = setInterval(load, 20000);
++    return () => clearInterval(timer);
++  }, [load]);
+ 
+-  // Close notification popover when clicking outside it.
+   useEffect(() => {
+     const handleOutside = (event) => {
+-      if (bellRef.current && !bellRef.current.contains(event.target)) {
+-        setBellOpen(false);
+-      }
++      if (bellRef.current && !bellRef.current.contains(event.target)) setBellOpen(false);
+     };
+     document.addEventListener("mousedown", handleOutside);
+     return () => document.removeEventListener("mousedown", handleOutside);
+   }, []);
+ 
+-  const markAllRead = () => {
+-    const updated = notifications.map((item) => ({ ...item, read: true }));
+-    setNotifications(updated);
+-    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updated));
++  const markAllRead = async () => {
++    await adminFetch("/notifications/read-all", { method: "POST" }).catch(() => {});
++    window.dispatchEvent(new Event("gadgete-admin-refresh"));
++    load();
+   };
+ 
+-  const markOneRead = (id) => {
+-    const updated = notifications.map((item) =>
+-      String(item.id) === String(id) ? { ...item, read: true } : item,
+-    );
+-    setNotifications(updated);
+-    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updated));
+-  };
+-
+-  const openOrder = (notification) => {
+-    markOneRead(notification.id);
++  const openOrder = (id) => {
+     setBellOpen(false);
+-    navigate("/admin/orders");
++    navigate(`/admin/orders?open=${id}`);
+   };
+ 
+-  const visibleNotifications = notifications.filter((item) => {
+-    const text = `${item.orderId} ${item.customer}`.toLowerCase();
+-    return text.includes(search.toLowerCase());
+-  });
++  const unseen = notes.items.filter((item) => item.seenByAdmin === false);
++  const maxSales = useMemo(
++    () => Math.max(1, ...(stats?.chart || []).map((day) => day.sales)),
++    [stats],
++  );
++
++  const counts = stats?.statusCounts || {};
+ 
+-  const stats = [
++  const cards = [
+     {
+       label: "TOTAL REVENUE",
+-      value: money(0),
+-      note: "Revenue from paid orders",
++      value: money(stats?.revenue),
++      note: `Money received · ${money(stats?.pendingCod)} COD to collect`,
+       icon: IndianRupee,
+-      trend: null,
+     },
+     {
+       label: "TOTAL ORDERS",
+-      value: "0",
+-      note: "All orders received",
++      value: stats?.totalOrders ?? "—",
++      note: `${stats?.toFulfil ?? 0} waiting to be shipped`,
+       icon: ShoppingBag,
+-      trend: null,
+     },
+     {
+       label: "TOTAL CUSTOMERS",
+-      value: "0",
+-      note: "Registered customers",
++      value: stats?.customerCount ?? "—",
++      note: `${stats?.subscriberCount ?? 0} newsletter subscribers`,
+       icon: Users,
+-      trend: null,
+     },
+     {
+       label: "TOTAL PRODUCTS",
+-      value: "0",
+-      note: "Products in your store",
++      value: stats?.productCount ?? "—",
++      note: `${stats?.activeProductCount ?? 0} live in the shop`,
+       icon: Package,
+-      trend: null,
+     },
+   ];
+ 
+-  const quickLinks = [
+-    {
+-      label: "Manage products",
+-      detail: "Add products, images and prices",
+-      icon: Package,
+-      path: "/admin/products",
+-    },
+-    {
+-      label: "View orders",
+-      detail: "Review and update customer orders",
+-      icon: ShoppingBag,
+-      path: "/admin/orders",
+-    },
+-    {
+-      label: "View customers",
+-      detail: "Customer profiles and order history",
+-      icon: Users,
+-      path: "/admin/customers",
+-    },
++  const statusRows = [
++    ["pending", "Pending", Clock3],
++    ["processing", "Processing", ShoppingBag],
++    ["shipped", "Shipped", Truck],
++    ["delivered", "Delivered", CheckCircle2],
+   ];
+ 
+-  const formatTime = (date) => {
+-    const parsed = new Date(date);
+-    if (Number.isNaN(parsed.getTime())) return "Just now";
+-    return parsed.toLocaleString("en-IN", {
+-      day: "2-digit",
+-      month: "short",
+-      hour: "2-digit",
+-      minute: "2-digit",
+-    });
+-  };
+-
+   return (
+     <div className="gad-dashboard">
+       <header className="gad-dashboard-header">
+         <div className="gad-dashboard-title">
+-          <span className="gad-dashboard-eyebrow">
+-            GADGETÉ / CONTROL CENTRE
+-          </span>
++          <span className="gad-dashboard-eyebrow">GADGETÉ / CONTROL CENTRE</span>
+           <h1>
+             DASHBOARD<span>.</span>
+           </h1>
+@@ -211,7 +130,7 @@ const AdminDashboard = () => {
+         <div className="gad-dashboard-header-actions">
+           <div className="gad-dashboard-date">
+             <span className="gad-live-dot" />
+-            STORE OVERVIEW
++            LIVE
+           </div>
+ 
+           <div className="gad-notification-wrap" ref={bellRef}>
+@@ -219,14 +138,11 @@ const AdminDashboard = () => {
+               type="button"
+               className={`gad-notification-button ${bellOpen ? "is-open" : ""}`}
+               onClick={() => setBellOpen((open) => !open)}
+-              aria-label={`Notifications, ${unreadCount} unread new orders`}
+-              aria-expanded={bellOpen}
++              aria-label={`Notifications, ${notes.unread} new orders`}
+             >
+               <Bell size={21} />
+-              {unreadCount > 0 && (
+-                <span className="gad-notification-count">
+-                  {unreadCount > 99 ? "99+" : unreadCount}
+-                </span>
++              {notes.unread > 0 && (
++                <span className="gad-notification-count">{notes.unread > 99 ? "99+" : notes.unread}</span>
+               )}
+             </button>
+ 
+@@ -236,58 +152,44 @@ const AdminDashboard = () => {
+                   <div>
+                     <span className="gad-dashboard-eyebrow">LIVE UPDATES</span>
+                     <h2>Notifications</h2>
+-                    <p>
+-                      {unreadCount} unread{" "}
+-                      {unreadCount === 1 ? "notification" : "notifications"}
+-                    </p>
++                    <p>{notes.unread} new {notes.unread === 1 ? "order" : "orders"}</p>
+                   </div>
+-                  <button
+-                    type="button"
+-                    className="gad-popover-close"
+-                    onClick={() => setBellOpen(false)}
+-                    aria-label="Close notifications"
+-                  >
++                  <button type="button" className="gad-popover-close" onClick={() => setBellOpen(false)} aria-label="Close">
+                     <X size={18} />
+                   </button>
+                 </div>
+ 
+-                {notifications.length > 0 && (
++                {unseen.length > 0 && (
+                   <div className="gad-notification-tools">
+-                    <button type="button" onClick={markAllRead}>
+-                      Mark all as read
+-                    </button>
++                    <button type="button" onClick={markAllRead}>Mark all as read</button>
+                   </div>
+                 )}
+ 
+                 <div className="gad-notification-list">
+-                  {visibleNotifications.length ? (
+-                    visibleNotifications.map((item) => (
++                  {notes.items.length ? (
++                    notes.items.slice(0, 12).map((item) => (
+                       <button
+                         type="button"
+-                        className={`gad-notification-item ${item.read ? "read" : "unread"}`}
+-                        key={item.id}
+-                        onClick={() => openOrder(item)}
++                        className={`gad-notification-item ${item.seenByAdmin === false ? "unread" : "read"}`}
++                        key={item._id}
++                        onClick={() => openOrder(item._id)}
+                       >
+-                        <span className="gad-notification-item-icon">
+-                          <ShoppingBag size={17} />
+-                        </span>
++                        <span className="gad-notification-item-icon"><ShoppingBag size={17} /></span>
+                         <span className="gad-notification-item-copy">
+-                          <strong>New order received</strong>
+-                          <span>
+-                            {item.orderId} · {item.customer}
+-                          </span>
+-                          <small>{formatTime(item.createdAt)}</small>
++                          <strong>{item.seenByAdmin === false ? "New order received" : "Order"}</strong>
++                          <span>{item.orderNumber} · {customerName(item.customer)}</span>
++                          <small>{formatDateTime(item.placedAt)} · {item.payment?.method === "cod" ? "COD" : "Paid online"}</small>
+                         </span>
+                         <span className="gad-notification-item-right">
+-                          <b>{money(item.amount)}</b>
+-                          {!item.read && <i />}
++                          <b>{money(item.total)}</b>
++                          {item.seenByAdmin === false && <i />}
+                         </span>
+                       </button>
+                     ))
+                   ) : (
+                     <div className="gad-notification-empty">
+                       <Bell size={25} />
+-                      <strong>No new orders yet</strong>
++                      <strong>No orders yet</strong>
+                       <span>New order alerts will appear here.</span>
+                     </div>
+                   )}
+@@ -309,13 +211,19 @@ const AdminDashboard = () => {
+         </div>
+       </header>
+ 
++      {error && <div className="gad-dashboard-disclaimer"><AlertTriangle size={15} /> {error}</div>}
++
+       <section className="gad-dashboard-welcome">
+         <div>
+-          <span className="gad-dashboard-eyebrow">YOUR STORE AT A GLANCE</span>
++          <span className="gad-dashboard-eyebrow">TODAY</span>
+           <h2>
+-            Welcome back, <em>Admin.</em>
++            {money(stats?.today?.sales)} <em>sales today.</em>
+           </h2>
+-          <p>Manage your products, customers and orders from one place.</p>
++          <p>
++            {stats?.today?.orders ?? 0} order(s) today
++            {stats?.attentionCount ? ` · ${stats.attentionCount} order(s) need attention` : ""}
++            {stats?.unreadMessages ? ` · ${stats.unreadMessages} unread customer message(s)` : ""}
++          </p>
+         </div>
+         <div className="gad-welcome-mark">
+           G<span>É</span>
+@@ -323,13 +231,11 @@ const AdminDashboard = () => {
+       </section>
+ 
+       <section className="gad-dashboard-stats">
+-        {stats.map(({ label, value, note, icon: Icon }) => (
++        {cards.map(({ label, value, note, icon: Icon }) => (
+           <article className="gad-stat-card" key={label}>
+             <div className="gad-stat-top">
+               <span>{label}</span>
+-              <span className="gad-stat-icon">
+-                <Icon size={19} />
+-              </span>
++              <span className="gad-stat-icon"><Icon size={19} /></span>
+             </div>
+             <strong className="gad-stat-value">{value}</strong>
+             <small>{note}</small>
+@@ -342,36 +248,49 @@ const AdminDashboard = () => {
+           <div className="gad-panel-heading">
+             <div>
+               <span className="gad-dashboard-eyebrow">PERFORMANCE</span>
+-              <h2>
+-                Sales overview<span>.</span>
+-              </h2>
++              <h2>Sales overview<span>.</span></h2>
+             </div>
+-            <span className="gad-panel-period">LAST 7 DAYS</span>
++            <select
++              className="gad-panel-period"
++              value={days}
++              onChange={(event) => setDays(Number(event.target.value))}
++              aria-label="Chart period"
++            >
++              <option value={7}>LAST 7 DAYS</option>
++              <option value={14}>LAST 14 DAYS</option>
++              <option value={30}>LAST 30 DAYS</option>
++            </select>
+           </div>
+ 
+           <div className="gad-sales-empty-chart">
+             <div className="gad-chart-y-labels">
+-              <span>₹ 10k</span>
+-              <span>₹ 7.5k</span>
+-              <span>₹ 5k</span>
+-              <span>₹ 2.5k</span>
++              <span>{money(maxSales)}</span>
++              <span>{money(maxSales / 2)}</span>
+               <span>₹ 0</span>
+             </div>
+-            <div className="gad-chart-area">
+-              {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((day) => (
+-                <div className="gad-chart-column" key={day}>
++            <div className="gad-chart-area" style={{ overflowX: "auto" }}>
++              {(stats?.chart || []).map((day) => (
++                <div className="gad-chart-column" key={day.date} title={`${day.date}: ${money(day.sales)} · ${day.orders} order(s)`}>
+                   <div className="gad-chart-gridline" />
+-                  <div className="gad-chart-bar-empty" />
+-                  <span>{day}</span>
++                  <div
++                    className="gad-chart-bar-empty"
++                    style={{
++                      height: `${Math.max(2, (day.sales / maxSales) * 100)}%`,
++                      background: day.sales ? "#eff04c" : undefined,
++                      border: day.sales ? "1px solid #10100e" : undefined,
++                    }}
++                  />
++                  <span>{days > 7 ? day.date.slice(8) : day.label}</span>
+                 </div>
+               ))}
+-              <div className="gad-chart-no-data">
+-                SALES DATA WILL APPEAR HERE
+-              </div>
++              {stats && stats.period.sales === 0 && (
++                <div className="gad-chart-no-data">NO SALES IN THIS PERIOD YET</div>
++              )}
+             </div>
+           </div>
+           <p className="gad-panel-footnote">
+-            Sales figures will populate once your orders API is connected.
++            {money(stats?.period?.sales)} from {stats?.period?.orders ?? 0} order(s) in the last {days} days
++            {typeof stats?.period?.salesChange === "number" ? ` (${stats.period.salesChange >= 0 ? "+" : ""}${stats.period.salesChange}% vs previous period)` : ""}.
+           </p>
+         </article>
+ 
+@@ -379,45 +298,18 @@ const AdminDashboard = () => {
+           <div className="gad-panel-heading">
+             <div>
+               <span className="gad-dashboard-eyebrow">FULFILMENT</span>
+-              <h2>
+-                Order status<span>.</span>
+-              </h2>
++              <h2>Order status<span>.</span></h2>
+             </div>
+           </div>
+ 
+-          <div className="gad-status-row">
+-            <span className="gad-status-icon pending">
+-              <Clock3 size={17} />
+-            </span>
+-            <span>Pending</span>
+-            <strong>0</strong>
+-          </div>
+-          <div className="gad-status-row">
+-            <span className="gad-status-icon processing">
+-              <ShoppingBag size={17} />
+-            </span>
+-            <span>Processing</span>
+-            <strong>0</strong>
+-          </div>
+-          <div className="gad-status-row">
+-            <span className="gad-status-icon shipped">
+-              <Truck size={17} />
+-            </span>
+-            <span>Shipped</span>
+-            <strong>0</strong>
+-          </div>
+-          <div className="gad-status-row">
+-            <span className="gad-status-icon delivered">
+-              <CheckCircle2 size={17} />
+-            </span>
+-            <span>Delivered</span>
+-            <strong>0</strong>
+-          </div>
+-          <button
+-            type="button"
+-            className="gad-text-link"
+-            onClick={() => navigate("/admin/orders")}
+-          >
++          {statusRows.map(([key, label, Icon]) => (
++            <div className="gad-status-row" key={key}>
++              <span className={`gad-status-icon ${key}`}><Icon size={17} /></span>
++              <span>{label}</span>
++              <strong>{key === "shipped" ? (counts.shipped || 0) + (counts.out_for_delivery || 0) : counts[key] || 0}</strong>
++            </div>
++          ))}
++          <button type="button" className="gad-text-link" onClick={() => navigate("/admin/orders")}>
+             MANAGE ORDERS <ArrowUpRight size={16} />
+           </button>
+         </article>
+@@ -427,57 +319,63 @@ const AdminDashboard = () => {
+         <article className="gad-dashboard-panel gad-quick-actions">
+           <div className="gad-panel-heading">
+             <div>
+-              <span className="gad-dashboard-eyebrow">SHORTCUTS</span>
+-              <h2>
+-                Quick actions<span>.</span>
+-              </h2>
++              <span className="gad-dashboard-eyebrow">INVENTORY</span>
++              <h2>Low stock<span>.</span></h2>
+             </div>
+           </div>
+-          {quickLinks.map(({ label, detail, icon: Icon, path }) => (
+-            <button
+-              type="button"
+-              className="gad-quick-action"
+-              key={label}
+-              onClick={() => navigate(path)}
+-            >
+-              <span className="gad-quick-action-icon">
+-                <Icon size={19} />
+-              </span>
+-              <span className="gad-quick-action-copy">
+-                <strong>{label}</strong>
+-                <small>{detail}</small>
+-              </span>
+-              <ArrowUpRight size={17} />
+-            </button>
+-          ))}
++          {stats?.lowStock?.length ? (
++            stats.lowStock.map((product) => (
++              <button type="button" className="gad-quick-action" key={product._id} onClick={() => navigate("/admin/products")}>
++                <span className="gad-quick-action-icon"><Package size={19} /></span>
++                <span className="gad-quick-action-copy">
++                  <strong>{product.name}</strong>
++                  <small>{product.stock === 0 ? "Out of stock" : `${product.stock} left`} · {product.sku}</small>
++                </span>
++                <ArrowUpRight size={17} />
++              </button>
++            ))
++          ) : (
++            <p className="gad-panel-footnote">All products have more than {stats?.lowStockThreshold ?? 5} in stock.</p>
++          )}
+         </article>
+ 
+         <article className="gad-dashboard-panel gad-recent-orders">
+           <div className="gad-panel-heading">
+             <div>
+               <span className="gad-dashboard-eyebrow">LATEST ACTIVITY</span>
+-              <h2>
+-                Recent orders<span>.</span>
+-              </h2>
++              <h2>Recent orders<span>.</span></h2>
+             </div>
+-            <button
+-              type="button"
+-              className="gad-panel-view-all"
+-              onClick={() => navigate("/admin/orders")}
+-            >
++            <button type="button" className="gad-panel-view-all" onClick={() => navigate("/admin/orders")}>
+               VIEW ALL <ArrowUpRight size={15} />
+             </button>
+           </div>
+-          <div className="gad-recent-orders-empty">
+-            <ShoppingBag size={25} />
+-            <strong>No orders to display</strong>
+-            <span>New customer orders will appear here.</span>
+-          </div>
++          {stats?.recent?.length ? (
++            stats.recent.map((order) => (
++              <button type="button" className="gad-quick-action" key={order._id} onClick={() => openOrder(order._id)}>
++                <span className="gad-quick-action-icon"><ShoppingBag size={19} /></span>
++                <span className="gad-quick-action-copy">
++                  <strong>{order.orderNumber} · {customerName(order.customer)}</strong>
++                  <small>
++                    {formatDateTime(order.placedAt)} ·{" "}
++                    <span className={`gad-order-status-pill ${statusClass(order.status)}`}>{statusLabel(order.status)}</span>
++                  </small>
++                </span>
++                <b>{money(order.total)}</b>
++              </button>
++            ))
++          ) : (
++            <div className="gad-recent-orders-empty">
++              <ShoppingBag size={25} />
++              <strong>No orders to display</strong>
++              <span>New customer orders will appear here.</span>
++            </div>
++          )}
+         </article>
+       </section>
++
+       <div className="gad-dashboard-disclaimer">
+         <TrendingUp size={15} />
+-        Dashboard figures are awaiting connection to your live store data.
++        Live store data · refreshes every 20 seconds.
+       </div>
+     </div>
+   );
+diff --git a/frontend/src/Admin/AdminLayout.jsx b/frontend/src/Admin/AdminLayout.jsx
+index 4f6c0b2..c7d1aa3 100644
+--- a/frontend/src/Admin/AdminLayout.jsx
++++ b/frontend/src/Admin/AdminLayout.jsx
+@@ -1,8 +1,12 @@
+-import { Outlet } from "react-router-dom";
++import { Navigate, Outlet } from "react-router-dom";
+ import AdminSidebar from "./AdminSidebar";
++import { getToken } from "./api";
+ import "../Admincss/AdminLayout.css";
+ 
+ const AdminLayout = () => {
++  // Not signed in -> login page.
++  if (!getToken()) return <Navigate to="/admin/login" replace />;
++
+   return (
+     <div className="gad-admin-shell">
+       <AdminSidebar />
+diff --git a/frontend/src/Admin/AdminLogin.jsx b/frontend/src/Admin/AdminLogin.jsx
+new file mode 100644
+index 0000000..d5d85b9
+--- /dev/null
++++ b/frontend/src/Admin/AdminLogin.jsx
+@@ -0,0 +1,75 @@
++import { useState } from "react";
++import { Navigate, useNavigate } from "react-router-dom";
++import { LockKeyhole, ArrowUpRight } from "lucide-react";
++import { adminFetch, getToken, setToken } from "./api";
++import "../Admincss/AdminLogin.css";
++
++const AdminLogin = () => {
++  const navigate = useNavigate();
++  const [email, setEmail] = useState("");
++  const [password, setPassword] = useState("");
++  const [error, setError] = useState("");
++  const [loading, setLoading] = useState(false);
++
++  if (getToken()) return <Navigate to="/admin" replace />;
++
++  const submit = async (event) => {
++    event.preventDefault();
++    setError("");
++    setLoading(true);
++    try {
++      const data = await adminFetch("/login", { method: "POST", body: { email, password } });
++      setToken(data.token);
++      navigate("/admin", { replace: true });
++    } catch (err) {
++      setError(err.message);
++      setLoading(false);
++    }
++  };
++
++  return (
++    <main className="gad-login-page">
++      <form className="gad-login-card" onSubmit={submit}>
++        <div className="gad-login-logo">
++          GADGET<span>É</span>
++          <sup>®</sup>
++        </div>
++        <span className="gad-login-eyebrow">ADMIN PANEL</span>
++        <h1>
++          SIGN IN<span>.</span>
++        </h1>
++
++        <label>
++          EMAIL
++          <input
++            type="email"
++            value={email}
++            onChange={(event) => setEmail(event.target.value)}
++            autoComplete="username"
++            required
++          />
++        </label>
++        <label>
++          PASSWORD
++          <input
++            type="password"
++            value={password}
++            onChange={(event) => setPassword(event.target.value)}
++            autoComplete="current-password"
++            required
++          />
++        </label>
++
++        {error && <p className="gad-login-error">{error}</p>}
++
++        <button type="submit" disabled={loading}>
++          <LockKeyhole size={17} />
++          {loading ? "SIGNING IN…" : "SIGN IN"}
++          <ArrowUpRight size={17} />
++        </button>
++      </form>
++    </main>
++  );
++};
++
++export default AdminLogin;
+diff --git a/frontend/src/Admin/AdminOrders.jsx b/frontend/src/Admin/AdminOrders.jsx
+index ca1e6e6..d08ace7 100644
+--- a/frontend/src/Admin/AdminOrders.jsx
++++ b/frontend/src/Admin/AdminOrders.jsx
+@@ -1,4 +1,5 @@
+-import { useMemo, useState } from "react";
++import { useCallback, useEffect, useState } from "react";
++import { useSearchParams } from "react-router-dom";
+ import {
+   Search,
+   ShoppingBag,
+@@ -7,7 +8,6 @@ import {
+   PackageCheck,
+   Truck,
+   CheckCircle2,
+-  XCircle,
+   Download,
+   SlidersHorizontal,
+   ChevronDown,
+@@ -19,336 +19,116 @@ import {
+   Phone,
+   Mail,
+   UserRound,
+-  ArrowUpRight,
++  Send,
++  Save,
++  AlertTriangle,
+ } from "lucide-react";
++import {
++  STATUS_OPTIONS,
++  adminDownload,
++  adminFetch,
++  customerName,
++  formatDate,
++  formatDateTime,
++  formatTime,
++  imageUrl,
++  initials,
++  money,
++  paymentLabel,
++  statusClass,
++  statusLabel,
++} from "./api";
+ import "../Admincss/AdminOrders.css";
+ 
+-// UI preview data only. Replace with orders fetched from your backend API.
+-const demoOrders = [
+-  {
+-    id: "GAD-2026-1028",
+-    customer: "Aarav Sharma",
+-    email: "aarav.sharma@example.com",
+-    phone: "+91 98765 43210",
+-    date: "11 Nov 2026",
+-    time: "11:42 AM",
+-    status: "Processing",
+-    payment: "Paid Online",
+-    paymentStatus: "Paid",
+-    subtotal: 3499,
+-    shipping: 0,
+-    total: 3499,
+-    source: "Website",
+-    address: "12 MG Road, Andheri West, Mumbai, Maharashtra - 400053",
+-    items: [
+-      {
+-        id: "G-01",
+-        name: "Air Pods Pro",
+-        color: "White",
+-        quantity: 1,
+-        price: 3499,
+-        image:
+-          "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=240&q=80",
+-      },
+-    ],
+-  },
+-  {
+-    id: "GAD-2026-1027",
+-    customer: "Meera Patel",
+-    email: "meera.patel@example.com",
+-    phone: "+91 98201 12345",
+-    date: "11 Nov 2026",
+-    time: "10:18 AM",
+-    status: "Pending",
+-    payment: "Cash on Delivery",
+-    paymentStatus: "Pay on delivery",
+-    subtotal: 1999,
+-    shipping: 0,
+-    total: 1999,
+-    source: "Website",
+-    address: "Flat 4B, FC Road, Shivajinagar, Pune, Maharashtra - 411005",
+-    items: [
+-      {
+-        id: "G-02",
+-        name: "Power Core",
+-        color: "Black",
+-        quantity: 1,
+-        price: 1999,
+-        image:
+-          "https://images.unsplash.com/photo-1609592424758-3a1f3a9f6f17?w=240&q=80",
+-      },
+-    ],
+-  },
+-  {
+-    id: "GAD-2026-1026",
+-    customer: "Rohan Mehta",
+-    email: "rohan.mehta@example.com",
+-    phone: "+91 98190 45678",
+-    date: "10 Nov 2026",
+-    time: "06:35 PM",
+-    status: "Shipped",
+-    payment: "Paid Online",
+-    paymentStatus: "Paid",
+-    subtotal: 5999,
+-    shipping: 0,
+-    total: 5999,
+-    source: "Instagram",
+-    address: "22 Satellite Road, Ahmedabad, Gujarat - 380015",
+-    items: [
+-      {
+-        id: "G-04",
+-        name: "Smart Watch",
+-        color: "Blue",
+-        quantity: 1,
+-        price: 5999,
+-        image:
+-          "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=240&q=80",
+-      },
+-    ],
+-  },
+-  {
+-    id: "GAD-2026-1025",
+-    customer: "Ananya Rao",
+-    email: "ananya.rao@example.com",
+-    phone: "+91 98920 56789",
+-    date: "10 Nov 2026",
+-    time: "01:09 PM",
+-    status: "Delivered",
+-    payment: "Paid Online",
+-    paymentStatus: "Paid",
+-    subtotal: 6998,
+-    shipping: 0,
+-    total: 6998,
+-    source: "Website",
+-    address: "18 Indiranagar, Bengaluru, Karnataka - 560038",
+-    items: [
+-      {
+-        id: "G-01",
+-        name: "Air Pods Pro",
+-        color: "White",
+-        quantity: 2,
+-        price: 3499,
+-        image:
+-          "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=240&q=80",
+-      },
+-    ],
+-  },
+-  {
+-    id: "GAD-2026-1024",
+-    customer: "Kabir Shah",
+-    email: "kabir.shah@example.com",
+-    phone: "+91 97690 23456",
+-    date: "09 Nov 2026",
+-    time: "09:22 AM",
+-    status: "Cancelled",
+-    payment: "Cash on Delivery",
+-    paymentStatus: "Not collected",
+-    subtotal: 1999,
+-    shipping: 0,
+-    total: 1999,
+-    source: "Website",
+-    address: "7 Ring Road, Surat, Gujarat - 395002",
+-    items: [
+-      {
+-        id: "G-02",
+-        name: "Power Core",
+-        color: "Black",
+-        quantity: 1,
+-        price: 1999,
+-        image:
+-          "https://images.unsplash.com/photo-1609592424758-3a1f3a9f6f17?w=240&q=80",
+-      },
+-    ],
+-  },
+-];
+-
+-const money = (value) =>
+-  `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+-
+-const statusKey = (value) => value.toLowerCase().replaceAll(" ", "-");
+-
+ const AdminOrders = () => {
+-  const [orders, setOrders] = useState(demoOrders);
++  const [params, setParams] = useSearchParams();
++  const openId = params.get("open");
++
+   const [query, setQuery] = useState("");
+-  const [statusFilter, setStatusFilter] = useState("All orders");
+-  const [paymentFilter, setPaymentFilter] = useState("All payments");
++  const [statusFilter, setStatusFilter] = useState("");
++  const [paymentFilter, setPaymentFilter] = useState("");
+   const [sortBy, setSortBy] = useState("newest");
+-  const [selectedOrder, setSelectedOrder] = useState(null);
+-
+-  const summary = useMemo(
+-    () => ({
+-      total: orders.length,
+-      pending: orders.filter((order) => order.status === "Pending").length,
+-      processing: orders.filter((order) => order.status === "Processing")
+-        .length,
+-      shipped: orders.filter((order) => order.status === "Shipped").length,
+-      delivered: orders.filter((order) => order.status === "Delivered").length,
+-      revenue: orders
+-        .filter((order) => order.paymentStatus === "Paid")
+-        .reduce((sum, order) => sum + order.total, 0),
+-    }),
+-    [orders],
+-  );
++  const [page, setPage] = useState(1);
++  const [data, setData] = useState(null);
++  const [error, setError] = useState("");
+ 
+-  const filteredOrders = useMemo(() => {
+-    let result = orders.filter((order) => {
+-      const searchable =
+-        `${order.id} ${order.customer} ${order.email} ${order.phone}`.toLowerCase();
+-      const matchesQuery = searchable.includes(query.toLowerCase());
+-      const matchesStatus =
+-        statusFilter === "All orders" || order.status === statusFilter;
+-      const matchesPayment =
+-        paymentFilter === "All payments" || order.payment === paymentFilter;
+-      return matchesQuery && matchesStatus && matchesPayment;
+-    });
++  const filters = useCallback(() => {
++    const qs = new URLSearchParams({ sort: sortBy });
++    if (query.trim()) qs.set("q", query.trim());
++    if (statusFilter) qs.set("status", statusFilter);
++    if (paymentFilter) qs.set("payment", paymentFilter);
++    return qs;
++  }, [query, statusFilter, paymentFilter, sortBy]);
+ 
+-    if (sortBy === "highest")
+-      result = [...result].sort((a, b) => b.total - a.total);
+-    else if (sortBy === "lowest")
+-      result = [...result].sort((a, b) => a.total - b.total);
+-    return result;
+-  }, [orders, query, statusFilter, paymentFilter, sortBy]);
+-
+-  const updateStatus = (orderId, newStatus) => {
+-    setOrders((current) =>
+-      current.map((order) =>
+-        order.id === orderId ? { ...order, status: newStatus } : order,
+-      ),
+-    );
+-    setSelectedOrder((current) =>
+-      current?.id === orderId ? { ...current, status: newStatus } : current,
++  const load = useCallback(() => {
++    const qs = filters();
++    qs.set("page", page);
++    adminFetch(`/orders?${qs}`)
++      .then((result) => {
++        setData(result);
++        setError("");
++      })
++      .catch((err) => setError(err.message));
++  }, [filters, page]);
++
++  // Small delay while typing in the search box.
++  useEffect(() => {
++    const timer = setTimeout(load, 250);
++    return () => clearTimeout(timer);
++  }, [load]);
++
++  const openOrder = (id) => setParams(id ? { open: id } : {});
++
++  const exportOrders = () =>
++    adminDownload(`/orders/export.csv?${filters()}`, "gadgete-orders.csv").catch((err) =>
++      alert(err.message),
+     );
+-  };
+ 
+-  const exportOrders = () => {
+-    const headers = [
+-      "Order ID",
+-      "Customer",
+-      "Email",
+-      "Phone",
+-      "Date",
+-      "Time",
+-      "Status",
+-      "Payment",
+-      "Total",
+-      "Source",
+-      "Address",
+-    ];
+-    const rows = filteredOrders.map((order) => [
+-      order.id,
+-      order.customer,
+-      order.email,
+-      order.phone,
+-      order.date,
+-      order.time,
+-      order.status,
+-      order.payment,
+-      order.total,
+-      order.source,
+-      order.address,
+-    ]);
+-    const csv = [headers, ...rows]
+-      .map((row) =>
+-        row
+-          .map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`)
+-          .join(","),
+-      )
+-      .join("\n");
+-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+-    const url = URL.createObjectURL(blob);
+-    const anchor = document.createElement("a");
+-    anchor.href = url;
+-    anchor.download = "gadgete-orders.csv";
+-    anchor.click();
+-    URL.revokeObjectURL(url);
+-  };
++  const summary = data?.summary || {};
++  const orders = data?.items || [];
++
++  const statCards = [
++    ["TOTAL ORDERS", summary.total, "All received orders", ShoppingBag, ""],
++    ["PENDING", summary.pending, "Awaiting confirmation", Clock3, "pending"],
++    ["PROCESSING", summary.processing, "Being prepared", PackageCheck, "processing"],
++    ["SHIPPED", summary.shipped, "On the way", Truck, "shipped"],
++    ["DELIVERED", summary.delivered, "Successfully delivered", CheckCircle2, "delivered"],
++    ["PAID REVENUE", money(summary.revenue), "Money received", IndianRupee, "revenue"],
++  ];
+ 
+   return (
+     <div className="gad-orders-page">
+       <header className="gad-orders-header">
+         <div>
+-          <span className="gad-orders-eyebrow">
+-            GADGETÉ / SALES & FULFILMENT
+-          </span>
+-          <h1>
+-            ORDERS<span>.</span>
+-          </h1>
++          <span className="gad-orders-eyebrow">GADGETÉ / SALES & FULFILMENT</span>
++          <h1>ORDERS<span>.</span></h1>
+           <p>Every order, every detail — all in one place.</p>
+         </div>
+-        <button
+-          type="button"
+-          className="gad-orders-export"
+-          onClick={exportOrders}
+-        >
++        <button type="button" className="gad-orders-export" onClick={exportOrders}>
+           <Download size={16} /> EXPORT ORDERS
+         </button>
+       </header>
+ 
+       <section className="gad-orders-stats">
+-        <article className="gad-orders-stat">
+-          <span className="gad-orders-stat-icon">
+-            <ShoppingBag size={19} />
+-          </span>
+-          <small>TOTAL ORDERS</small>
+-          <strong>{summary.total}</strong>
+-          <em>All received orders</em>
+-        </article>
+-        <article className="gad-orders-stat">
+-          <span className="gad-orders-stat-icon pending">
+-            <Clock3 size={19} />
+-          </span>
+-          <small>PENDING</small>
+-          <strong>{summary.pending}</strong>
+-          <em>Awaiting confirmation</em>
+-        </article>
+-        <article className="gad-orders-stat">
+-          <span className="gad-orders-stat-icon processing">
+-            <PackageCheck size={19} />
+-          </span>
+-          <small>PROCESSING</small>
+-          <strong>{summary.processing}</strong>
+-          <em>Being prepared</em>
+-        </article>
+-        <article className="gad-orders-stat">
+-          <span className="gad-orders-stat-icon shipped">
+-            <Truck size={19} />
+-          </span>
+-          <small>SHIPPED</small>
+-          <strong>{summary.shipped}</strong>
+-          <em>On the way</em>
+-        </article>
+-        <article className="gad-orders-stat">
+-          <span className="gad-orders-stat-icon delivered">
+-            <CheckCircle2 size={19} />
+-          </span>
+-          <small>DELIVERED</small>
+-          <strong>{summary.delivered}</strong>
+-          <em>Successfully delivered</em>
+-        </article>
+-        <article className="gad-orders-stat">
+-          <span className="gad-orders-stat-icon revenue">
+-            <IndianRupee size={19} />
+-          </span>
+-          <small>PAID REVENUE</small>
+-          <strong>{money(summary.revenue)}</strong>
+-          <em>Paid orders only</em>
+-        </article>
++        {statCards.map(([label, value, note, Icon, tone]) => (
++          <article className="gad-orders-stat" key={label}>
++            <span className={`gad-orders-stat-icon ${tone}`}><Icon size={19} /></span>
++            <small>{label}</small>
++            <strong>{value ?? "—"}</strong>
++            <em>{note}</em>
++          </article>
++        ))}
+       </section>
+ 
+       <section className="gad-orders-panel">
+         <div className="gad-orders-panel-heading">
+           <div>
+             <span className="gad-orders-eyebrow">ORDER MANAGEMENT</span>
+-            <h2>
+-              ALL <span>ORDERS.</span>
+-            </h2>
+-            <p>
+-              Search orders, review customer details and update fulfilment
+-              status.
+-            </p>
++            <h2>ALL <span>ORDERS.</span></h2>
++            <p>Search orders, review customer details and update fulfilment status.</p>
+           </div>
+           <span className="gad-orders-record-count">
+-            {filteredOrders.length.toString().padStart(2, "0")} RECORDS
++            {String(data?.total ?? 0).padStart(2, "0")} RECORDS
+           </span>
+         </div>
+ 
+@@ -357,16 +137,15 @@ const AdminOrders = () => {
+             <Search size={17} />
+             <input
+               type="search"
+-              placeholder="Search order ID, customer, email or phone..."
++              placeholder="Search order no., name, email, phone or city..."
+               value={query}
+-              onChange={(event) => setQuery(event.target.value)}
++              onChange={(event) => {
++                setQuery(event.target.value);
++                setPage(1);
++              }}
+             />
+             {query && (
+-              <button
+-                type="button"
+-                onClick={() => setQuery("")}
+-                aria-label="Clear search"
+-              >
++              <button type="button" onClick={() => setQuery("")} aria-label="Clear search">
+                 <X size={15} />
+               </button>
+             )}
+@@ -374,38 +153,29 @@ const AdminOrders = () => {
+ 
+           <label className="gad-orders-filter">
+             <SlidersHorizontal size={15} />
+-            <select
+-              value={statusFilter}
+-              onChange={(event) => setStatusFilter(event.target.value)}
+-            >
+-              <option>All orders</option>
+-              <option>Pending</option>
+-              <option>Processing</option>
+-              <option>Shipped</option>
+-              <option>Delivered</option>
+-              <option>Cancelled</option>
++            <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
++              <option value="">All orders</option>
++              {STATUS_OPTIONS.map(([value, label]) => (
++                <option key={value} value={value}>{label}</option>
++              ))}
++              <option value="unpaid">Unpaid UPI checkouts</option>
+             </select>
+             <ChevronDown size={14} />
+           </label>
+ 
+           <label className="gad-orders-filter">
+-            <select
+-              value={paymentFilter}
+-              onChange={(event) => setPaymentFilter(event.target.value)}
+-            >
+-              <option>All payments</option>
+-              <option>Paid Online</option>
+-              <option>Cash on Delivery</option>
++            <select value={paymentFilter} onChange={(event) => { setPaymentFilter(event.target.value); setPage(1); }}>
++              <option value="">All payments</option>
++              <option value="upi">Online (UPI)</option>
++              <option value="cod">Cash on Delivery</option>
+             </select>
+             <ChevronDown size={14} />
+           </label>
+ 
+           <label className="gad-orders-filter gad-orders-sort">
+-            <select
+-              value={sortBy}
+-              onChange={(event) => setSortBy(event.target.value)}
+-            >
++            <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+               <option value="newest">Newest first</option>
++              <option value="oldest">Oldest first</option>
+               <option value="highest">Highest amount</option>
+               <option value="lowest">Lowest amount</option>
+             </select>
+@@ -413,6 +183,8 @@ const AdminOrders = () => {
+           </label>
+         </div>
+ 
++        {error && <p className="gad-orders-note"><AlertTriangle size={14} /> {error}</p>}
++
+         <div className="gad-orders-table-wrap">
+           <table className="gad-orders-table">
+             <thead>
+@@ -428,146 +200,250 @@ const AdminOrders = () => {
+               </tr>
+             </thead>
+             <tbody>
+-              {filteredOrders.map((order) => (
+-                <tr key={order.id}>
+-                  <td className="gad-order-id-cell">{order.id}</td>
+-                  <td>
+-                    <div className="gad-order-customer">
+-                      <span>
+-                        {order.customer
+-                          .split(" ")
+-                          .map((part) => part[0])
+-                          .slice(0, 2)
+-                          .join("")}
++              {orders.map((order) => {
++                const name = customerName(order.customer);
++                const when = order.placedAt || order.createdAt;
++                return (
++                  <tr key={order._id} onClick={() => openOrder(order._id)} style={{ cursor: "pointer" }}>
++                    <td className="gad-order-id-cell">
++                      {order.orderNumber}
++                      {order.seenByAdmin === false && <b style={{ color: "#c0392b" }}> • NEW</b>}
++                    </td>
++                    <td>
++                      <div className="gad-order-customer">
++                        <span>{initials(name)}</span>
++                        <strong>{name}</strong>
++                      </div>
++                    </td>
++                    <td className="gad-order-date-cell">
++                      <strong>{formatDate(when)}</strong>
++                      <small>{formatTime(when)}</small>
++                    </td>
++                    <td>{order.items.reduce((sum, item) => sum + item.quantity, 0)} item(s)</td>
++                    <td className="gad-order-total-cell">{money(order.total)}</td>
++                    <td>
++                      <span className={`gad-order-payment ${order.payment.method === "cod" ? "cod" : "online"}`}>
++                        {paymentLabel(order.payment)}
+                       </span>
+-                      <strong>{order.customer}</strong>
+-                    </div>
+-                  </td>
+-                  <td className="gad-order-date-cell">
+-                    <strong>{order.date}</strong>
+-                    <small>{order.time}</small>
+-                  </td>
+-                  <td>
+-                    {order.items.reduce((sum, item) => sum + item.quantity, 0)}{" "}
+-                    item(s)
+-                  </td>
+-                  <td className="gad-order-total-cell">{money(order.total)}</td>
+-                  <td>
+-                    <span
+-                      className={`gad-order-payment ${order.payment === "Paid Online" ? "online" : "cod"}`}
+-                    >
+-                      {order.payment}
+-                    </span>
+-                  </td>
+-                  <td>
+-                    <span
+-                      className={`gad-order-status-pill ${statusKey(order.status)}`}
+-                    >
+-                      {order.status}
+-                    </span>
+-                  </td>
+-                  <td>
+-                    <button
+-                      type="button"
+-                      className="gad-order-view-button"
+-                      onClick={() => setSelectedOrder(order)}
+-                      aria-label={`View ${order.id}`}
+-                    >
+-                      <Eye size={16} />
+-                    </button>
+-                  </td>
+-                </tr>
+-              ))}
++                    </td>
++                    <td>
++                      <span className={`gad-order-status-pill ${statusClass(order.status)}`}>
++                        {statusLabel(order.status)}
++                      </span>
++                    </td>
++                    <td>
++                      <button type="button" className="gad-order-view-button" aria-label={`View ${order.orderNumber}`}>
++                        <Eye size={16} />
++                      </button>
++                    </td>
++                  </tr>
++                );
++              })}
+             </tbody>
+           </table>
+-          {filteredOrders.length === 0 && (
++          {data && orders.length === 0 && (
+             <div className="gad-orders-empty">
+               <ShoppingBag size={28} />
+               <strong>No orders found</strong>
+-              <span>Try changing your search or filters.</span>
++              <span>Orders placed on the website will appear here.</span>
+             </div>
+           )}
++          {!data && !error && <div className="gad-orders-empty"><strong>Loading orders…</strong></div>}
+         </div>
+ 
+         <div className="gad-orders-table-footer">
+           <span>
+-            Showing <strong>{filteredOrders.length}</strong> of{" "}
+-            <strong>{orders.length}</strong> orders
++            Page <strong>{data?.page ?? 1}</strong> of <strong>{data?.pages ?? 1}</strong> ·{" "}
++            <strong>{data?.total ?? 0}</strong> orders
++          </span>
++          <span style={{ display: "flex", gap: 8 }}>
++            <button type="button" className="gad-orders-export" disabled={page <= 1} onClick={() => setPage(page - 1)}>PREV</button>
++            <button type="button" className="gad-orders-export" disabled={!data || page >= data.pages} onClick={() => setPage(page + 1)}>NEXT</button>
+           </span>
+-          <span>GADGETÉ® ORDER MANAGEMENT</span>
+         </div>
+       </section>
+ 
+-      {selectedOrder && (
+-        <div
+-          className="gad-order-drawer-backdrop"
+-          onMouseDown={() => setSelectedOrder(null)}
+-        >
+-          <aside
+-            className="gad-order-drawer"
+-            onMouseDown={(event) => event.stopPropagation()}
+-          >
+-            <div className="gad-order-drawer-header">
+-              <div>
+-                <span className="gad-orders-eyebrow">ORDER DETAILS</span>
+-                <h2>
+-                  {selectedOrder.id}
+-                  <span>.</span>
+-                </h2>
+-              </div>
+-              <button
+-                type="button"
+-                onClick={() => setSelectedOrder(null)}
+-                aria-label="Close order details"
+-              >
+-                <X size={20} />
+-              </button>
+-            </div>
++      {openId && <OrderDrawer id={openId} onClose={() => openOrder(null)} onChanged={load} />}
++    </div>
++  );
++};
++
++function OrderDrawer({ id, onClose, onChanged }) {
++  const [order, setOrder] = useState(null);
++  const [shipping, setShipping] = useState({ courier: "", awb: "", trackingUrl: "" });
++  const [note, setNote] = useState("");
++  const [busy, setBusy] = useState(false);
++  const [message, setMessage] = useState("");
++  const [error, setError] = useState("");
++
++  const apply = (fresh) => {
++    setOrder(fresh);
++    setShipping({
++      courier: fresh.shipping?.courier || "",
++      awb: fresh.shipping?.awb || "",
++      trackingUrl: fresh.shipping?.trackingUrl || "",
++    });
++    setNote(fresh.adminNote || "");
++  };
++
++  useEffect(() => {
++    adminFetch(`/orders/${id}`)
++      .then((result) => {
++        apply(result.order);
++        window.dispatchEvent(new Event("gadgete-admin-refresh")); // opening marks it as seen
++      })
++      .catch((err) => setError(err.message));
++  }, [id]);
++
++  const save = async (body, success) => {
++    setBusy(true);
++    setError("");
++    setMessage("");
++    try {
++      const result = await adminFetch(`/orders/${id}`, { method: "PATCH", body });
++      apply(result.order);
++      setMessage(success);
++      onChanged();
++    } catch (err) {
++      setError(err.message);
++    } finally {
++      setBusy(false);
++    }
++  };
++
++  const changeStatus = (status) => {
++    let cancelReason = "";
++    if (status === "cancelled") {
++      const answer = window.prompt("Cancel this order? Stock goes back and the customer is emailed.\n\nReason (optional):", "");
++      if (answer === null) return;
++      cancelReason = answer;
++    }
++    // Shipping details are saved together, so the "shipped" email includes them.
++    save({ status, cancelReason, shipping }, `Status changed to ${statusLabel(status)}. Customer emailed.`);
++  };
++
++  const resend = async () => {
++    setBusy(true);
++    setError("");
++    try {
++      const result = await adminFetch(`/orders/${id}/email`, { method: "POST", body: { type: "confirmation" } });
++      apply(result.order);
++      setMessage(result.message);
++    } catch (err) {
++      setError(err.message);
++    } finally {
++      setBusy(false);
++    }
++  };
+ 
++  const recheck = async () => {
++    setBusy(true);
++    try {
++      const result = await adminFetch(`/orders/${id}/recheck-payment`, { method: "POST" });
++      apply(result.order);
++      setMessage(result.message);
++      onChanged();
++    } catch (err) {
++      setError(err.message);
++    } finally {
++      setBusy(false);
++    }
++  };
++
++  const a = order?.shippingAddress;
++  const placed = order && !["awaiting_payment", "expired"].includes(order.status);
++
++  return (
++    <div className="gad-order-drawer-backdrop" onMouseDown={onClose}>
++      <aside className="gad-order-drawer" onMouseDown={(event) => event.stopPropagation()}>
++        <div className="gad-order-drawer-header">
++          <div>
++            <span className="gad-orders-eyebrow">ORDER DETAILS</span>
++            <h2>{order?.orderNumber || "…"}<span>.</span></h2>
++          </div>
++          <button type="button" onClick={onClose} aria-label="Close order details"><X size={20} /></button>
++        </div>
++
++        {!order ? (
++          <p>{error || "Loading order…"}</p>
++        ) : (
++          <>
+             <div className="gad-order-drawer-status-row">
+-              <span
+-                className={`gad-order-status-pill ${statusKey(selectedOrder.status)}`}
+-              >
+-                {selectedOrder.status}
+-              </span>
+-              <span>
+-                <CalendarDays size={14} /> {selectedOrder.date} ·{" "}
+-                {selectedOrder.time}
+-              </span>
++              <span className={`gad-order-status-pill ${statusClass(order.status)}`}>{statusLabel(order.status)}</span>
++              <span><CalendarDays size={14} /> {formatDateTime(order.placedAt || order.createdAt)}</span>
+             </div>
+ 
++            {order.attention && (
++              <p className="gad-orders-note" style={{ color: "#9b1c1c" }}><AlertTriangle size={14} /> {order.attention}</p>
++            )}
++            {message && <p className="gad-orders-note">{message}</p>}
++            {error && <p className="gad-orders-note" style={{ color: "#9b1c1c" }}>{error}</p>}
++
++            {placed ? (
++              <section className="gad-order-update-section">
++                <label htmlFor="gad-order-status-select">UPDATE ORDER STATUS</label>
++                <select
++                  id="gad-order-status-select"
++                  value={order.status}
++                  disabled={busy}
++                  onChange={(event) => changeStatus(event.target.value)}
++                >
++                  {STATUS_OPTIONS.map(([value, label]) => (
++                    <option key={value} value={value}>{label}</option>
++                  ))}
++                </select>
++                <p>The customer gets an email when an order is shipped, out for delivery, delivered or cancelled.</p>
++              </section>
++            ) : (
++              <section className="gad-order-update-section">
++                <p>This UPI checkout was never paid, so it isn't a real order yet.</p>
++                <button type="button" className="gad-orders-export" disabled={busy} onClick={recheck}>
++                  CHECK PAYMENT WITH RAZORPAY
++                </button>
++              </section>
++            )}
++
+             <section className="gad-order-detail-section">
+-              <h3>
+-                <UserRound size={16} /> CUSTOMER INFORMATION
+-              </h3>
+-              <div className="gad-order-customer-detail">
+-                <strong>{selectedOrder.customer}</strong>
+-              </div>
+-              <p>
+-                <Mail size={15} /> {selectedOrder.email}
+-              </p>
+-              <p>
+-                <Phone size={15} /> {selectedOrder.phone}
+-              </p>
++              <h3><Truck size={16} /> SHIPPING / TRACKING</h3>
++              {[
++                ["courier", "Courier (e.g. Delhivery)"],
++                ["awb", "Tracking number / AWB"],
++                ["trackingUrl", "Tracking link (https://…)"],
++              ].map(([key, label]) => (
++                <input
++                  key={key}
++                  placeholder={label}
++                  value={shipping[key]}
++                  onChange={(event) => setShipping({ ...shipping, [key]: event.target.value })}
++                  style={{ width: "100%", height: 42, margin: "4px 0", padding: "0 12px", borderRadius: 8, border: "1px solid currentColor", background: "transparent", color: "inherit", fontSize: 15 }}
++                />
++              ))}
++              <button type="button" className="gad-orders-export" disabled={busy} onClick={() => save({ shipping }, "Shipping details saved.")}>
++                <Save size={15} /> SAVE TRACKING
++              </button>
++              <p style={{ fontSize: 12, opacity: 0.7 }}>Tip: fill these in first, then set the status to Shipped — the email will include them.</p>
++            </section>
++
++            <section className="gad-order-detail-section">
++              <h3><UserRound size={16} /> CUSTOMER INFORMATION</h3>
++              <div className="gad-order-customer-detail"><strong>{customerName(order.customer)}</strong></div>
++              <p><Mail size={15} /> <a href={`mailto:${order.customer.email}`}>{order.customer.email}</a></p>
++              <p><Phone size={15} /> <a href={`tel:+91${order.customer.phone}`}>+91 {order.customer.phone}</a></p>
+               <p>
+-                <MapPin size={15} /> {selectedOrder.address}
++                <MapPin size={15} /> {a.line1}{a.line2 ? `, ${a.line2}` : ""}, {a.city}, {a.state} – {a.pincode}
+               </p>
+             </section>
+ 
+             <section className="gad-order-detail-section">
+-              <h3>
+-                <ShoppingBag size={16} /> ITEMS ORDERED
+-              </h3>
++              <h3><ShoppingBag size={16} /> ITEMS ORDERED</h3>
+               <div className="gad-order-item-list">
+-                {selectedOrder.items.map((item) => (
+-                  <div className="gad-order-item" key={item.id}>
+-                    <img src={item.image} alt={item.name} />
++                {order.items.map((item, index) => (
++                  <div className="gad-order-item" key={`${item.sku}-${index}`}>
++                    {item.image ? <img src={imageUrl(item.image)} alt={item.name} /> : <span />}
+                     <div className="gad-order-item-copy">
+                       <strong>{item.name}</strong>
+-                      <span>
+-                        SKU / {item.id} · {item.color}
+-                      </span>
+-                      <small>Qty: {item.quantity}</small>
++                      <span>SKU / {item.sku}{item.color ? ` · ${item.color}` : ""}</span>
++                      <small>Qty: {item.quantity} × {money(item.price)}</small>
+                     </div>
+                     <b>{money(item.price * item.quantity)}</b>
+                   </div>
+@@ -576,75 +452,77 @@ const AdminOrders = () => {
+             </section>
+ 
+             <section className="gad-order-detail-section">
+-              <h3>
+-                <CreditCard size={16} /> PAYMENT & SOURCE
+-              </h3>
+-              <div className="gad-order-meta-row">
+-                <span>Payment method</span>
+-                <strong>{selectedOrder.payment}</strong>
+-              </div>
+-              <div className="gad-order-meta-row">
+-                <span>Payment status</span>
+-                <strong>{selectedOrder.paymentStatus}</strong>
+-              </div>
+-              <div className="gad-order-meta-row">
+-                <span>Order source</span>
+-                <strong>{selectedOrder.source}</strong>
+-              </div>
++              <h3><CreditCard size={16} /> PAYMENT & SOURCE</h3>
++              <div className="gad-order-meta-row"><span>Payment</span><strong>{paymentLabel(order.payment)}</strong></div>
++              {order.payment.paymentId && (
++                <div className="gad-order-meta-row"><span>Razorpay ID</span><strong>{order.payment.paymentId}</strong></div>
++              )}
++              <div className="gad-order-meta-row"><span>Order source</span><strong>{order.source}</strong></div>
++              {order.payment.method === "upi" && ["paid", "refunded"].includes(order.payment.status) && (
++                <button
++                  type="button"
++                  className="gad-orders-export"
++                  disabled={busy}
++                  onClick={() =>
++                    save({ refunded: order.payment.status !== "refunded" }, "Refund status updated.")
++                  }
++                >
++                  {order.payment.status === "refunded" ? "UNDO REFUNDED" : "MARK AS REFUNDED"}
++                </button>
++              )}
+             </section>
+ 
+             <section className="gad-order-total-breakdown">
+-              <div>
+-                <span>Subtotal</span>
+-                <strong>{money(selectedOrder.subtotal)}</strong>
+-              </div>
+-              <div>
+-                <span>Shipping</span>
+-                <strong>
+-                  {selectedOrder.shipping === 0
+-                    ? "FREE"
+-                    : money(selectedOrder.shipping)}
+-                </strong>
+-              </div>
+-              <div className="grand-total">
+-                <span>ORDER TOTAL</span>
+-                <strong>{money(selectedOrder.total)}</strong>
+-              </div>
++              <div><span>Subtotal</span><strong>{money(order.subtotal)}</strong></div>
++              {order.discount > 0 && <div><span>UPI discount</span><strong>−{money(order.discount)}</strong></div>}
++              <div><span>Shipping</span><strong>{order.shippingFee ? money(order.shippingFee) : "FREE"}</strong></div>
++              <div className="grand-total"><span>ORDER TOTAL</span><strong>{money(order.total)}</strong></div>
+             </section>
+ 
+-            <section className="gad-order-update-section">
+-              <label htmlFor="gad-order-status-select">
+-                UPDATE ORDER STATUS
+-              </label>
+-              <select
+-                id="gad-order-status-select"
+-                value={selectedOrder.status}
+-                onChange={(event) =>
+-                  updateStatus(selectedOrder.id, event.target.value)
+-                }
+-              >
+-                <option>Pending</option>
+-                <option>Processing</option>
+-                <option>Shipped</option>
+-                <option>Delivered</option>
+-                <option>Cancelled</option>
+-              </select>
+-              <p>
+-                Status changes here are local preview state until connected to
+-                your orders API.
+-              </p>
++            <section className="gad-order-detail-section">
++              <h3>INTERNAL NOTE</h3>
++              <textarea
++                rows={3}
++                value={note}
++                onChange={(event) => setNote(event.target.value)}
++                placeholder="Only visible to you"
++                style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid currentColor", background: "transparent", color: "inherit", fontSize: 15 }}
++              />
++              <button type="button" className="gad-orders-export" disabled={busy} onClick={() => save({ adminNote: note }, "Note saved.")}>
++                <Save size={15} /> SAVE NOTE
++              </button>
+             </section>
+-          </aside>
+-        </div>
+-      )}
+ 
+-      <div className="gad-orders-note">
+-        <ArrowUpRight size={14} />
+-        Sample order records are shown for layout preview. Connect the orders
+-        API to manage live customer orders.
+-      </div>
++            {placed && (
++              <section className="gad-order-detail-section">
++                <h3><Send size={16} /> EMAILS</h3>
++                {(order.emails || []).slice(-6).reverse().map((entry, index) => (
++                  <div className="gad-order-meta-row" key={index}>
++                    <span>{entry.type} · {formatDateTime(entry.at)}</span>
++                    <strong style={{ color: entry.ok ? "#1d7a3a" : "#9b1c1c" }}>{entry.ok ? "Sent" : "Failed"}</strong>
++                  </div>
++                ))}
++                {!order.emails?.length && <p>No emails sent yet (is SMTP set up in backend/.env?).</p>}
++                <button type="button" className="gad-orders-export" disabled={busy} onClick={resend}>
++                  <Send size={15} /> RESEND CONFIRMATION EMAIL
++                </button>
++              </section>
++            )}
++
++            <section className="gad-order-detail-section">
++              <h3>HISTORY</h3>
++              {[...order.timeline].reverse().map((entry, index) => (
++                <div className="gad-order-meta-row" key={index}>
++                  <span>{formatDateTime(entry.at)}</span>
++                  <strong>{entry.message}</strong>
++                </div>
++              ))}
++            </section>
++          </>
++        )}
++      </aside>
+     </div>
+   );
+-};
++}
+ 
+ export default AdminOrders;
+diff --git a/frontend/src/Admin/AdminProducts.jsx b/frontend/src/Admin/AdminProducts.jsx
+index 28a0f70..8e29356 100644
+--- a/frontend/src/Admin/AdminProducts.jsx
++++ b/frontend/src/Admin/AdminProducts.jsx
+@@ -1,4 +1,4 @@
+-import React, { useMemo, useRef, useState } from "react";
++import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+ import {
+   Search,
+   Package,
+@@ -11,88 +11,60 @@ import {
+   Trash2,
+   Eye,
+   ImagePlus,
+-  IndianRupee,
+   Boxes,
+   AlertTriangle,
+   XCircle,
+   CheckCircle2,
+-  Upload,
+   Save,
+ } from "lucide-react";
++import { adminFetch, imageUrl, money } from "./api";
+ import "../Admincss/AdminProducts.css";
+ 
+-const initialProducts = [
+-  {
+-    id: "PRD-001",
+-    sku: "G-01",
+-    name: "Air Pods Pro",
+-    category: "Audio",
+-    price: 3499,
+-    compareAt: 4299,
+-    stock: 24,
+-    status: "Active",
+-    image:
+-      "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=500&q=85",
+-    description: "Premium sound. Zero distractions.",
+-  },
+-  {
+-    id: "PRD-002",
+-    sku: "G-02",
+-    name: "Power Core",
+-    category: "Power",
+-    price: 1999,
+-    compareAt: 2499,
+-    stock: 7,
+-    status: "Active",
+-    image:
+-      "https://images.unsplash.com/photo-1609592424758-3a1f3a9f6f17?w=500&q=85",
+-    description: "High capacity. All day power.",
+-  },
+-  {
+-    id: "PRD-003",
+-    sku: "G-04",
+-    name: "Smart Watch",
+-    category: "Wearables",
+-    price: 5999,
+-    compareAt: 6999,
+-    stock: 3,
+-    status: "Active",
+-    image:
+-      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=85",
+-    description: "Stay connected. Stay ahead.",
+-  },
+-  {
+-    id: "PRD-004",
+-    sku: "G-05",
+-    name: "Studio Headphones",
+-    category: "Audio",
+-    price: 4499,
+-    compareAt: 0,
+-    stock: 0,
+-    status: "Out of stock",
+-    image:
+-      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=85",
+-    description: "Immersive audio for every day.",
+-  },
+-];
+-
+ const emptyForm = {
+   name: "",
+   sku: "",
+   category: "Audio",
+   price: "",
+-  compareAt: "",
++  compareAtPrice: "",
+   stock: "",
+-  status: "Active",
+-  image: "",
++  status: "active",
++  images: [],
++  label: "",
+   description: "",
++  colors: "",
++  features: "",
+ };
+ 
+-const money = (value) =>
+-  `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
++// Shrinks a photo in the browser (max 1600px, JPEG) so uploads are quick.
++function shrinkImage(file) {
++  return new Promise((resolve, reject) => {
++    const img = new Image();
++    img.onload = () => {
++      const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
++      const canvas = document.createElement("canvas");
++      canvas.width = Math.round(img.width * scale);
++      canvas.height = Math.round(img.height * scale);
++      const ctx = canvas.getContext("2d");
++      ctx.fillStyle = "#ffffff";
++      ctx.fillRect(0, 0, canvas.width, canvas.height);
++      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
++      URL.revokeObjectURL(img.src);
++      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Could not read image."))), "image/jpeg", 0.85);
++    };
++    img.onerror = () => reject(new Error("That file isn't a readable image."));
++    img.src = URL.createObjectURL(file);
++  });
++}
++
++const displayStatus = (product) =>
++  product.status === "draft" ? "Draft" : product.stock === 0 ? "Out of stock" : "Active";
+ 
+ const AdminProducts = () => {
+-  const [products, setProducts] = useState(initialProducts);
++  const [products, setProducts] = useState([]);
++  const [categories, setCategories] = useState(["Audio"]);
++  const [threshold, setThreshold] = useState(5);
++  const [loading, setLoading] = useState(true);
++  const [pageError, setPageError] = useState("");
+   const [query, setQuery] = useState("");
+   const [categoryFilter, setCategoryFilter] = useState("All categories");
+   const [statusFilter, setStatusFilter] = useState("All status");
+@@ -100,77 +72,67 @@ const AdminProducts = () => {
+   const [editingId, setEditingId] = useState(null);
+   const [viewProduct, setViewProduct] = useState(null);
+   const [form, setForm] = useState(emptyForm);
+-  const [imagePreview, setImagePreview] = useState("");
+   const [formError, setFormError] = useState("");
++  const [saving, setSaving] = useState(false);
++  const [uploading, setUploading] = useState(false);
+   const fileInputRef = useRef(null);
+ 
+-  const totalStock = products.reduce(
+-    (sum, product) => sum + Number(product.stock || 0),
+-    0,
+-  );
+-  const lowStock = products.filter(
+-    (product) => Number(product.stock) > 0 && Number(product.stock) <= 7,
+-  ).length;
+-  const outOfStock = products.filter(
+-    (product) => Number(product.stock) === 0,
+-  ).length;
+-  const inventoryValue = products.reduce(
+-    (sum, product) =>
+-      sum + Number(product.price || 0) * Number(product.stock || 0),
+-    0,
+-  );
++  const load = useCallback(async () => {
++    try {
++      const data = await adminFetch("/products");
++      setProducts(data.products);
++      setCategories(data.categories);
++      setThreshold(data.lowStockThreshold);
++      setPageError("");
++    } catch (err) {
++      setPageError(err.message);
++    } finally {
++      setLoading(false);
++    }
++  }, []);
+ 
+-  const categories = useMemo(
+-    () => [
+-      "All categories",
+-      ...new Set(products.map((product) => product.category).filter(Boolean)),
+-    ],
+-    [products],
+-  );
++  useEffect(() => {
++    load();
++  }, [load]);
++
++  const totalStock = products.reduce((sum, p) => sum + p.stock, 0);
++  const lowStock = products.filter((p) => p.stock > 0 && p.stock <= threshold).length;
++  const outOfStock = products.filter((p) => p.stock === 0).length;
++  const inventoryValue = products.reduce((sum, p) => sum + p.price * p.stock, 0);
+ 
+   const filteredProducts = useMemo(() => {
+     const searchText = query.trim().toLowerCase();
+     return products.filter((product) => {
+-      const matchesSearch = [
+-        product.name,
+-        product.sku,
+-        product.category,
+-        product.id,
+-      ]
+-        .join(" ")
+-        .toLowerCase()
+-        .includes(searchText);
+-      const matchesCategory =
+-        categoryFilter === "All categories" ||
+-        product.category === categoryFilter;
+-      const matchesStatus =
+-        statusFilter === "All status" || product.status === statusFilter;
++      const matchesSearch = [product.name, product.sku, product.category].join(" ").toLowerCase().includes(searchText);
++      const matchesCategory = categoryFilter === "All categories" || product.category === categoryFilter;
++      const matchesStatus = statusFilter === "All status" || displayStatus(product) === statusFilter;
+       return matchesSearch && matchesCategory && matchesStatus;
+     });
+   }, [products, query, categoryFilter, statusFilter]);
+ 
+   const openAddModal = () => {
+     setEditingId(null);
+-    setForm(emptyForm);
+-    setImagePreview("");
++    setForm({ ...emptyForm, category: categories[0] || "Audio" });
+     setFormError("");
+     setModalOpen(true);
+   };
+ 
+   const openEditModal = (product) => {
+-    setEditingId(product.id);
++    setEditingId(product._id);
+     setForm({
+-      name: product.name || "",
+-      sku: product.sku || "",
+-      category: product.category || "Audio",
+-      price: String(product.price ?? ""),
+-      compareAt: String(product.compareAt ?? ""),
+-      stock: String(product.stock ?? ""),
+-      status: product.status || "Active",
+-      image: product.image || "",
++      name: product.name,
++      sku: product.sku,
++      category: product.category,
++      price: String(product.price),
++      compareAtPrice: product.compareAtPrice ? String(product.compareAtPrice) : "",
++      stock: String(product.stock),
++      status: product.status,
++      images: product.images || [],
++      label: product.label || "",
+       description: product.description || "",
++      colors: (product.colors || []).join(", "),
++      features: (product.features || []).join("\n"),
+     });
+-    setImagePreview(product.image || "");
+     setFormError("");
+     setModalOpen(true);
+   };
+@@ -180,99 +142,85 @@ const AdminProducts = () => {
+     setForm((current) => ({ ...current, [name]: value }));
+   };
+ 
+-  const handleImage = (event) => {
++  const handleImage = async (event) => {
+     const file = event.target.files?.[0];
++    event.target.value = "";
+     if (!file) return;
+-    if (!file.type.startsWith("image/")) {
+-      setFormError("Please choose an image file.");
+-      return;
++    if (!file.type.startsWith("image/")) return setFormError("Please choose an image file.");
++
++    setUploading(true);
++    setFormError("");
++    try {
++      const blob = await shrinkImage(file);
++      const body = new FormData();
++      body.append("image", blob, "product.jpg");
++      const { url } = await adminFetch("/media", { method: "POST", body });
++      setForm((current) => ({ ...current, images: [...current.images, url].slice(0, 8) }));
++    } catch (err) {
++      setFormError(err.message);
++    } finally {
++      setUploading(false);
+     }
+-    const reader = new FileReader();
+-    reader.onload = () => {
+-      setImagePreview(String(reader.result));
+-      setForm((current) => ({ ...current, image: String(reader.result) }));
+-      setFormError("");
+-    };
+-    reader.readAsDataURL(file);
+   };
+ 
+-  const saveProduct = (event) => {
++  const removeImage = (url) =>
++    setForm((current) => ({ ...current, images: current.images.filter((image) => image !== url) }));
++
++  const saveProduct = async (event) => {
+     event.preventDefault();
+-    if (
+-      !form.name.trim() ||
+-      !form.sku.trim() ||
+-      form.price === "" ||
+-      form.stock === ""
+-    ) {
+-      setFormError("Please complete product name, SKU, price and stock.");
+-      return;
+-    }
+-    if (Number(form.price) < 0 || Number(form.stock) < 0) {
+-      setFormError("Price and stock cannot be negative.");
+-      return;
++    if (!form.name.trim() || form.price === "" || form.stock === "") {
++      return setFormError("Please fill in the product name, price and stock.");
+     }
+ 
+-    const product = {
+-      ...form,
++    const description = form.description.trim();
++    const body = {
+       name: form.name.trim(),
+-      sku: form.sku.trim(),
++      category: form.category,
+       price: Number(form.price),
+-      compareAt: Number(form.compareAt || 0),
++      compareAtPrice: form.compareAtPrice === "" ? 0 : Number(form.compareAtPrice),
+       stock: Number(form.stock),
+-      status: Number(form.stock) === 0 ? "Out of stock" : form.status,
+-      id: editingId || `PRD-${String(Date.now()).slice(-6)}`,
+-      image: form.image || imagePreview || "",
++      status: form.status,
++      images: form.images,
++      label: form.label.trim(),
++      description,
++      shortDescription: description.split("\n")[0].slice(0, 160),
++      colors: form.colors,
++      features: form.features,
+     };
++    if (form.sku.trim()) body.sku = form.sku.trim();
+ 
+-    if (editingId) {
+-      setProducts((current) =>
+-        current.map((item) => (item.id === editingId ? product : item)),
+-      );
+-    } else {
+-      setProducts((current) => [product, ...current]);
++    setSaving(true);
++    setFormError("");
++    try {
++      if (editingId) await adminFetch(`/products/${editingId}`, { method: "PATCH", body });
++      else await adminFetch("/products", { method: "POST", body });
++      setModalOpen(false);
++      load();
++    } catch (err) {
++      setFormError(err.message);
++    } finally {
++      setSaving(false);
+     }
+-    setModalOpen(false);
+   };
+ 
+-  const deleteProduct = (product) => {
+-    const confirmed = window.confirm(
+-      `Delete "${product.name}" from this product list?`,
+-    );
+-    if (!confirmed) return;
+-    setProducts((current) => current.filter((item) => item.id !== product.id));
+-    if (viewProduct?.id === product.id) setViewProduct(null);
++  const deleteProduct = async (product) => {
++    if (!window.confirm(`Delete "${product.name}"? Past orders are not affected.`)) return;
++    try {
++      await adminFetch(`/products/${product._id}`, { method: "DELETE" });
++      if (viewProduct?._id === product._id) setViewProduct(null);
++      load();
++    } catch (err) {
++      alert(err.message);
++    }
+   };
+ 
+   const exportProducts = () => {
+-    const headers = [
+-      "Product ID",
+-      "Name",
+-      "SKU",
+-      "Category",
+-      "Price",
+-      "Compare at price",
+-      "Stock",
+-      "Status",
++    const rows = [
++      ["Name", "SKU", "Category", "Price", "Compare at price", "Stock", "Status"],
++      ...filteredProducts.map((p) => [p.name, p.sku, p.category, p.price, p.compareAtPrice, p.stock, displayStatus(p)]),
+     ];
+-    const rows = filteredProducts.map((product) => [
+-      product.id,
+-      product.name,
+-      product.sku,
+-      product.category,
+-      product.price,
+-      product.compareAt,
+-      product.stock,
+-      product.status,
+-    ]);
+-    const csv = [headers, ...rows]
+-      .map((row) =>
+-        row
+-          .map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`)
+-          .join(","),
+-      )
+-      .join("\n");
+-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+-    const url = URL.createObjectURL(blob);
++    const csv = rows.map((row) => row.map((v) => `"${String(v ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
++    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+     const anchor = document.createElement("a");
+     anchor.href = url;
+     anchor.download = "gadgete-products.csv";
+@@ -284,29 +232,15 @@ const AdminProducts = () => {
+     <div className="gad-products-page">
+       <header className="gad-products-header">
+         <div>
+-          <span className="gad-products-eyebrow">
+-            GADGETÉ / CATALOGUE CONTROL
+-          </span>
+-          <h1>
+-            PRODUCTS<span>.</span>
+-          </h1>
+-          <p>
+-            Add products, manage pricing, update images and keep stock in check.
+-          </p>
++          <span className="gad-products-eyebrow">GADGETÉ / CATALOGUE CONTROL</span>
++          <h1>PRODUCTS<span>.</span></h1>
++          <p>Add products, manage pricing, update images and keep stock in check.</p>
+         </div>
+         <div className="gad-products-header-actions">
+-          <button
+-            type="button"
+-            className="gad-products-export"
+-            onClick={exportProducts}
+-          >
++          <button type="button" className="gad-products-export" onClick={exportProducts}>
+             <Download size={15} /> EXPORT
+           </button>
+-          <button
+-            type="button"
+-            className="gad-products-add"
+-            onClick={openAddModal}
+-          >
++          <button type="button" className="gad-products-add" onClick={openAddModal}>
+             <Plus size={17} /> ADD PRODUCT
+           </button>
+         </div>
+@@ -314,33 +248,25 @@ const AdminProducts = () => {
+ 
+       <section className="gad-products-stats">
+         <article className="gad-product-stat-card">
+-          <span className="gad-product-stat-icon">
+-            <Package size={19} />
+-          </span>
++          <span className="gad-product-stat-icon"><Package size={19} /></span>
+           <small>TOTAL PRODUCTS</small>
+           <strong>{products.length}</strong>
+           <em>Products in catalogue</em>
+         </article>
+         <article className="gad-product-stat-card">
+-          <span className="gad-product-stat-icon">
+-            <Boxes size={19} />
+-          </span>
++          <span className="gad-product-stat-icon"><Boxes size={19} /></span>
+           <small>TOTAL STOCK UNITS</small>
+           <strong>{totalStock.toLocaleString("en-IN")}</strong>
+           <em>Units currently in stock</em>
+         </article>
+         <article className="gad-product-stat-card">
+-          <span className="gad-product-stat-icon warning">
+-            <AlertTriangle size={19} />
+-          </span>
++          <span className="gad-product-stat-icon warning"><AlertTriangle size={19} /></span>
+           <small>LOW STOCK</small>
+           <strong>{lowStock}</strong>
+-          <em>7 units or fewer</em>
++          <em>{threshold} units or fewer</em>
+         </article>
+         <article className="gad-product-stat-card">
+-          <span className="gad-product-stat-icon danger">
+-            <XCircle size={19} />
+-          </span>
++          <span className="gad-product-stat-icon danger"><XCircle size={19} /></span>
+           <small>OUT OF STOCK</small>
+           <strong>{outOfStock}</strong>
+           <em>Needs restocking</em>
+@@ -351,9 +277,7 @@ const AdminProducts = () => {
+         <div className="gad-products-panel-heading">
+           <div>
+             <span className="gad-products-eyebrow">YOUR INVENTORY</span>
+-            <h2>
+-              ALL <span>PRODUCTS.</span>
+-            </h2>
++            <h2>ALL <span>PRODUCTS.</span></h2>
+             <p>Manage every item available in your GADGETÉ store.</p>
+           </div>
+           <div className="gad-products-inventory-value">
+@@ -365,39 +289,21 @@ const AdminProducts = () => {
+         <div className="gad-products-toolbar">
+           <label className="gad-products-search">
+             <Search size={16} />
+-            <input
+-              type="search"
+-              placeholder="Search product, SKU or category..."
+-              value={query}
+-              onChange={(event) => setQuery(event.target.value)}
+-            />
++            <input type="search" placeholder="Search product, SKU or category..." value={query} onChange={(e) => setQuery(e.target.value)} />
+             {query && (
+-              <button
+-                type="button"
+-                onClick={() => setQuery("")}
+-                aria-label="Clear search"
+-              >
+-                <X size={14} />
+-              </button>
++              <button type="button" onClick={() => setQuery("")} aria-label="Clear search"><X size={14} /></button>
+             )}
+           </label>
+           <label className="gad-products-filter">
+             <SlidersHorizontal size={14} />
+-            <select
+-              value={categoryFilter}
+-              onChange={(event) => setCategoryFilter(event.target.value)}
+-            >
+-              {categories.map((category) => (
+-                <option key={category}>{category}</option>
+-              ))}
++            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
++              <option>All categories</option>
++              {categories.map((category) => <option key={category}>{category}</option>)}
+             </select>
+             <ChevronDown size={13} />
+           </label>
+           <label className="gad-products-filter">
+-            <select
+-              value={statusFilter}
+-              onChange={(event) => setStatusFilter(event.target.value)}
+-            >
++            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+               <option>All status</option>
+               <option>Active</option>
+               <option>Out of stock</option>
+@@ -407,6 +313,8 @@ const AdminProducts = () => {
+           </label>
+         </div>
+ 
++        {pageError && <p className="gad-product-form-error">{pageError}</p>}
++
+         <div className="gad-products-table-wrap">
+           <table className="gad-products-table">
+             <thead>
+@@ -420,331 +328,168 @@ const AdminProducts = () => {
+               </tr>
+             </thead>
+             <tbody>
+-              {filteredProducts.map((product) => (
+-                <tr key={product.id}>
+-                  <td>
+-                    <div className="gad-product-name-cell">
+-                      <img
+-                        src={product.image || ""}
+-                        alt={product.name}
+-                        onError={(event) => {
+-                          event.currentTarget.style.visibility = "hidden";
+-                        }}
+-                      />
+-                      <span>
+-                        <strong>{product.name}</strong>
+-                        <small>{product.id}</small>
++              {filteredProducts.map((product) => {
++                const status = displayStatus(product);
++                return (
++                  <tr key={product._id}>
++                    <td>
++                      <div className="gad-product-name-cell">
++                        {product.images[0] ? (
++                          <img src={imageUrl(product.images[0])} alt={product.name} />
++                        ) : (
++                          <span style={{ width: 46, height: 46, display: "grid", placeItems: "center" }}><Package size={20} /></span>
++                        )}
++                        <span>
++                          <strong>{product.name}</strong>
++                          <small>/{product.slug}</small>
++                        </span>
++                      </div>
++                    </td>
++                    <td>
++                      <span className="gad-product-sku">{product.sku}</span>
++                      <small className="gad-product-category">{product.category}</small>
++                    </td>
++                    <td>
++                      <strong className="gad-product-price">{money(product.price)}</strong>
++                      {product.compareAtPrice > product.price && (
++                        <small className="gad-product-compare">{money(product.compareAtPrice)}</small>
++                      )}
++                    </td>
++                    <td>
++                      <span className={`gad-product-stock ${product.stock === 0 ? "empty" : product.stock <= threshold ? "low" : ""}`}>
++                        {product.stock} units
+                       </span>
+-                    </div>
+-                  </td>
+-                  <td>
+-                    <span className="gad-product-sku">{product.sku}</span>
+-                    <small className="gad-product-category">
+-                      {product.category}
+-                    </small>
+-                  </td>
+-                  <td>
+-                    <strong className="gad-product-price">
+-                      {money(product.price)}
+-                    </strong>
+-                    {product.compareAt > product.price && (
+-                      <small className="gad-product-compare">
+-                        {money(product.compareAt)}
+-                      </small>
+-                    )}
+-                  </td>
+-                  <td>
+-                    <span
+-                      className={`gad-product-stock ${product.stock === 0 ? "empty" : product.stock <= 7 ? "low" : ""}`}
+-                    >
+-                      {product.stock} units
+-                    </span>
+-                  </td>
+-                  <td>
+-                    <span
+-                      className={`gad-product-status ${product.status.toLowerCase().replaceAll(" ", "-")}`}
+-                    >
+-                      {product.status}
+-                    </span>
+-                  </td>
+-                  <td>
+-                    <div className="gad-product-actions">
+-                      <button
+-                        type="button"
+-                        onClick={() => setViewProduct(product)}
+-                        title="View product"
+-                        aria-label="View product"
+-                      >
+-                        <Eye size={15} />
+-                      </button>
+-                      <button
+-                        type="button"
+-                        onClick={() => openEditModal(product)}
+-                        title="Edit product"
+-                        aria-label="Edit product"
+-                      >
+-                        <Pencil size={15} />
+-                      </button>
+-                      <button
+-                        type="button"
+-                        className="delete"
+-                        onClick={() => deleteProduct(product)}
+-                        title="Delete product"
+-                        aria-label="Delete product"
+-                      >
+-                        <Trash2 size={15} />
+-                      </button>
+-                    </div>
+-                  </td>
+-                </tr>
+-              ))}
++                    </td>
++                    <td>
++                      <span className={`gad-product-status ${status.toLowerCase().replaceAll(" ", "-")}`}>{status}</span>
++                    </td>
++                    <td>
++                      <div className="gad-product-actions">
++                        <button type="button" onClick={() => setViewProduct(product)} title="View product" aria-label="View product"><Eye size={15} /></button>
++                        <button type="button" onClick={() => openEditModal(product)} title="Edit product" aria-label="Edit product"><Pencil size={15} /></button>
++                        <button type="button" className="delete" onClick={() => deleteProduct(product)} title="Delete product" aria-label="Delete product"><Trash2 size={15} /></button>
++                      </div>
++                    </td>
++                  </tr>
++                );
++              })}
+             </tbody>
+           </table>
+-          {filteredProducts.length === 0 && (
++          {!loading && filteredProducts.length === 0 && (
+             <div className="gad-products-empty">
+               <Package size={28} />
+               <strong>No products found</strong>
+               <span>Try another search or add a new product.</span>
+             </div>
+           )}
++          {loading && <div className="gad-products-empty"><strong>Loading products…</strong></div>}
+         </div>
+         <footer className="gad-products-table-footer">
+-          <span>
+-            Showing <strong>{filteredProducts.length}</strong> of{" "}
+-            <strong>{products.length}</strong> products
+-          </span>
++          <span>Showing <strong>{filteredProducts.length}</strong> of <strong>{products.length}</strong> products</span>
+           <span>GADGETÉ® PRODUCT CATALOGUE</span>
+         </footer>
+       </section>
+ 
+       {(modalOpen || viewProduct) && (
+-        <div
+-          className="gad-product-modal-backdrop"
+-          onMouseDown={() => {
+-            setModalOpen(false);
+-            setViewProduct(null);
+-          }}
+-        >
++        <div className="gad-product-modal-backdrop" onMouseDown={() => { setModalOpen(false); setViewProduct(null); }}>
+           {modalOpen ? (
+-            <section
+-              className="gad-product-modal"
+-              onMouseDown={(event) => event.stopPropagation()}
+-            >
++            <section className="gad-product-modal" onMouseDown={(e) => e.stopPropagation()}>
+               <header className="gad-product-modal-header">
+                 <div>
+-                  <span className="gad-products-eyebrow">
+-                    {editingId ? "UPDATE CATALOGUE ITEM" : "NEW CATALOGUE ITEM"}
+-                  </span>
+-                  <h2>
+-                    {editingId ? "EDIT PRODUCT" : "ADD PRODUCT"}
+-                    <span>.</span>
+-                  </h2>
++                  <span className="gad-products-eyebrow">{editingId ? "UPDATE CATALOGUE ITEM" : "NEW CATALOGUE ITEM"}</span>
++                  <h2>{editingId ? "EDIT PRODUCT" : "ADD PRODUCT"}<span>.</span></h2>
+                 </div>
+-                <button
+-                  type="button"
+-                  onClick={() => setModalOpen(false)}
+-                  aria-label="Close"
+-                >
+-                  <X size={20} />
+-                </button>
++                <button type="button" onClick={() => setModalOpen(false)} aria-label="Close"><X size={20} /></button>
+               </header>
+ 
+               <form className="gad-product-form" onSubmit={saveProduct}>
+                 <div className="gad-product-form-grid">
+-                  <label className="gad-product-image-field">
+-                    <span>PRODUCT IMAGE</span>
+-                    <button
+-                      type="button"
+-                      className="gad-product-image-picker"
+-                      onClick={() => fileInputRef.current?.click()}
+-                    >
+-                      {imagePreview ? (
+-                        <img src={imagePreview} alt="Product preview" />
++                  <div className="gad-product-image-field">
++                    <span>PRODUCT IMAGES ({form.images.length}/8)</span>
++                    <button type="button" className="gad-product-image-picker" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
++                      {form.images[0] ? (
++                        <img src={imageUrl(form.images[0])} alt="Main product" />
+                       ) : (
+                         <>
+                           <ImagePlus size={27} />
+-                          <b>UPLOAD IMAGE</b>
+-                          <small>Choose an image from your device</small>
++                          <b>{uploading ? "UPLOADING…" : "UPLOAD IMAGE"}</b>
++                          <small>JPG, PNG or WebP</small>
+                         </>
+                       )}
+                     </button>
+-                    <input
+-                      ref={fileInputRef}
+-                      type="file"
+-                      accept="image/*"
+-                      onChange={handleImage}
+-                      hidden
+-                    />
+-                    {imagePreview && (
+-                      <button
+-                        type="button"
+-                        className="gad-product-remove-image"
+-                        onClick={() => {
+-                          setImagePreview("");
+-                          setForm((current) => ({ ...current, image: "" }));
+-                        }}
+-                      >
+-                        REMOVE IMAGE
+-                      </button>
++                    <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImage} hidden />
++                    {form.images.length > 0 && (
++                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
++                        {form.images.map((url) => (
++                          <span key={url} style={{ position: "relative" }}>
++                            <img src={imageUrl(url)} alt="" style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 6 }} />
++                            <button type="button" onClick={() => removeImage(url)} aria-label="Remove image"
++                              style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", border: 0, background: "#c0392b", color: "#fff", fontSize: 12 }}>×</button>
++                          </span>
++                        ))}
++                        <button type="button" className="gad-product-remove-image" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
++                          {uploading ? "UPLOADING…" : "+ ADD"}
++                        </button>
++                      </div>
+                     )}
+-                  </label>
++                  </div>
+ 
+                   <div className="gad-product-fields">
+-                    <label>
+-                      PRODUCT NAME *
+-                      <input
+-                        name="name"
+-                        value={form.name}
+-                        onChange={updateField}
+-                        placeholder="e.g. Air Pods Pro"
+-                      />
+-                    </label>
+-                    <label>
+-                      SKU *
+-                      <input
+-                        name="sku"
+-                        value={form.sku}
+-                        onChange={updateField}
+-                        placeholder="e.g. G-01"
+-                      />
+-                    </label>
++                    <label>PRODUCT NAME *<input name="name" value={form.name} onChange={updateField} placeholder="e.g. Air Pods Pro" /></label>
++                    <label>SKU<input name="sku" value={form.sku} onChange={updateField} placeholder="Leave empty to auto-generate" /></label>
+                     <label>
+                       CATEGORY
+-                      <select
+-                        name="category"
+-                        value={form.category}
+-                        onChange={updateField}
+-                      >
+-                        <option>Audio</option>
+-                        <option>Power</option>
+-                        <option>Wearables</option>
+-                        <option>Accessories</option>
+-                        <option>Smart Home</option>
+-                        <option>Other</option>
++                      <select name="category" value={form.category} onChange={updateField}>
++                        {categories.map((category) => <option key={category}>{category}</option>)}
+                       </select>
+                     </label>
+-                    <label>
+-                      DESCRIPTION
+-                      <textarea
+-                        name="description"
+-                        value={form.description}
+-                        onChange={updateField}
+-                        placeholder="Short product description..."
+-                        rows="3"
+-                      />
+-                    </label>
++                    <label>TAGLINE<input name="label" value={form.label} onChange={updateField} placeholder="e.g. SOUND WITHOUT LIMITS" /></label>
++                    <label>DESCRIPTION<textarea name="description" value={form.description} onChange={updateField} placeholder="First line is used as the short description" rows="3" /></label>
+                   </div>
+                 </div>
+ 
+                 <div className="gad-product-form-grid three">
++                  <label>SELLING PRICE (₹) *<input type="number" min="0" step="1" name="price" value={form.price} onChange={updateField} placeholder="3499" /></label>
++                  <label>COMPARE AT PRICE (₹)<input type="number" min="0" step="1" name="compareAtPrice" value={form.compareAtPrice} onChange={updateField} placeholder="4999" /></label>
++                  <label>STOCK QUANTITY *<input type="number" min="0" step="1" name="stock" value={form.stock} onChange={updateField} placeholder="25" /></label>
++                </div>
++
++                <div className="gad-product-form-grid three">
++                  <label>COLOURS<input name="colors" value={form.colors} onChange={updateField} placeholder="Black, White, Blue" /></label>
++                  <label>FEATURES (one per line)<textarea name="features" value={form.features} onChange={updateField} rows="2" /></label>
+                   <label>
+-                    SELLING PRICE (₹) *
+-                    <input
+-                      type="number"
+-                      min="0"
+-                      step="1"
+-                      name="price"
+-                      value={form.price}
+-                      onChange={updateField}
+-                      placeholder="3499"
+-                    />
+-                  </label>
+-                  <label>
+-                    COMPARE AT PRICE (₹)
+-                    <input
+-                      type="number"
+-                      min="0"
+-                      step="1"
+-                      name="compareAt"
+-                      value={form.compareAt}
+-                      onChange={updateField}
+-                      placeholder="4299"
+-                    />
+-                  </label>
+-                  <label>
+-                    STOCK QUANTITY *
+-                    <input
+-                      type="number"
+-                      min="0"
+-                      step="1"
+-                      name="stock"
+-                      value={form.stock}
+-                      onChange={updateField}
+-                      placeholder="25"
+-                    />
++                    PRODUCT STATUS
++                    <select name="status" value={form.status} onChange={updateField}>
++                      <option value="active">Active (shown in shop)</option>
++                      <option value="draft">Draft (hidden)</option>
++                    </select>
+                   </label>
+                 </div>
+ 
+-                <label className="gad-product-status-field">
+-                  PRODUCT STATUS
+-                  <select
+-                    name="status"
+-                    value={form.status}
+-                    onChange={updateField}
+-                  >
+-                    <option>Active</option>
+-                    <option>Draft</option>
+-                    <option>Out of stock</option>
+-                  </select>
+-                </label>
+-
+-                {formError && (
+-                  <p className="gad-product-form-error">{formError}</p>
+-                )}
++                {formError && <p className="gad-product-form-error">{formError}</p>}
+                 <div className="gad-product-form-actions">
+-                  <button
+-                    type="button"
+-                    className="secondary"
+-                    onClick={() => setModalOpen(false)}
+-                  >
+-                    CANCEL
+-                  </button>
+-                  <button type="submit" className="primary">
+-                    <Save size={15} />{" "}
+-                    {editingId ? "SAVE CHANGES" : "ADD PRODUCT"}
++                  <button type="button" className="secondary" onClick={() => setModalOpen(false)}>CANCEL</button>
++                  <button type="submit" className="primary" disabled={saving || uploading}>
++                    <Save size={15} /> {saving ? "SAVING…" : editingId ? "SAVE CHANGES" : "ADD PRODUCT"}
+                   </button>
+                 </div>
+               </form>
+             </section>
+           ) : (
+-            <section
+-              className="gad-product-view-modal"
+-              onMouseDown={(event) => event.stopPropagation()}
+-            >
+-              <button
+-                type="button"
+-                className="gad-product-view-close"
+-                onClick={() => setViewProduct(null)}
+-                aria-label="Close"
+-              >
+-                <X size={20} />
+-              </button>
+-              <img src={viewProduct.image} alt={viewProduct.name} />
++            <section className="gad-product-view-modal" onMouseDown={(e) => e.stopPropagation()}>
++              <button type="button" className="gad-product-view-close" onClick={() => setViewProduct(null)} aria-label="Close"><X size={20} /></button>
++              {viewProduct.images[0] ? <img src={imageUrl(viewProduct.images[0])} alt={viewProduct.name} /> : <Package size={80} />}
+               <div className="gad-product-view-copy">
+-                <span className="gad-products-eyebrow">
+-                  {viewProduct.category} / {viewProduct.sku}
+-                </span>
++                <span className="gad-products-eyebrow">{viewProduct.category} / {viewProduct.sku}</span>
+                 <h2>{viewProduct.name}</h2>
+                 <p>{viewProduct.description}</p>
+                 <strong>{money(viewProduct.price)}</strong>
+-                {viewProduct.compareAt > viewProduct.price && (
+-                  <del>{money(viewProduct.compareAt)}</del>
+-                )}
++                {viewProduct.compareAtPrice > viewProduct.price && <del>{money(viewProduct.compareAtPrice)}</del>}
+                 <div className="gad-product-view-meta">
+-                  <span>
+-                    STOCK: <b>{viewProduct.stock}</b>
+-                  </span>
+-                  <span>
+-                    STATUS: <b>{viewProduct.status}</b>
+-                  </span>
++                  <span>STOCK: <b>{viewProduct.stock}</b></span>
++                  <span>STATUS: <b>{displayStatus(viewProduct)}</b></span>
+                 </div>
+-                <button
+-                  type="button"
+-                  onClick={() => {
+-                    setViewProduct(null);
+-                    openEditModal(viewProduct);
+-                  }}
+-                >
++                <button type="button" onClick={() => { setViewProduct(null); openEditModal(viewProduct); }}>
+                   <Pencil size={15} /> EDIT PRODUCT
+                 </button>
+               </div>
+@@ -755,8 +500,7 @@ const AdminProducts = () => {
+ 
+       <div className="gad-products-note">
+         <CheckCircle2 size={14} />
+-        Product changes in this preview are held in page state. Connect your
+-        products API to save them permanently.
++        Changes are saved to the database and appear in the shop straight away.
+       </div>
+     </div>
+   );
+diff --git a/frontend/src/Admin/AdminSidebar.jsx b/frontend/src/Admin/AdminSidebar.jsx
+index 770fa70..89d1a46 100644
+--- a/frontend/src/Admin/AdminSidebar.jsx
++++ b/frontend/src/Admin/AdminSidebar.jsx
+@@ -13,6 +13,7 @@ import {
+   LogOut,
+ } from "lucide-react";
+ 
++import { adminFetch, logout } from "./api";
+ import "../Admincss/AdminSidebar.css";
+ 
+ const AdminSidebar = () => {
+@@ -21,6 +22,24 @@ const AdminSidebar = () => {
+   });
+ 
+   const [mobileOpen, setMobileOpen] = useState(false);
++  const [unread, setUnread] = useState(0);
++
++  // Live count of new (unopened) orders, refreshed every 30 seconds.
++  useEffect(() => {
++    let alive = true;
++    const load = () =>
++      adminFetch("/notifications")
++        .then((data) => alive && setUnread(data.unread))
++        .catch(() => {});
++    load();
++    const timer = setInterval(load, 30000);
++    window.addEventListener("gadgete-admin-refresh", load);
++    return () => {
++      alive = false;
++      clearInterval(timer);
++      window.removeEventListener("gadgete-admin-refresh", load);
++    };
++  }, []);
+ 
+   // APPLY THEME
+   useEffect(() => {
+@@ -122,9 +141,9 @@ const AdminSidebar = () => {
+ 
+                 <span>{item.name}</span>
+ 
+-                {item.name === "Orders" && (
++                {item.name === "Orders" && unread > 0 && (
+                   <span className="gad-sidebar-order-badge">
+-                    {/* Replace with live unread order count */}0
++                    {unread > 99 ? "99+" : unread}
+                   </span>
+                 )}
+               </NavLink>
+@@ -169,10 +188,7 @@ const AdminSidebar = () => {
+               type="button"
+               className="gad-admin-logout"
+               title="Logout"
+-              onClick={() => {
+-                // Connect your existing admin logout logic here.
+-                console.log("Admin logout clicked");
+-              }}
++              onClick={logout}
+             >
+               <LogOut size={17} />
+             </button>
+diff --git a/frontend/src/Admin/api.js b/frontend/src/Admin/api.js
+new file mode 100644
+index 0000000..ef62e3f
+--- /dev/null
++++ b/frontend/src/Admin/api.js
+@@ -0,0 +1,111 @@
++// Talks to the backend's /api/admin endpoints.
++export const API = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
++
++const TOKEN_KEY = "gadgete_admin_token";
++
++export const getToken = () => localStorage.getItem(TOKEN_KEY) || "";
++export const setToken = (token) => localStorage.setItem(TOKEN_KEY, token);
++
++export function logout() {
++  localStorage.removeItem(TOKEN_KEY);
++  window.location.href = "/admin/login";
++}
++
++// fetch wrapper: adds the login token, sends JSON, logs out when the session expires.
++export async function adminFetch(path, { body, ...options } = {}) {
++  const isForm = body instanceof FormData;
++
++  const response = await fetch(`${API}/admin${path}`, {
++    ...options,
++    headers: {
++      ...(body && !isForm ? { "Content-Type": "application/json" } : {}),
++      Authorization: `Bearer ${getToken()}`,
++    },
++    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
++  });
++
++  if (response.status === 401 && path !== "/login") {
++    logout();
++    throw new Error("Your session has expired. Please log in again.");
++  }
++
++  if (response.status === 204) return null;
++
++  const data = await response.json().catch(() => ({}));
++  if (!response.ok) throw new Error(data.message || "Something went wrong. Please try again.");
++  return data;
++}
++
++// Downloads a CSV export (needs the token, so a plain link won't work).
++export async function adminDownload(path, filename) {
++  const response = await fetch(`${API}/admin${path}`, {
++    headers: { Authorization: `Bearer ${getToken()}` },
++  });
++  if (!response.ok) throw new Error("Export failed. Please try again.");
++
++  const url = URL.createObjectURL(await response.blob());
++  const anchor = document.createElement("a");
++  anchor.href = url;
++  anchor.download = filename;
++  anchor.click();
++  URL.revokeObjectURL(url);
++}
++
++// "/api/media/…" works as-is unless the API lives on another domain.
++export function imageUrl(path) {
++  if (!path) return "";
++  if (/^https?:\/\//i.test(path)) return path;
++  if (/^https?:\/\//i.test(API)) return `${new URL(API).origin}${path}`;
++  return path;
++}
++
++export const money = (value) =>
++  `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
++
++export const STATUS_OPTIONS = [
++  ["pending", "Pending"],
++  ["processing", "Processing"],
++  ["shipped", "Shipped"],
++  ["out_for_delivery", "Out for delivery"],
++  ["delivered", "Delivered"],
++  ["cancelled", "Cancelled"],
++];
++
++const LABELS = {
++  ...Object.fromEntries(STATUS_OPTIONS),
++  awaiting_payment: "Awaiting payment",
++  expired: "Payment not completed",
++};
++
++export const statusLabel = (status) => LABELS[status] || status;
++// CSS class used by the status pills: "out_for_delivery" -> "out-for-delivery"
++export const statusClass = (status) => String(status || "").replaceAll("_", "-");
++
++export const paymentLabel = (payment = {}) => {
++  if (payment.method === "cod") return payment.status === "paid" ? "COD — collected" : "Cash on Delivery";
++  if (payment.status === "refunded") return "Refunded";
++  if (payment.status === "paid") return "Paid Online";
++  return "UPI — unpaid";
++};
++
++export const customerName = (customer = {}) =>
++  [customer.firstName, customer.lastName].filter(Boolean).join(" ") || "Customer";
++
++export const initials = (name = "") =>
++  name
++    .split(" ")
++    .filter(Boolean)
++    .map((part) => part[0])
++    .slice(0, 2)
++    .join("")
++    .toUpperCase() || "?";
++
++export const formatDate = (date) =>
++  date
++    ? new Date(date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
++    : "—";
++
++export const formatTime = (date) =>
++  date ? new Date(date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "";
++
++export const formatDateTime = (date) => (date ? `${formatDate(date)} · ${formatTime(date)}` : "—");
+diff --git a/frontend/src/Admincss/AdminLogin.css b/frontend/src/Admincss/AdminLogin.css
+new file mode 100644
+index 0000000..b2c76fb
+--- /dev/null
++++ b/frontend/src/Admincss/AdminLogin.css
+@@ -0,0 +1,93 @@
++.gad-login-page {
++     min-height: 100vh;
++     display: flex;
++     align-items: center;
++     justify-content: center;
++     padding: 20px 16px;
++     background: #164e74;
++     font-family: "Space Grotesk", sans-serif;
++}
++
++.gad-login-card {
++     width: 100%;
++     max-width: 400px;
++     display: flex;
++     flex-direction: column;
++     gap: 16px;
++     padding: 32px 26px;
++     border-radius: 16px;
++     background: #f4edda;
++     color: #10100e;
++}
++
++.gad-login-logo {
++     font-family: "Anton", sans-serif;
++     font-size: 34px;
++     line-height: 1;
++     color: #164e74;
++}
++
++.gad-login-logo span { color: #10100e; background: #eff04c; padding: 0 3px; }
++.gad-login-logo sup { font-size: 10px; }
++
++.gad-login-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #77766e; }
++
++.gad-login-card h1 {
++     margin: 0;
++     font-family: "Anton", sans-serif;
++     font-size: 44px;
++     font-weight: 400;
++     color: #164e74;
++}
++
++.gad-login-card h1 span { color: #10100e; }
++
++.gad-login-card label {
++     display: flex;
++     flex-direction: column;
++     gap: 7px;
++     font-size: 12px;
++     font-weight: 700;
++     letter-spacing: 1.2px;
++}
++
++.gad-login-card input {
++     height: 48px;
++     padding: 0 14px;
++     border: 1.3px solid #4c504e;
++     border-radius: 8px;
++     background: transparent;
++     font: inherit;
++     font-size: 16px;
++     letter-spacing: 0;
++     outline: none;
++}
++
++.gad-login-card input:focus { border-color: #164e74; }
++
++.gad-login-error {
++     margin: 0;
++     padding: 10px 12px;
++     border-radius: 8px;
++     background: #fde2e1;
++     color: #9b1c1c;
++     font-size: 13px;
++}
++
++.gad-login-card button {
++     height: 54px;
++     display: flex;
++     align-items: center;
++     justify-content: center;
++     gap: 10px;
++     border: 0;
++     border-radius: 9px;
++     background: #eff04c;
++     color: #10100e;
++     font: inherit;
++     font-weight: 700;
++     letter-spacing: 1.6px;
++     cursor: pointer;
++}
++
++.gad-login-card button:disabled { opacity: 0.6; cursor: wait; }
+diff --git a/frontend/src/App.jsx b/frontend/src/App.jsx
+index 9f7b22c..511873c 100644
+--- a/frontend/src/App.jsx
++++ b/frontend/src/App.jsx
+@@ -20,19 +20,20 @@ import Footer from "./components/Footer";
+ // PUBLIC WEBSITE PAGES
+ // ==========================================
+ 
+-import Shop from "./pages/Shop";
+-import About from "./pages/About";
+-import CustomerCare from "./pages/CustomerCare";
+-import ProductDetails from "./pages/ProductDetails";
+-import TrackOrder from "./pages/TrackOrder";
+-import Cart from "./pages/Cart";
+-import Checkout from "./pages/Checkout";
++import Shop from "./Pages/Shop";
++import About from "./Pages/About";
++import CustomerCare from "./Pages/CustomerCare";
++import ProductDetails from "./Pages/ProductDetails";
++import TrackOrder from "./Pages/TrackOrder";
++import Cart from "./Pages/Cart";
++import Checkout from "./Pages/Checkout";
+ 
+ // ==========================================
+ // ADMIN
+ // ==========================================
+ 
+ import AdminLayout from "./Admin/AdminLayout";
++import AdminLogin from "./Admin/AdminLogin";
+ import AdminDashboard from "./Admin/AdminDashboard";
+ import AdminCustomers from "./Admin/AdminCustomers";
+ import AdminOrders from "./Admin/AdminOrders";
+@@ -435,6 +436,7 @@ function App() {
+         <Route path="/checkout" element={<CheckoutPage />} />
+ 
+         {/* ADMIN ROUTES */}
++        <Route path="/admin/login" element={<AdminLogin />} />
+         <Route path="/admin" element={<AdminLayout />}>
+           <Route index element={<AdminDashboard />} />
+           <Route path="customers" element={<AdminCustomers />} />
+diff --git a/frontend/vite.config.js b/frontend/vite.config.js
+index 25f047c..b4e2e6f 100644
+--- a/frontend/vite.config.js
++++ b/frontend/vite.config.js
+@@ -8,5 +8,9 @@ export default defineConfig({
+     host: "0.0.0.0",
+     port: 5173,
+     strictPort: false,
++    // Sends /api requests to the backend while developing.
++    proxy: {
++      "/api": "http://localhost:5000",
++    },
+   },
+ });
+-- 
+2.43.0
+
