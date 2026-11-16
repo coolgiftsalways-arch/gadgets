@@ -1,0 +1,162 @@
+From 1b499b3b3a87045680e302e6cb355be250000411 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 16 Nov 2026 06:53:46 +0000
+Subject: [PATCH] Auto-refresh Shiprocket tracking without a webhook
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HALAYwtR84NkZ9xzqNu8Jr
+---
+ backend/controllers/orderController.js | 18 ++++++-
+ backend/server.js                      |  3 ++
+ backend/services/trackingSweep.js      | 67 ++++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+), 1 deletion(-)
+ create mode 100644 backend/services/trackingSweep.js
+
+diff --git a/backend/controllers/orderController.js b/backend/controllers/orderController.js
+index 031b68f..efff46f 100644
+--- a/backend/controllers/orderController.js
++++ b/backend/controllers/orderController.js
+@@ -15,6 +15,8 @@ import { normalizeOrderNumber } from "../utils/orderNumber.js";
+ import { email, integer, isObjectId, line, phone, pincode } from "../utils/validate.js";
+ import * as razorpay from "../services/razorpay.js";
+ import { checkCoupon, couponDiscountFor } from "../services/couponService.js";
++import * as shiprocket from "../services/shiprocket.js";
++import { refreshTracking } from "../services/shippingService.js";
+ import {
+   expireOrder,
+   markPaid,
+@@ -678,6 +680,8 @@ export async function getOrder(req, res) {
+   res.json({ order: publicOrder(order, { includeEmail: true }) });
+ }
+ 
++const TRACK_REFRESH_MS = 30 * 60 * 1000;
++
+ // GET /api/orders/:orderNumber/tracking — the Track Order page
+ export async function trackOrder(req, res) {
+   const orderNumber = normalizeOrderNumber(req.params.orderNumber);
+@@ -686,12 +690,24 @@ export async function trackOrder(req, res) {
+     throw badRequest("Please enter your order number exactly as shown in your confirmation email (for example GAD-7K3M9QX2).");
+   }
+ 
+-  const order = await Order.findOne({ orderNumber, status: { $in: PLACED_STATUSES } });
++  let order = await Order.findOne({ orderNumber, status: { $in: PLACED_STATUSES } });
+ 
+   if (!order) {
+     throw notFound("We couldn't find an order with that number. Please check it and try again.");
+   }
+ 
++  // Fresh courier status when the customer looks (at most every 30 minutes per order).
++  const ship = order.shipping || {};
++  const onTheWay = ["processing", "shipped", "out_for_delivery"].includes(order.status);
++  const stale = !ship.syncedAt || Date.now() - new Date(ship.syncedAt).getTime() > TRACK_REFRESH_MS;
++  if (onTheWay && ship.awb && !ship.testMode && stale && shiprocket.isConfigured()) {
++    try {
++      order = await refreshTracking(order);
++    } catch (error) {
++      console.warn(`Tracking refresh failed for ${order.orderNumber}: ${error.message}`);
++    }
++  }
++
+   res.set("Cache-Control", "no-store");
+   res.json({ order: publicOrder(order) });
+ }
+diff --git a/backend/server.js b/backend/server.js
+index 76f27a2..f33ccdb 100644
+--- a/backend/server.js
++++ b/backend/server.js
+@@ -5,6 +5,7 @@ import { env, checkEnv } from "./config/env.js";
+ import { connectDB } from "./config/db.js";
+ import { createApp } from "./app.js";
+ import { startPaymentSweep } from "./services/paymentSweep.js";
++import { startTrackingSweep } from "./services/trackingSweep.js";
+ import { backgroundIdle } from "./services/background.js";
+ import { seedIfEmpty } from "./seed/seedProducts.js";
+ 
+@@ -32,9 +33,11 @@ async function main() {
+ 
+   const server = createApp().listen(listenOn, () => console.log(`Server running on ${listenOn}`));
+   const stopSweep = startPaymentSweep();
++  const stopTracking = startTrackingSweep();
+ 
+   const shutdown = async () => {
+     stopSweep();
++    stopTracking();
+     server.close();
+     await backgroundIdle();
+     await mongoose.disconnect();
+diff --git a/backend/services/trackingSweep.js b/backend/services/trackingSweep.js
+new file mode 100644
+index 0000000..0d7bcfa
+--- /dev/null
++++ b/backend/services/trackingSweep.js
+@@ -0,0 +1,67 @@
++// Keeps Shiprocket tracking up to date without a webhook.
++//
++// Every 3 hours the server asks Shiprocket about each order that is on its
++// way. When the courier reports a change (picked up, out for delivery,
++// delivered) the order status moves forward and the customer gets the email.
++import Order from "../models/Order.js";
++import { isDbReady } from "../config/db.js";
++import * as shiprocket from "./shiprocket.js";
++import { refreshTracking } from "./shippingService.js";
++
++const SWEEP_EVERY_MS = 3 * 60 * 60 * 1000; // 3 hours
++const STALE_AFTER_MS = 2 * 60 * 60 * 1000; // skip orders checked in the last 2 hours
++const PAUSE_BETWEEN_MS = 1500; // be gentle with Shiprocket's API
++
++const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
++
++// Orders worth asking Shiprocket about.
++export const trackableFilter = () => ({
++  status: { $in: ["processing", "shipped", "out_for_delivery"] },
++  "shipping.awb": { $nin: ["", null] },
++  "shipping.testMode": { $in: [null, ""] },
++});
++
++let running = false;
++
++export async function sweepTracking() {
++  if (running || !isDbReady() || !shiprocket.isConfigured()) return { checked: 0 };
++  running = true;
++  let checked = 0;
++
++  try {
++    const orders = await Order.find({
++      ...trackableFilter(),
++      $or: [
++        { "shipping.syncedAt": { $exists: false } },
++        { "shipping.syncedAt": { $lt: new Date(Date.now() - STALE_AFTER_MS) } },
++      ],
++    })
++      .sort({ "shipping.syncedAt": 1 })
++      .limit(300);
++
++    for (const order of orders) {
++      try {
++        await refreshTracking(order);
++      } catch (error) {
++        console.warn(`Tracking refresh failed for ${order.orderNumber}: ${error.message}`);
++      }
++      checked += 1;
++      await sleep(PAUSE_BETWEEN_MS);
++    }
++  } catch (error) {
++    console.error("Tracking sweep failed:", error.message);
++  } finally {
++    running = false;
++  }
++
++  if (checked) console.log(`Tracking sweep: checked ${checked} shipment(s).`);
++  return { checked };
++}
++
++// Returns a function that stops the job (used on shutdown).
++export function startTrackingSweep() {
++  const timer = setInterval(sweepTracking, SWEEP_EVERY_MS);
++  timer.unref();
++  setTimeout(sweepTracking, 60 * 1000).unref(); // first run a minute after start-up
++  return () => clearInterval(timer);
++}
+-- 
+2.43.0
+
