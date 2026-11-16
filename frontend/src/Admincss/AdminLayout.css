@@ -58,3 +58,75 @@
           padding: 75px 16px 25px;
      }
 }
+/* =========================================
+   ADMIN TABLES → CARDS ON PHONES
+   Each row becomes a card so price, status
+   and the edit buttons are visible without
+   swiping the table sideways.
+========================================= */
+@media (max-width: 700px) {
+     .gad-products-table,
+     .gad-orders-table,
+     .gad-customers-table {
+          min-width: 0 !important;
+          width: 100% !important;
+          border-collapse: separate;
+     }
+
+     .gad-products-table thead,
+     .gad-orders-table thead,
+     .gad-customers-table thead {
+          display: none;
+     }
+
+     .gad-products-table tbody,
+     .gad-orders-table tbody,
+     .gad-customers-table tbody {
+          display: block;
+     }
+
+     .gad-products-table tr,
+     .gad-orders-table tr,
+     .gad-customers-table tr {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 8px 12px;
+          margin: 0 0 10px;
+          padding: 14px;
+          border: 1px solid var(--gad-admin-line);
+          border-radius: 12px;
+          background: var(--gad-admin-panel);
+     }
+
+     .gad-products-table td,
+     .gad-orders-table td,
+     .gad-customers-table td {
+          display: block;
+          min-width: 0;
+          padding: 0 !important;
+          border: 0 !important;
+          white-space: normal !important;
+     }
+
+     /* First cell (product / order number / customer) spans the card */
+     .gad-products-table td:first-child,
+     .gad-orders-table td:first-child,
+     .gad-customers-table td:first-child {
+          grid-column: 1 / -1;
+     }
+
+     /* Last cell (actions / view button) spans and aligns right */
+     .gad-products-table td:last-child,
+     .gad-orders-table td:last-child,
+     .gad-customers-table td:last-child {
+          grid-column: 1 / -1;
+          justify-self: end;
+     }
+
+     .gad-products-table-wrap,
+     .gad-orders-table-wrap,
+     .gad-customers-table-wrap {
+          overflow-x: visible !important;
+     }
+}

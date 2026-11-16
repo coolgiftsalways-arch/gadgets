@@ -1057,3 +1057,43 @@
      outline: 3px solid #164e74;
      outline-offset: -5px;
 }
+/* =========================================
+   PHONE READABILITY (overrides the tiny 6–7px
+   text on product cards; desktop unchanged)
+========================================= */
+@media (max-width: 700px) {
+     .shop-product-actions {
+          grid-template-columns: 1fr;
+          gap: 7px;
+     }
+
+     .shop-product-actions button,
+     .shop-product-actions a {
+          min-height: 40px;
+          font-size: 10px;
+          letter-spacing: 0.6px;
+     }
+
+     .shop-product-details p {
+          font-size: 12px;
+          line-height: 1.45;
+     }
+
+     .shop-product-category,
+     .shop-product-top-label,
+     .shop-product-footer {
+          font-size: 9px;
+     }
+
+     .shop-product-original-price {
+          flex-wrap: wrap;
+          font-size: 12px;
+     }
+}
+
+@media (max-width: 380px) {
+     .shop-product-actions button,
+     .shop-product-actions a {
+          font-size: 9px;
+     }
+}

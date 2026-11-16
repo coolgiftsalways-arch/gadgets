@@ -10,6 +10,14 @@ html {
   scroll-behavior: auto;
 }
 
+/* Never let anything make the page scroll sideways on phones.
+   "clip" (unlike "hidden") keeps the sticky header working. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 body {
   width: 100%;
   min-width: 320px;

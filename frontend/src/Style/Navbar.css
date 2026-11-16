@@ -518,20 +518,28 @@
 
           border-top: 2px solid var(--ge-black);
 
-          transform: translateX(105%);
+          /* Hidden menu stays in place (fades/slides down) so it never
+             widens the page and causes sideways scrolling on phones. */
+          transform: translateY(-12px);
+          opacity: 0;
           visibility: hidden;
+          pointer-events: none;
+          overflow-y: auto;
 
           transition:
-               transform 0.45s cubic-bezier(.77, 0, .18, 1),
-               visibility 0.45s;
+               transform 0.35s cubic-bezier(.77, 0, .18, 1),
+               opacity 0.35s ease,
+               visibility 0.35s;
 
           overflow-y: auto;
           z-index: 1000;
      }
 
      .ge-mobile-menu.open {
-          transform: translateX(0);
+          transform: translateY(0);
+          opacity: 1;
           visibility: visible;
+          pointer-events: auto;
      }
 
      .ge-mobile-menu-heading {
