@@ -782,28 +782,27 @@ export default function Shop() {
 
                     {/* PRODUCT IMAGE / ICON */}
 
-                    <div className="shop-product-visual">
+                    <div className={`shop-product-visual ${video || image ? "has-media" : ""}`}>
 
-                      <div className="shop-product-glow" />
+                      {!video && !image && <div className="shop-product-glow" />}
 
                       {video ? (
                         <video
                           src={video}
                           poster={image || undefined}
-                          className="shop-product-icon"
+                          className="shop-product-media"
                           muted
                           loop
                           autoPlay
                           playsInline
                           preload="metadata"
                           aria-label={productName}
-                          style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 12 }}
                         />
                       ) : image ? (
                         <img
                           src={image}
                           alt={productName}
-                          className="shop-product-icon"
+                          className="shop-product-media"
                           loading="lazy"
                           onError={(event) => {
                             event.currentTarget.style.display = "none";

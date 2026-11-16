@@ -467,6 +467,66 @@
      filter: drop-shadow(15px 20px 15px rgba(0, 0, 0, 0.15));
 }
 
+/* Photos and videos fill the whole image area of the card */
+.shop-product-visual.has-media {
+     min-height: 0;
+     flex: none;
+     aspect-ratio: 1 / 1;
+     margin-bottom: 14px;
+     border-radius: 12px;
+     background: #ffffff;
+}
+
+.shop-product-media {
+     position: absolute;
+     inset: 0;
+     z-index: 1;
+     width: 100%;
+     height: 100%;
+     display: block;
+     object-fit: cover;
+     border-radius: 12px;
+     transition: transform 0.5s ease;
+}
+
+.shop-product-card:hover .shop-product-media {
+     transform: scale(1.05);
+}
+
+.shop-product-visual.has-media .shop-product-index {
+     z-index: 2;
+     left: 10px;
+     bottom: 10px;
+     padding: 4px 8px;
+     border-radius: 6px;
+     background: rgba(255, 255, 255, 0.85);
+     opacity: 1;
+}
+
+/* Old price + discount on one line, clearly separated */
+.shop-product-original-price {
+     display: flex;
+     align-items: center;
+     gap: 8px;
+     margin: 4px 0 8px;
+     font-size: 13px;
+}
+
+.shop-product-original-price span:first-child {
+     color: #85847b;
+     text-decoration: line-through;
+}
+
+.shop-product-original-price span:last-child:not(:first-child) {
+     padding: 2px 7px;
+     border-radius: 4px;
+     background: #eff04c;
+     color: #10100e;
+     font-weight: 700;
+     font-size: 11px;
+     letter-spacing: 0.5px;
+}
+
 .shop-product-index {
      position: absolute;
      left: 0;
