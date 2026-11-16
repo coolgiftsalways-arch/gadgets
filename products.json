@@ -1,0 +1,98 @@
+{
+  "Alpine Prism": {
+    "name": "Alpine Prism",
+    "price": 4299,
+    "compareAtPrice": 5999,
+    "stock": 10,
+    "category": "Terrariums",
+    "label": "A QUIET PEAK UNDER GLASS",
+    "description": "A tall glass prism holding a calm alpine scene of preserved moss and a small deer figure. Needs no water and no sunlight.",
+    "colors": [],
+    "features": ["Preserved moss — no watering", "Hand-assembled glass prism", "Works in any light"],
+    "status": "draft"
+  },
+  "Diamond Prism": {
+    "name": "Diamond Prism",
+    "price": 7299,
+    "compareAtPrice": 9999,
+    "stock": 10,
+    "category": "Terrariums",
+    "label": "STONE AND MOSS, FACETED",
+    "description": "A faceted glass prism filled with lush preserved moss and natural stone, built to be a centrepiece on any desk or shelf.",
+    "colors": [],
+    "features": ["Preserved moss — no watering", "Natural stone accents", "Faceted glass design"],
+    "status": "draft"
+  },
+  "Ganesha's Pod": {
+    "name": "Ganesha's Pod",
+    "price": 2799,
+    "compareAtPrice": 4599,
+    "stock": 10,
+    "category": "Terrariums",
+    "label": "A GREEN HOME FOR GANESHA",
+    "description": "A Ganesha idol resting in a bed of preserved moss under a glass pod. A calm, low-care gift for homes and offices.",
+    "colors": [],
+    "features": ["Preserved moss — no watering", "Ganesha idol included", "Great for gifting"],
+    "status": "draft"
+  },
+  "Nature's Dome": {
+    "name": "Nature's Dome",
+    "price": 3899,
+    "compareAtPrice": 5999,
+    "stock": 10,
+    "category": "Terrariums",
+    "label": "A TINY FOREST UNDER A DOME",
+    "description": "A miniature forest of preserved moss and bark set under a glass dome on a gold base. Fits in the palm of your hand.",
+    "colors": [],
+    "features": ["Preserved moss — no watering", "Glass dome with gold base", "Compact size"],
+    "status": "draft"
+  },
+  "Nature's Prism": {
+    "name": "Nature's Prism",
+    "price": 5299,
+    "compareAtPrice": 6999,
+    "stock": 10,
+    "category": "Terrariums",
+    "label": "OUR SIGNATURE PRISM",
+    "description": "A geometric glass prism with layers of preserved moss, bark and stone. A living-looking landscape that never needs care.",
+    "colors": [],
+    "features": ["Preserved moss — no watering", "Geometric glass prism", "Bark and stone details"],
+    "status": "draft"
+  },
+  "Terra GlowPod": {
+    "name": "Terra GlowPod",
+    "price": 9899,
+    "compareAtPrice": 13999,
+    "stock": 10,
+    "category": "Terrariums",
+    "label": "MOSS THAT GLOWS AT NIGHT",
+    "description": "A tall glass terrarium on a dark base with a warm light in the lid, so your moss landscape glows softly after dark.",
+    "colors": [],
+    "features": ["Warm built-in light", "Preserved moss — no watering", "Doubles as a night lamp"],
+    "status": "draft"
+  },
+  "The Pod": {
+    "name": "The Pod",
+    "price": 1,
+    "compareAtPrice": 0,
+    "stock": 10,
+    "category": "Terrariums",
+    "label": "SMALL POD, BIG CALM",
+    "description": "A compact glass pod with preserved moss — a simple way to bring green to a desk or bedside table.",
+    "colors": [],
+    "features": ["Preserved moss — no watering", "Compact pod design"],
+    "status": "draft"
+  },
+  "Wooden base with Warm Light": {
+    "name": "Wooden Base with Warm Light",
+    "price": 1,
+    "compareAtPrice": 0,
+    "stock": 10,
+    "category": "Accessories",
+    "label": "LIGHT UP YOUR TERRARIUM",
+    "description": "A wooden base with a built-in warm light that sits under your terrarium and makes it glow.",
+    "colors": [],
+    "features": ["Warm LED light", "Solid wood base"],
+    "status": "draft"
+  }
+}
