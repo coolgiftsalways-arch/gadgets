@@ -1,10 +1,14 @@
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { formatRupees, loadHomeProducts } from "../homeProducts";
+
+const mediaStyle = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" };
 import { useNavigate } from "react-router-dom";
 import {
   ArrowUpRight,
   ArrowRight,
   Plus,
   Zap,
+  Package,
   Activity,
   ShieldCheck,
   BatteryFull,
@@ -75,6 +79,24 @@ export default function HomeSections() {
     return () => ctx.revert();
   }, []);
 
+  // "Trending now": 3 real products (different from "Our products").
+  const [trending, setTrending] = useState(() => trendingProducts.slice(0, 3));
+
+  useEffect(() => {
+    let alive = true;
+    loadHomeProducts().then(({ trendingPicks, heroPicks }) => {
+      if (!alive) return;
+      const picks = trendingPicks.length ? trendingPicks : heroPicks;
+      if (picks.length) {
+        setTrending(picks);
+        requestAnimationFrame(() => ScrollTrigger.refresh());
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const handleAddToCart = (product, event) => {
     event.stopPropagation();
     const cart = JSON.parse(localStorage.getItem("gadgete_cart") || "[]");
@@ -91,9 +113,13 @@ export default function HomeSections() {
           ...cart,
           {
             id: product.id,
+            slug: product.slug,
             name: product.name,
             price: product.price,
             numericPrice: product.numericPrice,
+            image: product.image || "",
+            category: product.category,
+            description: product.description,
             quantity: 1,
           },
         ];
@@ -239,12 +265,12 @@ export default function HomeSections() {
           </a>
         </div>
         <div className="hs-trending-grid">
-          {trendingProducts.map((product) => {
-            const Icon = product.icon;
+          {trending.map((product, index) => {
+            const Icon = product.icon || Package;
             return (
               <article
-                className={`hs-trend-card ${product.id === "01" ? "hs-trend-card-highlight" : ""}`}
-                key={product.id}
+                className={`hs-trend-card ${index === 0 ? "hs-trend-card-highlight" : ""}`}
+                key={index}
                 role="link"
                 tabIndex={0}
                 onClick={() => navigate(`/product/${product.slug}`)}
@@ -255,20 +281,28 @@ export default function HomeSections() {
                 aria-label={`View ${product.name} details`}
               >
                 <div className="hs-trend-top">
-                  <span>{product.id}</span>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
                   <span className="hs-trend-category">{product.category}</span>
                   <ArrowUpRight size={21} />
                 </div>
-                <div className="hs-trend-visual">
-                  <div className="hs-trend-glow" />
-                  <Icon strokeWidth={1.4} />
+                <div className="hs-trend-visual" style={product.video || product.image ? { position: "relative", overflow: "hidden", borderRadius: 12 } : undefined}>
+                  {product.video ? (
+                    <video src={product.video} poster={product.image || undefined} muted loop autoPlay playsInline preload="metadata" style={mediaStyle} />
+                  ) : product.image ? (
+                    <img src={product.image} alt={product.name} loading="lazy" style={mediaStyle} />
+                  ) : (
+                    <>
+                      <div className="hs-trend-glow" />
+                      <Icon strokeWidth={1.4} />
+                    </>
+                  )}
                 </div>
                 <div className="hs-trend-info">
-                  <span>G / {product.id}</span>
+                  <span>G / {String(index + 1).padStart(2, "0")}</span>
                   <h3>{product.name}</h3>
                   <div className="hs-trend-description">
                     <p>{product.description}</p>
-                    <strong>{product.price}</strong>
+                    <strong>{typeof product.price === "number" ? formatRupees(product.price) : product.price}</strong>
                   </div>
                   <div className="hs-trend-actions">
                     <button
@@ -290,7 +324,7 @@ export default function HomeSections() {
                 </div>
                 <div className="hs-trend-footer">
                   <span>GADGETÉ® / 2026</span>
-                  <span>OBJECT NO. {product.id}</span>
+                  <span>OBJECT NO. {String(index + 1).padStart(2, "0")}</span>
                 </div>
               </article>
             );

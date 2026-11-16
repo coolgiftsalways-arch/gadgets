@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { loadHomeProducts } from "../homeProducts";
 
 import { gsap } from "gsap";
 
@@ -67,8 +68,46 @@ const PRODUCTS = [
   },
 ];
 
+// A product's video (muted, looping) or photo, filling the card picture area.
+function CardMedia({ product }) {
+  const style = {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    borderRadius: "inherit",
+  };
+  return product.video ? (
+    <video src={product.video} poster={product.image || undefined} muted loop autoPlay playsInline preload="metadata" style={style} />
+  ) : (
+    <img src={product.image} alt={product.name} loading="lazy" draggable="false" style={style} />
+  );
+}
+
 const Hero = () => {
   const navigate = useNavigate();
+
+  // Real products from the database (falls back to the built-in 3 until loaded).
+  const [cards, setCards] = useState(PRODUCTS);
+
+  useEffect(() => {
+    let alive = true;
+    loadHomeProducts().then(({ heroPicks }) => {
+      if (!alive || !heroPicks.length) return;
+      setCards(
+        heroPicks.map((card, index) => ({
+          ...card,
+          className: PRODUCTS[index]?.className || "",
+        })),
+      );
+      // Card contents changed: let the scroll animations re-measure.
+      requestAnimationFrame(() => ScrollTrigger.refresh());
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const rootRef = useRef(null);
 
@@ -864,10 +903,10 @@ const Hero = () => {
         </div>
 
         <div className="products-grid">
-          {PRODUCTS.map((product, index) => (
+          {cards.map((product, index) => (
             <article
               className={`product-card ${product.className}`}
-              key={product.id}
+              key={index}
               role="link"
               tabIndex={0}
               onClick={() => navigate(`/product/${product.slug}`)}
@@ -893,21 +932,30 @@ const Hero = () => {
                 ref={index === 0 ? firstVisualRef : null}
               >
                 {index === 0 ? (
+                  // The flying glass from the hero fades into this card.
                   <div className="first-card-placeholder">
-                    <img
-                      className="card-glass-image"
-                      src="/Images/hero-glass.png"
-                      alt="Crypto glass product"
-                      draggable="false"
-                    />
+                    {product.video || product.image ? (
+                      <CardMedia product={product} />
+                    ) : (
+                      <>
+                        <img
+                          className="card-glass-image"
+                          src="/Images/hero-glass.png"
+                          alt="Crypto glass product"
+                          draggable="false"
+                        />
 
-                    <img
-                      className="card-coin-image"
-                      src="/Images/bitcoin-coin.png"
-                      alt="Gold Bitcoin coin"
-                      draggable="false"
-                    />
+                        <img
+                          className="card-coin-image"
+                          src="/Images/bitcoin-coin.png"
+                          alt="Gold Bitcoin coin"
+                          draggable="false"
+                        />
+                      </>
+                    )}
                   </div>
+                ) : product.video || product.image ? (
+                  <CardMedia product={product} />
                 ) : index === 1 ? (
                   <div className="product-icon-art headphone-art">
                     <Headphones strokeWidth={1.1} />
@@ -933,7 +981,7 @@ const Hero = () => {
                 </div>
 
                 <span className="product-price">
-                  ₹{product.price.toLocaleString("en-IN")}
+                  ₹{Number(product.price || 0).toLocaleString("en-IN")}
                 </span>
               </div>
 
@@ -966,7 +1014,7 @@ const Hero = () => {
               <div className="product-card-bottom">
                 <span>GADGETÉ® / 2026</span>
 
-                <span>OBJECT NO. {product.number}</span>
+                <span>OBJECT NO. {String(index + 1).padStart(2, "0")}</span>
               </div>
             </article>
           ))}
