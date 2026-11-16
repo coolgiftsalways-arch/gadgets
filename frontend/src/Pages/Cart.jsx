@@ -14,6 +14,8 @@ import {
   ShoppingBag,
 } from "lucide-react";
 
+import { api, imageUrl } from "../shopApi";
+import { getProductById } from "../data/products";
 import "../Style/Cart.css";
 
 const CART_KEY = "gadgete_cart";
@@ -64,6 +66,33 @@ const Cart = () => {
         detail: updatedCart,
       }),
     );
+  };
+
+  // Photos from the live catalogue, for cart items saved without one.
+  const [photos, setPhotos] = useState({});
+
+  useEffect(() => {
+    let alive = true;
+    api("/products")
+      .then((data) => {
+        if (!alive) return;
+        const map = {};
+        for (const product of data.products || []) {
+          if (product.images?.[0]) map[product.slug] = imageUrl(product.images[0]);
+        }
+        setPhotos(map);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const photoFor = (item) => {
+    const saved = getItemImage(item);
+    if (saved) return imageUrl(saved);
+    const slug = item.slug || getProductById(item.id)?.slug;
+    return (slug && photos[slug]) || "";
   };
 
   useEffect(() => {
@@ -161,7 +190,7 @@ const Cart = () => {
             <div className="ge-cart-products">
               {cart.map((item, index) => {
                 const name = getItemName(item);
-                const image = getItemImage(item);
+                const image = photoFor(item);
                 const price = getItemPrice(item);
                 const quantity = Number(item.quantity) || 1;
 

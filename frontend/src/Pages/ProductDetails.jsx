@@ -201,6 +201,9 @@ export default function ProductDetails() {
             quantity,
             color,
             slug: product.slug,
+            image: product.images?.[0] || "",
+            category: product.category,
+            description: live?.shortDescription || product.description || "",
           },
         ];
 
