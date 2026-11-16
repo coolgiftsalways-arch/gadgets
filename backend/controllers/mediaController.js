@@ -4,6 +4,7 @@ import multer from "multer";
 import Media, { MEDIA_URL_PATTERN } from "../models/Media.js";
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
+import { env } from "../config/env.js";
 import { badRequest, notFound } from "../utils/httpError.js";
 import { isObjectId, line } from "../utils/validate.js";
 
@@ -93,6 +94,31 @@ export async function serveMedia(req, res) {
   if (req.get("if-none-match") === etag) return res.status(304).end();
 
   res.send(media.data);
+}
+
+// POST /api/admin/media/cloudinary-signature
+// The admin panel uploads photos and videos straight from the browser to
+// Cloudinary (big videos never pass through this server). This signs that
+// upload so only a logged-in admin can use your Cloudinary account.
+export function cloudinarySignature(req, res) {
+  const { cloudName, apiKey, apiSecret, folder } = env.cloudinary;
+
+  if (!cloudName || !apiKey || !apiSecret) {
+    return res.status(503).json({
+      message: "Cloudinary isn't set up (CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET).",
+      configured: false,
+    });
+  }
+
+  const timestamp = Math.floor(Date.now() / 1000);
+  // Cloudinary signs the parameters in alphabetical order, then the secret.
+  const signature = crypto
+    .createHash("sha1")
+    .update(`folder=${folder}&timestamp=${timestamp}${apiSecret}`)
+    .digest("hex");
+
+  res.set("Cache-Control", "no-store");
+  res.json({ configured: true, cloudName, apiKey, folder, timestamp, signature });
 }
 
 // Removes uploaded photos that nothing uses any more. A photo is kept while

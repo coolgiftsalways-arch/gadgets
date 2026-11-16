@@ -45,7 +45,9 @@ export function createApp() {
           "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
           "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
           "img-src": ["'self'", "data:", "blob:", "https:"],
-          "connect-src": ["'self'"],
+          // The admin panel uploads photos/videos straight to Cloudinary.
+          "connect-src": ["'self'", "https://api.cloudinary.com"],
+          "media-src": ["'self'", "blob:", "https://res.cloudinary.com"],
           "object-src": ["'none'"],
           "frame-ancestors": ["'self'"],
           "upgrade-insecure-requests": null,

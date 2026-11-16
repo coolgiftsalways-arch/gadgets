@@ -51,6 +51,46 @@ export async function adminDownload(path, filename) {
   URL.revokeObjectURL(url);
 }
 
+// Uploads a photo or video straight from the browser to Cloudinary.
+// kind: "image" | "video". Returns the https:// address, or null when
+// Cloudinary isn't set up (the caller then falls back to the server).
+export async function uploadToCloudinary(file, kind, onProgress) {
+  let sign;
+  try {
+    sign = await adminFetch("/media/cloudinary-signature", { method: "POST" });
+  } catch {
+    return null; // not configured
+  }
+
+  const body = new FormData();
+  body.append("file", file);
+  body.append("api_key", sign.apiKey);
+  body.append("timestamp", sign.timestamp);
+  body.append("signature", sign.signature);
+  body.append("folder", sign.folder);
+
+  // XMLHttpRequest (not fetch) so big videos can show upload progress.
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${sign.cloudName}/${kind}/upload`);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () => {
+      let data = {};
+      try {
+        data = JSON.parse(xhr.responseText);
+      } catch {
+        /* keep empty */
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && data.secure_url) resolve(data.secure_url);
+      else reject(new Error(data.error?.message || "Upload to Cloudinary failed."));
+    };
+    xhr.onerror = () => reject(new Error("Upload failed — check your internet connection."));
+    xhr.send(body);
+  });
+}
+
 // "/api/media/…" works as-is unless the API lives on another domain.
 export function imageUrl(path) {
   if (!path) return "";

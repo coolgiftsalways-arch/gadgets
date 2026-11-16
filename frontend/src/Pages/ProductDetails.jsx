@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -7,6 +7,8 @@ import {
   ChevronRight,
   Heart,
   Minus,
+  Package,
+  Play,
   Plus,
   RotateCcw,
   ShieldCheck,
@@ -46,12 +48,69 @@ function ProductArtwork({ product, large = false }) {
   );
 }
 
+const API_URL = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
+const mediaUrl = (path) =>
+  !path || /^https?:\/\//i.test(path) || !/^https?:\/\//i.test(API_URL)
+    ? path
+    : `${new URL(API_URL).origin}${path}`;
+const rupees = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
+
+// The live product from the backend, in the shape this page already uses.
+function fromApi(live, fallback) {
+  return {
+    ...(fallback || {}),
+    id: fallback?.id || live.sku,
+    slug: live.slug,
+    name: live.name,
+    category: fallback?.category || live.category.toUpperCase(),
+    icon: fallback?.icon || Package,
+    label: live.label || fallback?.label || "",
+    longDescription: live.description || fallback?.longDescription || "",
+    price: rupees(live.price),
+    numericPrice: live.price,
+    oldPrice: live.compareAtPrice ? rupees(live.compareAtPrice) : "",
+    discount: live.discountPercent ? `${live.discountPercent}% OFF` : "",
+    colors: live.colors?.length ? live.colors : fallback?.colors || [],
+    features: live.features?.length ? live.features : fallback?.features || [],
+    specs: live.specs?.length ? live.specs.map((spec) => [spec.label, spec.value]) : fallback?.specs || [],
+    images: (live.images || []).map(mediaUrl),
+    videos: live.videos || [],
+    inStock: live.inStock,
+    stock: live.stock,
+  };
+}
+
 export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const product = getProductById(id);
+  const staticProduct = getProductById(id);
+  const [live, setLive] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeMedia, setActiveMedia] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setActiveMedia(0);
+    fetch(`${API_URL}/products/${encodeURIComponent(id)}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => alive && setLive(data?.product || null))
+      .catch(() => alive && setLive(null))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+
+  const product = live ? fromApi(live, staticProduct) : staticProduct;
+  const media = [
+    ...(product?.images || []).map((src) => ({ type: "image", src })),
+    ...(product?.videos || []).map((src) => ({ type: "video", src })),
+  ];
+  const current = media[activeMedia];
+
   const [quantity, setQuantity] = useState(1);
-  const [color, setColor] = useState(product?.colors?.[0] || "");
+  const [color, setColor] = useState(staticProduct?.colors?.[0] || "");
   const [tab, setTab] = useState("overview");
   const [added, setAdded] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -60,6 +119,20 @@ export default function ProductDetails() {
     () => products.filter((item) => item.id !== product?.id),
     [product],
   );
+
+  // Keep the chosen colour valid once the live product loads.
+  useEffect(() => {
+    if (product?.colors?.length && !product.colors.includes(color)) setColor(product.colors[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live]);
+
+  if (!product && loading) {
+    return (
+      <main className="pd-not-found">
+        <span className="pd-eyebrow">GADGETÉ® / LOADING</span>
+      </main>
+    );
+  }
 
   if (!product) {
     return (
@@ -125,13 +198,45 @@ export default function ProductDetails() {
         <section className="pd-product-layout">
           <div className="pd-gallery">
             <div className="pd-gallery-rail">
-              <span className="pd-gallery-count">01 / 01</span>
-              <div className="pd-thumb">
-                <product.icon size={25} strokeWidth={1.3} />
-              </div>
+              <span className="pd-gallery-count">
+                {String(media.length ? activeMedia + 1 : 1).padStart(2, "0")} /{" "}
+                {String(media.length || 1).padStart(2, "0")}
+              </span>
+              {media.length ? (
+                media.map((item, index) => (
+                  <button
+                    type="button"
+                    key={item.src}
+                    className="pd-thumb"
+                    onClick={() => setActiveMedia(index)}
+                    aria-label={`Show ${item.type} ${index + 1}`}
+                    style={{ padding: 0, overflow: "hidden", outline: index === activeMedia ? "2px solid #164e74" : "none", cursor: "pointer" }}
+                  >
+                    {item.type === "image" ? (
+                      <img src={item.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <Play size={22} />
+                    )}
+                  </button>
+                ))
+              ) : (
+                <div className="pd-thumb">
+                  <product.icon size={25} strokeWidth={1.3} />
+                </div>
+              )}
               <span className="pd-rail-note">OBJECT / DETAIL</span>
             </div>
-            <ProductArtwork product={product} large />
+            {current?.type === "image" ? (
+              <div className="pd-artwork pd-artwork-large" style={{ display: "grid", placeItems: "center", overflow: "hidden" }}>
+                <img src={current.src} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              </div>
+            ) : current?.type === "video" ? (
+              <div className="pd-artwork pd-artwork-large" style={{ display: "grid", placeItems: "center", overflow: "hidden", background: "#000" }}>
+                <video key={current.src} src={current.src} controls playsInline autoPlay muted loop style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              </div>
+            ) : (
+              <ProductArtwork product={product} large />
+            )}
             <div className="pd-gallery-bottom">
               <span>DESIGNED FOR EVERYDAY</span>
               <span>GADGETÉ® — 2026</span>

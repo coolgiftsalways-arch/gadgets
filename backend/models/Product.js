@@ -53,6 +53,8 @@ const productSchema = new mongoose.Schema(
 
     // "/api/media/<id>" for uploads, or a full https:// address.
     images: { type: [String], default: [] },
+    // Product videos (Cloudinary https:// addresses)
+    videos: { type: [String], default: [] },
     colors: { type: [String], default: [] },
     features: { type: [String], default: [] },
     specs: { type: [specSchema], default: [] },
@@ -91,6 +93,7 @@ productSchema.methods.toPublic = function toPublic() {
     compareAtPrice: compareAt,
     discountPercent: compareAt ? Math.round((1 - this.price / compareAt) * 100) : 0,
     images: this.images,
+    videos: this.videos || [],
     colors: this.colors,
     features: this.features,
     specs: this.specs.map((spec) => ({ label: spec.label, value: spec.value })),

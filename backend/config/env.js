@@ -121,6 +121,14 @@ export const env = {
     boxHeightCm: int("SHIPROCKET_BOX_HEIGHT_CM", 10),
   },
 
+  // Photo + video storage (cloudinary.com → Settings → API Keys)
+  cloudinary: {
+    cloudName: str("CLOUDINARY_CLOUD_NAME"),
+    apiKey: str("CLOUDINARY_API_KEY"),
+    apiSecret: process.env.CLOUDINARY_API_SECRET ? String(process.env.CLOUDINARY_API_SECRET).trim() : "",
+    folder: str("CLOUDINARY_FOLDER", "gadgete/products"),
+  },
+
   forcePublicDns: bool("FORCE_PUBLIC_DNS", false),
 };
 

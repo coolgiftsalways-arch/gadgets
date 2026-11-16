@@ -17,7 +17,7 @@ import {
   CheckCircle2,
   Save,
 } from "lucide-react";
-import { adminFetch, imageUrl, money } from "./api";
+import { adminFetch, imageUrl, money, uploadToCloudinary } from "./api";
 import "../Admincss/AdminProducts.css";
 
 const emptyForm = {
@@ -29,6 +29,7 @@ const emptyForm = {
   stock: "",
   status: "active",
   images: [],
+  videos: [],
   label: "",
   description: "",
   colors: "",
@@ -76,6 +77,8 @@ const AdminProducts = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const videoInputRef = useRef(null);
+  const [videoProgress, setVideoProgress] = useState(null); // null = not uploading
 
   const load = useCallback(async () => {
     try {
@@ -128,6 +131,7 @@ const AdminProducts = () => {
       stock: String(product.stock),
       status: product.status,
       images: product.images || [],
+      videos: product.videos || [],
       label: product.label || "",
       description: product.description || "",
       colors: (product.colors || []).join(", "),
@@ -152,9 +156,13 @@ const AdminProducts = () => {
     setFormError("");
     try {
       const blob = await shrinkImage(file);
-      const body = new FormData();
-      body.append("image", blob, "product.jpg");
-      const { url } = await adminFetch("/media", { method: "POST", body });
+      // Cloudinary when it's set up, otherwise stored in the database.
+      let url = await uploadToCloudinary(new File([blob], "product.jpg", { type: "image/jpeg" }), "image");
+      if (!url) {
+        const body = new FormData();
+        body.append("image", blob, "product.jpg");
+        url = (await adminFetch("/media", { method: "POST", body })).url;
+      }
       setForm((current) => ({ ...current, images: [...current.images, url].slice(0, 8) }));
     } catch (err) {
       setFormError(err.message);
@@ -162,6 +170,29 @@ const AdminProducts = () => {
       setUploading(false);
     }
   };
+
+  const handleVideo = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("video/")) return setFormError("Please choose a video file (MP4, MOV or WebM).");
+    if (file.size > 100 * 1024 * 1024) return setFormError("That video is over 100 MB. Please compress it first.");
+
+    setVideoProgress(0);
+    setFormError("");
+    try {
+      const url = await uploadToCloudinary(file, "video", setVideoProgress);
+      if (!url) throw new Error("Video upload needs Cloudinary — add the CLOUDINARY_* settings to the server.");
+      setForm((current) => ({ ...current, videos: [...current.videos, url].slice(0, 4) }));
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setVideoProgress(null);
+    }
+  };
+
+  const removeVideo = (url) =>
+    setForm((current) => ({ ...current, videos: current.videos.filter((video) => video !== url) }));
 
   const removeImage = (url) =>
     setForm((current) => ({ ...current, images: current.images.filter((image) => image !== url) }));
@@ -181,6 +212,7 @@ const AdminProducts = () => {
       stock: Number(form.stock),
       status: form.status,
       images: form.images,
+      videos: form.videos,
       label: form.label.trim(),
       description,
       shortDescription: description.split("\n")[0].slice(0, 160),
@@ -466,10 +498,29 @@ const AdminProducts = () => {
                   </label>
                 </div>
 
+                <div className="gad-product-image-field" style={{ marginTop: 6 }}>
+                  <span>PRODUCT VIDEOS ({form.videos.length}/4) — MP4, MOV or WebM, up to 100 MB</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 8 }}>
+                    {form.videos.map((url) => (
+                      <span key={url} style={{ position: "relative" }}>
+                        <video src={url} muted playsInline preload="metadata" style={{ width: 120, height: 80, objectFit: "cover", borderRadius: 8, background: "#000" }} />
+                        <button type="button" onClick={() => removeVideo(url)} aria-label="Remove video"
+                          style={{ position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: "50%", border: 0, background: "#c0392b", color: "#fff" }}>×</button>
+                      </span>
+                    ))}
+                    {form.videos.length < 4 && (
+                      <button type="button" className="gad-product-remove-image" disabled={videoProgress !== null} onClick={() => videoInputRef.current?.click()}>
+                        {videoProgress !== null ? `UPLOADING… ${videoProgress}%` : "+ ADD VIDEO"}
+                      </button>
+                    )}
+                  </div>
+                  <input ref={videoInputRef} type="file" accept="video/mp4,video/quicktime,video/webm" onChange={handleVideo} hidden />
+                </div>
+
                 {formError && <p className="gad-product-form-error">{formError}</p>}
                 <div className="gad-product-form-actions">
                   <button type="button" className="secondary" onClick={() => setModalOpen(false)}>CANCEL</button>
-                  <button type="submit" className="primary" disabled={saving || uploading}>
+                  <button type="submit" className="primary" disabled={saving || uploading || videoProgress !== null}>
                     <Save size={15} /> {saving ? "SAVING…" : editingId ? "SAVE CHANGES" : "ADD PRODUCT"}
                   </button>
                 </div>

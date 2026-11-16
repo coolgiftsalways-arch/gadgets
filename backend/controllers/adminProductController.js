@@ -40,6 +40,22 @@ function cleanImages(value) {
   return images;
 }
 
+const MAX_VIDEOS = 4;
+
+function cleanVideos(value) {
+  if (!Array.isArray(value)) throw badRequest("Videos must be a list.");
+  if (value.length > MAX_VIDEOS) throw badRequest(`A product can have up to ${MAX_VIDEOS} videos.`);
+
+  const videos = [];
+  for (const entry of value) {
+    const url = line(entry, 600);
+    if (!url) continue;
+    if (!/^https:\/\/[^\s"'<>]+$/i.test(url)) throw badRequest("Videos must be a full https:// address.");
+    if (!videos.includes(url)) videos.push(url);
+  }
+  return videos;
+}
+
 function cleanSpecs(value) {
   if (!Array.isArray(value)) throw badRequest("Specifications must be a list.");
 
@@ -110,6 +126,7 @@ function cleanProductInput(body) {
   }
 
   if (has("images")) data.images = cleanImages(body.images);
+  if (has("videos")) data.videos = cleanVideos(body.videos);
   if (has("colors")) data.colors = stringList(body.colors, { maxItems: 12, maxLength: 30 });
   if (has("features")) data.features = stringList(body.features, { maxItems: 12, maxLength: 120 });
   if (has("specs")) data.specs = cleanSpecs(body.specs);
