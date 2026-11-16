@@ -116,10 +116,40 @@ export default function ProductDetails() {
   const [added, setAdded] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const related = useMemo(
-    () => products.filter((item) => item.id !== product?.id),
-    [product],
-  );
+  // "You may also like": your real products from the database —
+  // same category first, then the rest (up to 8).
+  const [catalogue, setCatalogue] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(`${API_URL}/products`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => alive && setCatalogue(Array.isArray(data?.products) ? data.products : []))
+      .catch(() => alive && setCatalogue([]));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const related = useMemo(() => {
+    if (!catalogue?.length) {
+      return products.filter((item) => item.id !== product?.id).slice(0, 8);
+    }
+    const currentSlug = live?.slug || product?.slug;
+    const currentCategory = live?.category;
+    return catalogue
+      .filter((item) => item.slug !== currentSlug)
+      .sort((a, b) => (b.category === currentCategory) - (a.category === currentCategory))
+      .slice(0, 8)
+      .map((item) => ({
+        slug: item.slug,
+        name: item.name,
+        category: String(item.category || "").toUpperCase(),
+        price: rupees(item.price),
+        image: mediaUrl(item.images?.[0] || ""),
+        video: item.videos?.[0] || "",
+      }));
+  }, [catalogue, live, product?.id, product?.slug]);
 
   // Keep the chosen colour valid once the live product loads.
   useEffect(() => {
@@ -481,18 +511,25 @@ export default function ProductDetails() {
             </Link>
           </div>
           <div className="pd-related-grid">
-            {related.map((item) => {
-              const Icon = item.icon;
+            {related.map((item, index) => {
+              const Icon = item.icon || Package;
+              const thumb = item.video || item.image;
               return (
                 <Link
                   to={`/product/${item.slug}`}
                   className="pd-related-card"
-                  key={item.id}
+                  key={item.slug}
                 >
                   <div className="pd-related-visual">
-                    <span>G / {item.id}</span>
-                    <Icon />
-                    <ArrowUpRight className="pd-related-arrow" />
+                    <span style={{ zIndex: 2 }}>G / {String(index + 1).padStart(2, "0")}</span>
+                    {item.video ? (
+                      <video src={item.video} poster={item.image || undefined} muted loop autoPlay playsInline preload="metadata" className="pd-related-media" />
+                    ) : item.image ? (
+                      <img src={item.image} alt={item.name} loading="lazy" className="pd-related-media" />
+                    ) : (
+                      <Icon />
+                    )}
+                    <ArrowUpRight className="pd-related-arrow" style={thumb ? { zIndex: 2 } : undefined} />
                   </div>
                   <div className="pd-related-meta">
                     <div>
