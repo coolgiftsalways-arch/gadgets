@@ -49,6 +49,7 @@ export const PRODUCT_CATEGORIES = [
   "Camera",
   "Accessories",
   "Smart Home",
+  "Terrariums",
   "Other",
 ];
 
