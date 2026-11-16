@@ -722,6 +722,7 @@ export default function Shop() {
                 const ProductIcon = getProductIcon(product.icon);
 
                 const image = getProductImage(product);
+                const video = product.videos?.[0] || "";
 
                 const productId = product.id || product._id;
 
@@ -785,7 +786,20 @@ export default function Shop() {
 
                       <div className="shop-product-glow" />
 
-                      {image ? (
+                      {video ? (
+                        <video
+                          src={video}
+                          poster={image || undefined}
+                          className="shop-product-icon"
+                          muted
+                          loop
+                          autoPlay
+                          playsInline
+                          preload="metadata"
+                          aria-label={productName}
+                          style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 12 }}
+                        />
+                      ) : image ? (
                         <img
                           src={image}
                           alt={productName}

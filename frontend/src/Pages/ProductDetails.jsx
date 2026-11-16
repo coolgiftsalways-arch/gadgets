@@ -103,9 +103,10 @@ export default function ProductDetails() {
   }, [id]);
 
   const product = live ? fromApi(live, staticProduct) : staticProduct;
+  // Videos first, then photos.
   const media = [
-    ...(product?.images || []).map((src) => ({ type: "image", src })),
     ...(product?.videos || []).map((src) => ({ type: "video", src })),
+    ...(product?.images || []).map((src) => ({ type: "image", src })),
   ];
   const current = media[activeMedia];
 
