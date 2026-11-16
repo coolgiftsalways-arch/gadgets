@@ -34,6 +34,7 @@ import {
   updateMessage,
 } from "../controllers/adminInboxController.js";
 import { cloudinarySignature, uploadMedia } from "../controllers/mediaController.js";
+import { getHomepageAdmin, saveHomepage } from "../controllers/homepageController.js";
 import { ship, track } from "../controllers/shippingController.js";
 import {
   createCoupon,
@@ -79,6 +80,9 @@ router.patch("/products/:id", updateProduct);
 router.delete("/products/:id", deleteProduct);
 router.post("/media", uploadMedia);
 router.post("/media/cloudinary-signature", cloudinarySignature);
+
+router.get("/homepage", getHomepageAdmin);
+router.put("/homepage", saveHomepage);
 
 router.get("/subscribers", listSubscribers);
 router.get("/subscribers/export.csv", exportSubscribers);

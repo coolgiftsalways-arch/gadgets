@@ -14,6 +14,7 @@ gsap.registerPlugin(ScrollTrigger);
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import HomeSections from "./components/HomeSections";
+import HomeVideos from "./components/HomeVideos";
 import Footer from "./components/Footer";
 import OrderSuccess from "./Pages/OrderSuccess";
 import OrderResult from "./Pages/OrderResult";
@@ -41,6 +42,7 @@ import AdminCustomers from "./Admin/AdminCustomers";
 import AdminOrders from "./Admin/AdminOrders";
 import AdminProducts from "./Admin/AdminProducts";
 import AdminCoupons from "./Admin/AdminCoupons";
+import AdminHomepage from "./Admin/AdminHomepage";
 
 // ==========================================
 // GLOBAL CSS
@@ -320,6 +322,7 @@ function Home() {
       <Navbar />
       <main>
         <Hero />
+        <HomeVideos />
         <HomeSections />
       </main>
       <Footer />
@@ -481,6 +484,7 @@ function App() {
           <Route path="orders" element={<AdminOrders />} />
           <Route path="products" element={<AdminProducts />} />
           <Route path="coupons" element={<AdminCoupons />} />
+          <Route path="homepage" element={<AdminHomepage />} />
         </Route>
 
       </Routes>

@@ -1,0 +1,137 @@
+@import url("https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+.hv-section {
+     padding: 70px 0 60px;
+     background: #10100e;
+     color: #f4edda;
+     font-family: "Space Grotesk", sans-serif;
+     overflow: hidden;
+}
+
+.hv-heading {
+     display: flex;
+     align-items: flex-end;
+     justify-content: space-between;
+     gap: 20px;
+     padding: 0 3.7%;
+     margin-bottom: 30px;
+}
+
+.hv-eyebrow {
+     display: inline-flex;
+     align-items: center;
+     gap: 9px;
+     font-size: 12px;
+     font-weight: 700;
+     letter-spacing: 2px;
+     color: #eff04c;
+}
+
+.hv-eyebrow i {
+     width: 8px;
+     height: 8px;
+     border-radius: 50%;
+     background: #eff04c;
+}
+
+.hv-heading h2 {
+     margin: 10px 0 0;
+     font-family: "Anton", sans-serif;
+     font-size: clamp(44px, 6vw, 92px);
+     font-weight: 400;
+     line-height: 0.95;
+     text-transform: uppercase;
+}
+
+.hv-heading p {
+     max-width: 320px;
+     margin: 0;
+     font-size: 15px;
+     line-height: 1.6;
+     color: #c9c3b1;
+}
+
+/* Horizontal, swipeable row of vertical videos */
+.hv-row {
+     display: flex;
+     gap: 16px;
+     padding: 0 3.7% 10px;
+     overflow-x: auto;
+     scroll-snap-type: x mandatory;
+     scrollbar-width: thin;
+     -webkit-overflow-scrolling: touch;
+}
+
+.hv-card {
+     position: relative;
+     flex: 0 0 clamp(200px, 22vw, 290px);
+     aspect-ratio: 9 / 16;
+     overflow: hidden;
+     border-radius: 14px;
+     background: #000;
+     scroll-snap-align: start;
+     color: inherit;
+     text-decoration: none;
+}
+
+.hv-card video {
+     width: 100%;
+     height: 100%;
+     object-fit: cover;
+     display: block;
+}
+
+.hv-sound {
+     position: absolute;
+     top: 10px;
+     right: 10px;
+     width: 34px;
+     height: 34px;
+     display: grid;
+     place-items: center;
+     border: 0;
+     border-radius: 50%;
+     background: rgba(0, 0, 0, 0.55);
+     color: #fff;
+     cursor: pointer;
+}
+
+.hv-caption {
+     position: absolute;
+     left: 10px;
+     right: 10px;
+     bottom: 10px;
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     gap: 8px;
+     padding: 10px 12px;
+     border-radius: 9px;
+     background: #eff04c;
+     color: #10100e;
+     font-size: 12px;
+     font-weight: 700;
+     letter-spacing: 1.2px;
+     text-transform: uppercase;
+}
+
+@media (max-width: 650px) {
+     .hv-section {
+          padding: 50px 0 40px;
+     }
+
+     .hv-heading {
+          flex-direction: column;
+          align-items: flex-start;
+          padding: 0 16px;
+     }
+
+     .hv-row {
+          gap: 12px;
+          padding: 0 16px 8px;
+     }
+
+     .hv-card {
+          flex-basis: 62vw;
+     }
+}

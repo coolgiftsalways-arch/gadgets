@@ -7,6 +7,7 @@ import {
   ShoppingCart,
   Package,
   TicketPercent,
+  Film,
   Sun,
   Moon,
   Menu,
@@ -84,6 +85,11 @@ const AdminSidebar = () => {
       name: "Coupons",
       path: "/admin/coupons",
       icon: TicketPercent,
+    },
+    {
+      name: "Homepage",
+      path: "/admin/homepage",
+      icon: Film,
     },
   ];
 
