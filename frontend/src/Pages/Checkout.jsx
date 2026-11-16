@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeCanvas } from "qrcode.react";
 import {
   ArrowRight,
   LockKeyhole,
@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ShoppingBag,
   RefreshCw,
+  Download,
 } from "lucide-react";
 import {
   api,
@@ -348,6 +349,46 @@ function UpiPayment({ order, onCancel }) {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState("");
+  const qrBox = useRef(null);
+
+  // Saves the QR as a PNG (with store name, order number and amount) so the
+  // customer can open it from their gallery in any UPI app.
+  const downloadQr = () => {
+    const qr = qrBox.current?.querySelector("canvas");
+    if (!qr) return;
+
+    const pad = 40;
+    const qrSize = 600;
+    const canvas = document.createElement("canvas");
+    canvas.width = qrSize + pad * 2;
+    canvas.height = qrSize + pad * 2 + 170;
+    const ctx = canvas.getContext("2d");
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#164e74";
+    ctx.fillRect(0, 0, canvas.width, 90);
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 44px Arial, sans-serif";
+    ctx.fillText("GADGETÉ", canvas.width / 2, 62);
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(qr, pad, 90 + pad / 2, qrSize, qrSize);
+
+    ctx.fillStyle = "#10100e";
+    ctx.font = "bold 40px Arial, sans-serif";
+    ctx.fillText(`Pay ${formatPrice(order.total)}`, canvas.width / 2, 90 + pad / 2 + qrSize + 60);
+    ctx.font = "26px Arial, sans-serif";
+    ctx.fillStyle = "#555555";
+    ctx.fillText(`Order ${order.orderNumber} · Scan with any UPI app`, canvas.width / 2, 90 + pad / 2 + qrSize + 105);
+
+    const link = document.createElement("a");
+    link.download = `GADGETE-${order.orderNumber}-QR.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
 
   const check = async (manual) => {
     try {
@@ -379,9 +420,16 @@ function UpiPayment({ order, onCancel }) {
 
       <section className="ge-payment-card" style={{ maxWidth: 460, margin: "0 auto", textAlign: "center" }}>
         <p style={{ marginBottom: 14 }}>Scan with your phone camera or any UPI app, or tap the button below.</p>
-        <div style={{ display: "inline-block", padding: 14, background: "#fff", borderRadius: 12 }}>
-          <QRCodeSVG value={order.paymentUrl} size={230} level="M" />
+        <div ref={qrBox} style={{ display: "inline-block", padding: 14, background: "#fff", borderRadius: 12 }}>
+          <QRCodeCanvas value={order.paymentUrl} size={230} level="M" />
         </div>
+        <button
+          type="button"
+          onClick={downloadQr}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, margin: "12px auto 0", padding: "10px 18px", minHeight: 44, border: "1px solid #eff04c", borderRadius: 9, background: "transparent", color: "#eff04c", font: "inherit", fontSize: 13, fontWeight: 700, letterSpacing: 1.2, cursor: "pointer" }}
+        >
+          <Download size={16} /> DOWNLOAD QR
+        </button>
         <a className="ge-place-order" href={order.paymentUrl}>
           PAY {formatPrice(order.total)} WITH UPI / RAZORPAY <ArrowRight size={20} />
         </a>
