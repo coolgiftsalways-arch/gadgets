@@ -5,6 +5,7 @@ import { env, checkEnv } from "./config/env.js";
 import { connectDB } from "./config/db.js";
 import { createApp } from "./app.js";
 import { startPaymentSweep } from "./services/paymentSweep.js";
+import { startTrackingSweep } from "./services/trackingSweep.js";
 import { backgroundIdle } from "./services/background.js";
 import { seedIfEmpty } from "./seed/seedProducts.js";
 
@@ -32,9 +33,11 @@ async function main() {
 
   const server = createApp().listen(listenOn, () => console.log(`Server running on ${listenOn}`));
   const stopSweep = startPaymentSweep();
+  const stopTracking = startTrackingSweep();
 
   const shutdown = async () => {
     stopSweep();
+    stopTracking();
     server.close();
     await backgroundIdle();
     await mongoose.disconnect();

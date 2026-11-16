@@ -15,6 +15,8 @@ import { normalizeOrderNumber } from "../utils/orderNumber.js";
 import { email, integer, isObjectId, line, phone, pincode } from "../utils/validate.js";
 import * as razorpay from "../services/razorpay.js";
 import { checkCoupon, couponDiscountFor } from "../services/couponService.js";
+import * as shiprocket from "../services/shiprocket.js";
+import { refreshTracking } from "../services/shippingService.js";
 import {
   expireOrder,
   markPaid,
@@ -678,6 +680,8 @@ export async function getOrder(req, res) {
   res.json({ order: publicOrder(order, { includeEmail: true }) });
 }
 
+const TRACK_REFRESH_MS = 30 * 60 * 1000;
+
 // GET /api/orders/:orderNumber/tracking — the Track Order page
 export async function trackOrder(req, res) {
   const orderNumber = normalizeOrderNumber(req.params.orderNumber);
@@ -686,10 +690,22 @@ export async function trackOrder(req, res) {
     throw badRequest("Please enter your order number exactly as shown in your confirmation email (for example GAD-7K3M9QX2).");
   }
 
-  const order = await Order.findOne({ orderNumber, status: { $in: PLACED_STATUSES } });
+  let order = await Order.findOne({ orderNumber, status: { $in: PLACED_STATUSES } });
 
   if (!order) {
     throw notFound("We couldn't find an order with that number. Please check it and try again.");
+  }
+
+  // Fresh courier status when the customer looks (at most every 30 minutes per order).
+  const ship = order.shipping || {};
+  const onTheWay = ["processing", "shipped", "out_for_delivery"].includes(order.status);
+  const stale = !ship.syncedAt || Date.now() - new Date(ship.syncedAt).getTime() > TRACK_REFRESH_MS;
+  if (onTheWay && ship.awb && !ship.testMode && stale && shiprocket.isConfigured()) {
+    try {
+      order = await refreshTracking(order);
+    } catch (error) {
+      console.warn(`Tracking refresh failed for ${order.orderNumber}: ${error.message}`);
+    }
   }
 
   res.set("Cache-Control", "no-store");
