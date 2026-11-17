@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { BrowserRouter, Routes, Route, useLocation, useNavigationType } from "react-router-dom";
 
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -229,6 +229,15 @@ function PageLoader() {
 // LENIS SMOOTH SCROLL + SCROLL MANAGER
 // ==========================================
 
+const SCROLL_KEY = "gadgete_scroll_positions";
+const scrollPositions = (() => {
+  try {
+    return JSON.parse(sessionStorage.getItem(SCROLL_KEY) || "{}");
+  } catch {
+    return {};
+  }
+})();
+
 function ScrollManager() {
   const location = useLocation();
   const lenisRef = useRef(null);
@@ -272,12 +281,68 @@ function ScrollManager() {
     };
   }, []);
 
+  // Remember how far down each visited page was scrolled, so pressing Back
+  // returns to the same spot instead of the top.
+  const navigationType = useNavigationType();
+  const currentKey = useRef(location.key);
+
+  useEffect(() => {
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+
+    let frame = 0;
+    const save = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        scrollPositions[currentKey.current] = window.scrollY;
+        try {
+          sessionStorage.setItem(SCROLL_KEY, JSON.stringify(scrollPositions));
+        } catch {
+          /* storage full or blocked — positions still kept in memory */
+        }
+      });
+    };
+
+    window.addEventListener("scroll", save, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", save);
+    };
+  }, []);
+
   useLayoutEffect(() => {
     const lenis = lenisRef.current;
     if (!lenis) return;
 
+    currentKey.current = location.key;
+
     let firstFrame;
     let secondFrame;
+    let retryTimer;
+
+    // Back / forward: go back to where this page was left.
+    const saved = scrollPositions[location.key];
+    if (navigationType === "POP" && typeof saved === "number" && saved > 0 && !location.hash) {
+      let tries = 0;
+      const restore = () => {
+        const reachable = document.documentElement.scrollHeight - window.innerHeight >= saved - 4;
+        if (reachable || tries >= 40) {
+          lenis.scrollTo(saved, { immediate: true, force: true });
+          ScrollTrigger.refresh();
+          return;
+        }
+        // Page content (e.g. products) still loading — wait a moment.
+        tries += 1;
+        retryTimer = setTimeout(restore, 50);
+      };
+      firstFrame = requestAnimationFrame(() => {
+        secondFrame = requestAnimationFrame(restore);
+      });
+      return () => {
+        if (firstFrame) cancelAnimationFrame(firstFrame);
+        if (secondFrame) cancelAnimationFrame(secondFrame);
+        clearTimeout(retryTimer);
+      };
+    }
 
     firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(() => {
@@ -307,7 +372,7 @@ function ScrollManager() {
       if (firstFrame) cancelAnimationFrame(firstFrame);
       if (secondFrame) cancelAnimationFrame(secondFrame);
     };
-  }, [location.pathname, location.hash, location.key]);
+  }, [location.pathname, location.hash, location.key, navigationType]);
 
   return null;
 }

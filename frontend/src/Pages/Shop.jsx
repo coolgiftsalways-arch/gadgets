@@ -96,17 +96,45 @@ const getProductImage = (product) => {
 // SHOP COMPONENT
 // ==========================================
 
+// Kept while the site is open, so coming back from a product page shows the
+// shop instantly (no reload, no loading screen) at the same scroll position.
+let cachedProducts = null;
+const FILTERS_KEY = "gadgete_shop_filters";
+
+const readFilters = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem(FILTERS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+};
+
 export default function Shop() {
   const shopRef = useRef(null);
+  // True when returning to the shop during this visit.
+  const returning = useRef(Boolean(cachedProducts)).current;
+  const savedFilters = useRef(readFilters()).current;
 
-  const [products, setProducts] = useState([]);
-  const [activeCategory, setActiveCategory] = useState("ALL PRODUCTS");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [sortOrder, setSortOrder] = useState("featured");
+  const [products, setProducts] = useState(cachedProducts || []);
+  const [activeCategory, setActiveCategory] = useState(savedFilters.category || "ALL PRODUCTS");
+  const [searchQuery, setSearchQuery] = useState(savedFilters.search || "");
+  const [searchOpen, setSearchOpen] = useState(Boolean(savedFilters.search));
+  const [sortOrder, setSortOrder] = useState(savedFilters.sort || "featured");
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedProducts);
   const [error, setError] = useState("");
+
+  // Remember the chosen category / search / sort for this visit.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        FILTERS_KEY,
+        JSON.stringify({ category: activeCategory, search: searchQuery, sort: sortOrder }),
+      );
+    } catch {
+      /* not important */
+    }
+  }, [activeCategory, searchQuery, sortOrder]);
 
   // ==========================================
   // FETCH PRODUCTS FROM MONGODB
@@ -117,7 +145,8 @@ export default function Shop() {
 
     const fetchProducts = async () => {
       try {
-        setLoading(true);
+        // Returning visitors already see the cached list; refresh quietly.
+        if (!cachedProducts) setLoading(true);
         setError("");
 
         const data = await apiRequest("/products");
@@ -127,6 +156,7 @@ export default function Shop() {
             ? data.products
             : [];
 
+          cachedProducts = databaseProducts;
           setProducts(databaseProducts);
         }
       } catch (err) {
@@ -239,7 +269,8 @@ export default function Shop() {
   useLayoutEffect(() => {
     const root = shopRef.current;
 
-    if (!root) return undefined;
+    // Coming back from a product page: no intro animation, just show the shop.
+    if (!root || returning) return undefined;
 
     const ctx = gsap.context(() => {
       const timeline = gsap.timeline({
@@ -459,9 +490,8 @@ export default function Shop() {
 
       const data = await apiRequest("/products");
 
-      setProducts(
-        Array.isArray(data.products) ? data.products : []
-      );
+      cachedProducts = Array.isArray(data.products) ? data.products : [];
+      setProducts(cachedProducts);
     } catch (err) {
       console.error(err);
       setError(err.message || "Unable to load products.");
