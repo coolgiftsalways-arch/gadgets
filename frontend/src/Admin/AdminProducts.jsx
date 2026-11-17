@@ -34,6 +34,7 @@ const emptyForm = {
   description: "",
   colors: "",
   features: "",
+  sortOrder: "",
 };
 
 // Shrinks a photo in the browser (max 1600px, JPEG) so uploads are quick.
@@ -136,9 +137,22 @@ const AdminProducts = () => {
       description: product.description || "",
       colors: (product.colors || []).join(", "),
       features: (product.features || []).join("\n"),
+      sortOrder: String(product.sortOrder ?? ""),
     });
     setFormError("");
     setModalOpen(true);
+  };
+
+  // Sr no typed in the table: save it and re-sort the list.
+  const savePosition = async (product, value) => {
+    const position = Number.parseInt(value, 10);
+    if (!Number.isFinite(position) || position === product.sortOrder) return;
+    try {
+      await adminFetch(`/products/${product._id}`, { method: "PATCH", body: { sortOrder: position } });
+      load();
+    } catch (err) {
+      setPageError(err.message);
+    }
   };
 
   const updateField = (event) => {
@@ -211,6 +225,7 @@ const AdminProducts = () => {
       compareAtPrice: form.compareAtPrice === "" ? 0 : Number(form.compareAtPrice),
       stock: Number(form.stock),
       status: form.status,
+      ...(form.sortOrder !== "" ? { sortOrder: Number(form.sortOrder) } : {}),
       images: form.images,
       videos: form.videos,
       label: form.label.trim(),
@@ -351,7 +366,7 @@ const AdminProducts = () => {
           <table className="gad-products-table">
             <thead>
               <tr>
-                <th>PRODUCT</th>
+                <th>SR NO · PRODUCT</th>
                 <th>SKU / CATEGORY</th>
                 <th>PRICE</th>
                 <th>STOCK</th>
@@ -366,6 +381,16 @@ const AdminProducts = () => {
                   <tr key={product._id}>
                     <td>
                       <div className="gad-product-name-cell">
+                        <input
+                          type="number"
+                          defaultValue={product.sortOrder}
+                          key={`${product._id}-${product.sortOrder}`}
+                          title="Sr no — lower numbers show first in the shop"
+                          aria-label={`Position of ${product.name}`}
+                          onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+                          onBlur={(event) => savePosition(product, event.currentTarget.value)}
+                          style={{ width: 58, height: 36, flex: "0 0 auto", padding: "0 6px", borderRadius: 8, border: "1px solid var(--gad-admin-line, #ccc)", background: "transparent", color: "inherit", fontWeight: 700, textAlign: "center" }}
+                        />
                         {product.images[0] ? (
                           <img src={imageUrl(product.images[0])} alt={product.name} />
                         ) : (
@@ -489,6 +514,10 @@ const AdminProducts = () => {
                 <div className="gad-product-form-grid three">
                   <label>COLOURS<input name="colors" value={form.colors} onChange={updateField} placeholder="Black, White, Blue" /></label>
                   <label>FEATURES (one per line)<textarea name="features" value={form.features} onChange={updateField} rows="2" /></label>
+                  <label>
+                    POSITION (SR NO)
+                    <input type="number" name="sortOrder" value={form.sortOrder} onChange={updateField} placeholder="e.g. 1 = first in shop" />
+                  </label>
                   <label>
                     PRODUCT STATUS
                     <select name="status" value={form.status} onChange={updateField}>

@@ -253,11 +253,8 @@ export default function Shop() {
       );
     }
 
-    if (sortOrder === "featured") {
-      result.sort(
-        (a, b) => Number(b.featured) - Number(a.featured)
-      );
-    }
+    // "Featured" = the order set in Admin → Products (Sr No, lowest first).
+    // The server already sends products in that order.
 
     return result;
   }, [products, activeCategory, searchQuery, sortOrder]);
