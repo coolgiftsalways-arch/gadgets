@@ -64,6 +64,9 @@ export function createApp() {
           "media-src": ["'self'", "blob:", "https://res.cloudinary.com"],
           "object-src": ["'none'"],
           "frame-ancestors": ["'self'"],
+          // Meta Pixel sends larger events through a hidden frame/form to facebook.com.
+          "frame-src": ["'self'", "https://www.facebook.com"],
+          "form-action": ["'self'", "https://www.facebook.com"],
           "upgrade-insecure-requests": null,
         },
       },
