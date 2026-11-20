@@ -41,12 +41,26 @@ export function createApp() {
       contentSecurityPolicy: {
         directives: {
           "default-src": ["'self'"],
-          "script-src": ["'self'"],
+          // Meta Pixel and Google Tag Manager load their scripts from these.
+          "script-src": [
+            "'self'",
+            "https://connect.facebook.net",
+            "https://www.googletagmanager.com",
+          ],
           "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
           "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
           "img-src": ["'self'", "data:", "blob:", "https:"],
-          // The admin panel uploads photos/videos straight to Cloudinary.
-          "connect-src": ["'self'", "https://api.cloudinary.com"],
+          // Cloudinary (admin uploads), Meta Pixel and Google Analytics.
+          "connect-src": [
+            "'self'",
+            "https://api.cloudinary.com",
+            "https://www.facebook.com",
+            "https://connect.facebook.net",
+            "https://www.googletagmanager.com",
+            "https://www.google-analytics.com",
+            "https://*.google-analytics.com",
+            "https://*.analytics.google.com",
+          ],
           "media-src": ["'self'", "blob:", "https://res.cloudinary.com"],
           "object-src": ["'none'"],
           "frame-ancestors": ["'self'"],
