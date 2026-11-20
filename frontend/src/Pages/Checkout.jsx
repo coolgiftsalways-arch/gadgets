@@ -64,6 +64,26 @@ const Checkout = () => {
       .catch((err) => setQuoteError(err.message));
   }, [items, couponCode]);
 
+  // Meta Pixel: InitiateCheckout once, with the server-confirmed total.
+  const checkoutTracked = useRef(false);
+  useEffect(() => {
+    if (checkoutTracked.current || !cart.length || !quote) return;
+    checkoutTracked.current = true;
+    try {
+      if (typeof window.fbq !== "function") return;
+      const ids = (quote.items || []).map((item) => String(item.slug));
+      window.fbq("track", "InitiateCheckout", {
+        content_ids: ids,
+        content_type: "product",
+        num_items: quote.itemCount || ids.length,
+        value: Number(quote.options?.upi?.total ?? quote.options?.cod?.total) || 0,
+        currency: "INR",
+      });
+    } catch {
+      /* never let tracking break checkout */
+    }
+  }, [cart, quote]);
+
   const coupon = quote?.coupon;
   // A coupon limited to one payment method only counts for that option.
   const couponApplies =
@@ -155,10 +175,10 @@ const Checkout = () => {
     );
   }
 
-  const field = (name, label, props = {}) => (
-    <div className={`ge-form-group ${props.wrapClass || ""}`}>
+  const field = (name, label, { wrapClass = "", ...props } = {}) => (
+    <div className={`ge-form-group ${wrapClass}`}>
       <label htmlFor={name}>{label}</label>
-      <input id={name} name={name} value={form[name]} onChange={handleChange} {...props} wrapClass={undefined} />
+      <input id={name} name={name} value={form[name]} onChange={handleChange} {...props} />
     </div>
   );
 
