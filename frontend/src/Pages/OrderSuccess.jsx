@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -16,6 +15,32 @@ import "../Style/OrderSuccess.css";
 const API_URL = (
   import.meta.env.VITE_API_URL || "/api"
 ).replace(/\/+$/, "");
+
+// Meta Pixel: send Purchase once per order (not again on refresh).
+function trackPurchase(order) {
+  try {
+    if (typeof window.fbq !== "function" || !order?.orderNumber) return;
+    const key = `fb_purchase_${order.orderNumber}`;
+    if (localStorage.getItem(key)) return;
+    const items = order.items || [];
+    window.fbq(
+      "track",
+      "Purchase",
+      {
+        content_ids: items.map((item) => String(item.slug)),
+        content_type: "product",
+        contents: items.map((item) => ({ id: String(item.slug), quantity: Number(item.quantity) || 1 })),
+        num_items: items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0),
+        value: Number(order.total) || 0,
+        currency: "INR",
+      },
+      { eventID: `purchase_${order.orderNumber}` },
+    );
+    localStorage.setItem(key, "1");
+  } catch {
+    /* never let tracking break the page */
+  }
+}
 
 export default function OrderSuccess() {
   const [searchParams] = useSearchParams();
@@ -48,6 +73,11 @@ export default function OrderSuccess() {
 
         if (!cancelled) {
           setOrder(data.order);
+
+          // Count the sale only for a real order (COD placed, or UPI paid).
+          if (data.order?.placed && data.order.status !== "cancelled") {
+            trackPurchase(data.order);
+          }
         }
       } catch (err) {
         if (!cancelled) {
