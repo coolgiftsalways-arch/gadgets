@@ -1,0 +1,882 @@
+{
+  "_help": "Key = the product's CURRENT name on the site (not case-sensitive). Only the fields you write here are changed. Limits: name 120, label 80, shortDescription 160, description 4000, features up to 12 x 120 chars.",
+  "Alpine Prism": {
+    "name": "Alpine Prism",
+    "label": "A QUIET PEAK UNDER GLASS",
+    "shortDescription": "A tall glass prism holding a calm alpine scene of preserved moss and a tiny deer. No water, no sunlight, no fuss.",
+    "description": "Bring the stillness of the mountains to your desk. The Alpine Prism is a tall, hand-assembled glass prism holding a miniature alpine landscape: soft preserved moss, natural textures and a small deer figure standing quietly at its peak.\n\nThe moss is preserved, not living, so it stays green and soft without watering, misting or sunlight. Place it on a work desk, bookshelf, bedside table or reception counter and it will look the same months from now as it does the day it arrives.\n\nA thoughtful gift for nature lovers, new homes, housewarmings and anyone who wants a little calm in their space.",
+    "features": [
+      "Preserved moss — never needs watering",
+      "Hand-assembled glass prism",
+      "Miniature deer figure",
+      "Looks great in any light, even without windows",
+      "Ready to gift"
+    ],
+    "specs": [
+      [
+        "Care",
+        "No watering, no sunlight needed"
+      ],
+      [
+        "Material",
+        "Glass with preserved moss"
+      ],
+      [
+        "Best for",
+        "Desks, shelves, gifting"
+      ]
+    ]
+  },
+  "Diamond Prism": {
+    "name": "Diamond Prism",
+    "label": "STONE AND MOSS, FACETED",
+    "shortDescription": "A faceted glass prism filled with lush preserved moss and natural stone — a statement centrepiece for desk or shelf.",
+    "description": "The Diamond Prism is our most striking piece. Its faceted glass catches the light from every angle, framing a lush landscape of preserved moss and natural stone inside.\n\nBuilt to be a centrepiece, it brings a calm, natural feel to living rooms, offices and studios. Because the moss is preserved, it keeps its colour and softness without water or sunlight — just dust the glass now and then.\n\nA premium gift for weddings, anniversaries, office openings and corporate gifting.",
+    "features": [
+      "Preserved moss — never needs watering",
+      "Natural stone accents",
+      "Faceted, light-catching glass design",
+      "Statement centrepiece size",
+      "Premium gift for special occasions"
+    ],
+    "specs": [
+      [
+        "Care",
+        "No watering, no sunlight needed"
+      ],
+      [
+        "Material",
+        "Faceted glass, preserved moss, natural stone"
+      ],
+      [
+        "Best for",
+        "Living rooms, offices, premium gifting"
+      ]
+    ]
+  },
+  "Ganesha's Pod": {
+    "name": "Ganesha's Pod",
+    "label": "A GREEN HOME FOR GANESHA",
+    "shortDescription": "A Ganesha idol resting in preserved moss under a glass pod. A calm, auspicious, low-care gift for homes and offices.",
+    "description": "Welcome blessings and calm into your space with Ganesha's Pod. A graceful Ganesha idol sits in a bed of soft preserved moss, protected under a clear glass pod.\n\nIt needs no water and no sunlight, so it stays beautiful on a pooja shelf, office desk, shop counter or any quiet corner of the home. The glass keeps dust off the idol and the moss.\n\nA meaningful gift for Diwali, Ganesh Chaturthi, griha pravesh, new jobs, new businesses and every auspicious beginning.",
+    "features": [
+      "Ganesha idol included",
+      "Preserved moss — never needs watering",
+      "Glass pod keeps dust away",
+      "Perfect for Diwali, Ganesh Chaturthi and housewarmings",
+      "Ready to gift"
+    ],
+    "specs": [
+      [
+        "Care",
+        "No watering, no sunlight needed"
+      ],
+      [
+        "Includes",
+        "Ganesha idol, preserved moss, glass pod"
+      ],
+      [
+        "Best for",
+        "Pooja shelf, office desk, festive gifting"
+      ]
+    ]
+  },
+  "Nature's Dome": {
+    "name": "Nature's Dome",
+    "label": "A TINY FOREST UNDER A DOME",
+    "shortDescription": "A palm-sized forest of preserved moss and bark under a glass dome on a gold base. Small size, big charm.",
+    "description": "Nature's Dome is a tiny forest you can hold in your hand. Soft preserved moss and natural bark are arranged into a miniature woodland, set on an elegant gold base and covered with a clear glass dome.\n\nIts compact size makes it perfect for work desks, study tables, bedside tables and small shelves. No watering, no sunlight and no maintenance — it simply stays green.\n\nAn easy, elegant gift for birthdays, colleagues, teachers and friends.",
+    "features": [
+      "Preserved moss — never needs watering",
+      "Glass dome with gold base",
+      "Compact, palm-sized design",
+      "Natural bark details",
+      "Easy gift for any occasion"
+    ],
+    "specs": [
+      [
+        "Care",
+        "No watering, no sunlight needed"
+      ],
+      [
+        "Material",
+        "Glass dome, gold-finish base, preserved moss, bark"
+      ],
+      [
+        "Best for",
+        "Desks, study tables, small shelves"
+      ]
+    ]
+  },
+  "Nature's Prism": {
+    "name": "Nature's Prism",
+    "label": "OUR SIGNATURE PRISM",
+    "shortDescription": "Our signature geometric glass prism with layers of preserved moss, bark and stone. A green landscape that never needs care.",
+    "description": "Nature's Prism is the piece that started it all. A clean geometric glass prism holds carefully layered preserved moss, bark and stone — a complete little landscape that looks alive but asks for nothing.\n\nNo watering, no misting and no sunlight needed. It suits modern homes, minimal workspaces and anywhere you want a touch of green without the upkeep of real plants.\n\nOur most-loved gift for housewarmings, birthdays and anyone who loves nature.",
+    "features": [
+      "Our signature design",
+      "Preserved moss — never needs watering",
+      "Geometric glass prism",
+      "Layered bark and stone details",
+      "Zero maintenance"
+    ],
+    "specs": [
+      [
+        "Care",
+        "No watering, no sunlight needed"
+      ],
+      [
+        "Material",
+        "Glass, preserved moss, bark, stone"
+      ],
+      [
+        "Best for",
+        "Modern homes, workspaces, gifting"
+      ]
+    ]
+  },
+  "Terra GlowPod": {
+    "name": "Terra GlowPod",
+    "label": "MOSS THAT GLOWS AT NIGHT",
+    "shortDescription": "A tall glass terrarium with a warm light in the lid, so your moss landscape glows softly after dark. Doubles as a night lamp.",
+    "description": "By day, Terra GlowPod is a tall glass terrarium filled with a lush preserved-moss landscape on a dark base. By night, switch on the warm light built into the lid and the whole scene glows softly — a calming night lamp for bedrooms, living rooms and reading corners.\n\nThe moss is preserved, so it needs no water and no sunlight. Just switch it on and enjoy.\n\nA standout gift for couples, new homes, anniversaries and anyone who loves cosy lighting.",
+    "features": [
+      "Warm built-in light in the lid",
+      "Doubles as a night lamp",
+      "Preserved moss — never needs watering",
+      "Tall glass design on a dark base",
+      "Standout gift for couples and new homes"
+    ],
+    "specs": [
+      [
+        "Care",
+        "No watering, no sunlight needed"
+      ],
+      [
+        "Lighting",
+        "Warm built-in light"
+      ],
+      [
+        "Best for",
+        "Bedrooms, living rooms, gifting"
+      ]
+    ]
+  },
+  "The Pod": {
+    "name": "The Pod",
+    "label": "SMALL POD, BIG CALM",
+    "shortDescription": "A compact glass pod with preserved moss — the simplest way to bring green to a desk or bedside table.",
+    "description": "The Pod is our easiest way to add a little green to your day. A compact glass pod filled with soft preserved moss that stays fresh-looking without water, sunlight or care.\n\nIt fits anywhere: work desk, bedside table, bookshelf, window sill or reception counter. Pick one up for yourself, or a few as small gifts for friends and colleagues.\n\nA perfect starter terrarium and an affordable gift.",
+    "features": [
+      "Preserved moss — never needs watering",
+      "Compact glass pod",
+      "Fits on any desk or shelf",
+      "Great as a small or bulk gift"
+    ],
+    "specs": [
+      [
+        "Care",
+        "No watering, no sunlight needed"
+      ],
+      [
+        "Material",
+        "Glass, preserved moss"
+      ],
+      [
+        "Best for",
+        "Desks, bedside tables, small gifts"
+      ]
+    ]
+  },
+  "Sunlight Lamp": {
+    "name": "Sunlight Lamp",
+    "label": "GOLDEN HOUR, ANY HOUR",
+    "shortDescription": "A projection lamp that fills your wall with a warm sunset glow. Instant golden-hour mood for photos, bedrooms and chill evenings.",
+    "description": "Bring golden hour indoors. The Sunlight Lamp projects a warm, glowing circle of light onto your wall, giving any room the soft sunset look that's all over social media.\n\nUse it to set a cosy mood in the bedroom, add warmth to the living room, or light up your photos and reels with a dreamy glow. The adjustable head lets you point the light exactly where you want it.\n\nA fun, aesthetic gift for content creators, students and anyone who loves a cosy room.",
+    "features": [
+      "Warm sunset-style projection",
+      "Adjustable head to aim the light",
+      "Great for photos, reels and selfies",
+      "Cosy mood light for bedrooms"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Projection mood lamp"
+      ],
+      [
+        "Best for",
+        "Bedrooms, photo setups, gifting"
+      ]
+    ]
+  },
+  "Matchstick Table Lamp": {
+    "keepExisting": true,
+    "name": "Matchstick Table Lamp",
+    "label": "STRIKE UP SOME LIGHT",
+    "shortDescription": "A playful table lamp shaped like a giant matchstick. A fun conversation piece for desks, shelves and bedside tables.",
+    "description": "A playful table lamp shaped like a giant matchstick, with a glowing tip that gives off a warm light. It looks like a design-store piece and makes a fun conversation starter on any desk, shelf or bedside table.\n\nA quirky gift for friends who love unusual home decor.",
+    "features": [
+      "Shaped like a giant matchstick",
+      "Warm glowing tip",
+      "Quirky desk and shelf decor",
+      "Fun gift for design lovers"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Decorative table lamp"
+      ],
+      [
+        "Best for",
+        "Desks, bedside tables, gifting"
+      ]
+    ]
+  },
+  "Cold-Change Soda Cup": {
+    "keepExisting": true,
+    "name": "Cold-Change Soda Cup",
+    "label": "POUR COLD, WATCH IT CHANGE",
+    "shortDescription": "A 450ml aluminium cup that changes colour when filled with a cold drink. Fun, reusable and made for summer.",
+    "description": "A 450ml aluminium cup that changes colour when you fill it with a cold drink. Pour in soda, juice, iced coffee or water and watch the colour shift.\n\nLightweight, reusable and fun for parties, summer days and kids' birthdays.",
+    "features": [
+      "Changes colour with cold drinks",
+      "450ml capacity",
+      "Lightweight aluminium",
+      "Reusable — great for parties"
+    ],
+    "specs": [
+      [
+        "Capacity",
+        "450ml"
+      ],
+      [
+        "Material",
+        "Aluminium"
+      ],
+      [
+        "Care",
+        "Hand wash only"
+      ]
+    ]
+  },
+  "Floral Emoticon Display T-Shirt": {
+    "keepExisting": true,
+    "name": "Floral Emoticon Display T-Shirt",
+    "label": "WEAR YOUR MOOD",
+    "shortDescription": "A T-shirt with a dynamic floral emoticon display on the front. Fun, expressive streetwear that gets noticed.",
+    "description": "A T-shirt with a dynamic floral emoticon display on the front, so your outfit can show your mood. Comfortable for everyday wear and made to stand out at parties, concerts and college fests.",
+    "features": [
+      "Dynamic emoticon display",
+      "Floral design",
+      "Comfortable everyday fit",
+      "A guaranteed conversation starter"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Display T-shirt"
+      ],
+      [
+        "Care",
+        "Remove the display module before washing"
+      ]
+    ]
+  },
+  "Heat-Reveal Magic Mug": {
+    "keepExisting": true,
+    "name": "Heat-Reveal Magic Mug",
+    "label": "POUR HOT, REVEAL THE SURPRISE",
+    "shortDescription": "A white 11oz ceramic mug that reveals a hidden design when you pour in a hot drink. A fun surprise gift.",
+    "description": "A white 11oz ceramic mug that reveals a hidden design when you pour in a hot drink. As it cools, the design hides again.\n\nA fun surprise gift for birthdays, anniversaries and coffee lovers.",
+    "features": [
+      "Hidden design appears with hot drinks",
+      "11oz ceramic mug",
+      "Surprise-gift favourite",
+      "Reusable effect every time"
+    ],
+    "specs": [
+      [
+        "Capacity",
+        "11oz"
+      ],
+      [
+        "Material",
+        "Ceramic"
+      ],
+      [
+        "Care",
+        "Hand wash only, not microwave safe"
+      ]
+    ]
+  },
+  "Heat-Change Bone China Mug": {
+    "keepExisting": true,
+    "name": "Heat-Change Bone China Mug",
+    "label": "FINE CHINA WITH A TWIST",
+    "shortDescription": "An 11oz bone china mug whose design changes when you pour in a hot drink. Elegant to hold, magical to watch.",
+    "description": "An 11oz bone china mug whose design changes when you pour in a hot drink. Light, elegant bone china with a colour-changing surprise every time you make tea or coffee.\n\nA classy gift for parents, colleagues and coffee lovers.",
+    "features": [
+      "Design changes with hot drinks",
+      "11oz bone china",
+      "Light and elegant to hold",
+      "Classy gift idea"
+    ],
+    "specs": [
+      [
+        "Capacity",
+        "11oz"
+      ],
+      [
+        "Material",
+        "Bone china"
+      ],
+      [
+        "Care",
+        "Hand wash only, not microwave safe"
+      ]
+    ]
+  },
+  "Colour-Changing Sake Cup": {
+    "keepExisting": true,
+    "name": "Colour-Changing Sake Cup",
+    "label": "A JAPANESE CUP WITH A SECRET",
+    "shortDescription": "A Japanese-style ceramic sake cup that changes colour with temperature. A small, beautiful surprise in every sip.",
+    "description": "A Japanese-style ceramic sake cup that changes colour with the temperature of your drink. Use it for sake, tea or shots and watch the design come alive.\n\nA unique gift for collectors and fans of Japanese design.",
+    "features": [
+      "Changes colour with temperature",
+      "Japanese-style ceramic design",
+      "Perfect for sake, tea or shots",
+      "Unique collector's gift"
+    ],
+    "specs": [
+      [
+        "Material",
+        "Ceramic"
+      ],
+      [
+        "Care",
+        "Hand wash only"
+      ]
+    ]
+  },
+  "GOODBITE Dynamic Display Nautical Stripe T-shirt": {
+    "name": "GOODBITE Dynamic Display Nautical Stripe T-shirt",
+    "label": "CLASSIC STRIPES, LIVE DISPLAY",
+    "shortDescription": "A classic nautical stripe tee with a dynamic display on the front. Timeless style with a tech twist.",
+    "description": "The GOODBITE Nautical Stripe T-shirt pairs a timeless striped look with a dynamic display on the front. It works as an easy everyday tee, and the display makes it a head-turner at parties, events and college fests.\n\nA fun gift for anyone who loves gadgets and statement fashion.",
+    "features": [
+      "Dynamic display on the front",
+      "Classic nautical stripes",
+      "Comfortable everyday fit",
+      "Stands out at events and parties"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Display T-shirt"
+      ],
+      [
+        "Care",
+        "Remove the display module before washing"
+      ]
+    ]
+  },
+  "Glass With Axe": {
+    "name": "Glass With Axe",
+    "label": "POUR LIKE A VIKING",
+    "shortDescription": "A bold drinking glass with an axe design. A rugged showpiece for your bar, desk or shelf.",
+    "description": "Make every drink feel legendary. This bold glass comes with an axe design that turns an ordinary drink into a rugged, Viking-style moment.\n\nUse it for whisky, juice or cold drinks, or keep it as a showpiece in your home bar. A great gift for brothers, friends, fathers and anyone with a bold style.",
+    "features": [
+      "Eye-catching axe design",
+      "Home-bar showpiece",
+      "Great for gifting men",
+      "Use for any drink"
+    ],
+    "specs": [
+      [
+        "Material",
+        "Glass"
+      ],
+      [
+        "Care",
+        "Hand wash only"
+      ]
+    ]
+  },
+  "Monster Cup": {
+    "name": "Monster Cup",
+    "label": "A CUP WITH ATTITUDE",
+    "shortDescription": "A playful monster-design cup that makes every drink more fun. Great for kids, gamers and anyone who loves quirky stuff.",
+    "description": "Who said cups have to be boring? The Monster Cup brings a playful monster design to your daily drinks — juice, coffee, milkshake or water.\n\nA fun pick for kids, gamers and anyone who loves quirky things on their desk, and an easy birthday or return gift.",
+    "features": [
+      "Playful monster design",
+      "Fun for kids and adults",
+      "Great desk companion",
+      "Easy birthday or return gift"
+    ],
+    "specs": [
+      [
+        "Care",
+        "Hand wash only"
+      ],
+      [
+        "Best for",
+        "Kids, gamers, gifting"
+      ]
+    ]
+  },
+  "Plant In An Hourglass": {
+    "name": "Plant In An Hourglass",
+    "label": "TIME, GROWING GREEN",
+    "shortDescription": "A little green plant scene inside an hourglass-shaped glass. Calm, minimal decor for desks and shelves.",
+    "description": "A tiny green scene held inside an elegant hourglass-shaped glass. It's a calm reminder to slow down, and a minimal decor piece that suits desks, study tables and bookshelves.\n\nA thoughtful gift for plant lovers, colleagues and new homes.",
+    "features": [
+      "Hourglass-shaped glass",
+      "Minimal green decor",
+      "Fits any desk or shelf",
+      "Thoughtful gift for plant lovers"
+    ],
+    "specs": [
+      [
+        "Material",
+        "Glass"
+      ],
+      [
+        "Best for",
+        "Desks, shelves, gifting"
+      ]
+    ]
+  },
+  "RetroBuild – Modular Mechanical Flip Clock": {
+    "keepExisting": true,
+    "name": "RetroBuild – Modular Mechanical Flip Clock",
+    "label": "90s FLIP CLOCK, BUILT BY YOU",
+    "shortDescription": "A modular mechanical flip clock with nostalgic 1990s-inspired design. Satisfying flips, retro style, on your desk.",
+    "description": "Bring nostalgic 1990s-inspired design to your desk with RetroBuild, a modular mechanical flip clock. Watch the numbers flip over as time passes — a satisfying retro touch for any workspace.",
+    "features": [
+      "Mechanical flip display",
+      "Modular build",
+      "1990s-inspired retro design",
+      "Great desk gift"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Mechanical flip clock"
+      ],
+      [
+        "Best for",
+        "Desks, shelves, retro lovers"
+      ]
+    ]
+  },
+  "3D-Printed Monstera Planter": {
+    "keepExisting": true,
+    "name": "3D-Printed Monstera Planter",
+    "label": "A LEAF THAT NEVER WILTS",
+    "shortDescription": "A decorative monstera leaf sculpture in a textured 3D-printed planter. Green decor with zero care.",
+    "description": "A decorative monstera leaf sculpture in a textured 3D-printed planter. All the style of a monstera plant with none of the watering — perfect for desks, shelves and rooms with little light.",
+    "features": [
+      "Monstera leaf sculpture",
+      "Textured 3D-printed planter",
+      "No watering, no sunlight",
+      "Modern minimal decor"
+    ],
+    "specs": [
+      [
+        "Material",
+        "3D-printed"
+      ],
+      [
+        "Care",
+        "Dust occasionally"
+      ]
+    ]
+  },
+  "Hero Wall Frame with Climbing Figures": {
+    "keepExisting": true,
+    "name": "Hero Wall Frame with Climbing Figures",
+    "label": "HEROES CLIMBING OUT OF THE FRAME",
+    "shortDescription": "A framed poster with small hero figures climbing out of it. 3D wall art that fans love.",
+    "description": "A framed poster with small climbing hero figures that look like they're breaking out of the frame. A 3D wall-art piece for bedrooms, gaming rooms and fan corners.\n\nA standout gift for superhero fans of all ages.",
+    "features": [
+      "3D climbing hero figures",
+      "Ready-to-hang frame",
+      "Great for bedrooms and gaming rooms",
+      "Gift for superhero fans"
+    ],
+    "specs": [
+      [
+        "Type",
+        "3D wall frame"
+      ],
+      [
+        "Best for",
+        "Bedrooms, gaming setups, gifting"
+      ]
+    ]
+  },
+  "NFC E-Ink Photo Keychain": {
+    "keepExisting": true,
+    "name": "NFC E-Ink Photo Keychain",
+    "label": "YOUR PHOTO, ON YOUR KEYS",
+    "shortDescription": "A keychain with an e-ink screen that shows your photo. Tap your phone with NFC to change the picture any time.",
+    "description": "A keychain with an e-ink screen that shows your favourite photo. Tap it with your phone using NFC to send a new picture whenever you like — a partner, a pet, your best friend or a meme.\n\nA personal, techy gift for couples, friends and family.",
+    "features": [
+      "E-ink photo screen",
+      "Change the photo by tapping your phone (NFC)",
+      "Clear, paper-like display",
+      "Personal gift for couples and friends"
+    ],
+    "specs": [
+      [
+        "Display",
+        "E-ink"
+      ],
+      [
+        "Connection",
+        "NFC (phone with NFC needed)"
+      ]
+    ]
+  },
+  "Halloween Fuse Lamp": {
+    "keepExisting": true,
+    "name": "Halloween Fuse Lamp",
+    "label": "A LITTLE SPOOKY GLOW",
+    "shortDescription": "A spooky little lamp that glows like a lit fuse. Fun Halloween decor that looks great all year.",
+    "description": "A spooky little lamp that glows like a lit fuse. Set it on a shelf, desk or party table for instant Halloween vibes — and keep it out all year as a quirky night light.",
+    "features": [
+      "Glows like a lit fuse",
+      "Spooky Halloween decor",
+      "Doubles as a quirky night light",
+      "Fun party gift"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Decorative lamp"
+      ],
+      [
+        "Best for",
+        "Halloween, parties, shelves"
+      ]
+    ]
+  },
+  "Coffee Cup for MoodBoard": {
+    "name": "Coffee Cup for MoodBoard",
+    "label": "COFFEE, WITH A MOOD",
+    "shortDescription": "A stylish coffee cup made to match your MoodBoard setup. Aesthetic, practical and great on camera.",
+    "description": "Complete your MoodBoard setup with this stylish coffee cup. It's made for your daily coffee or tea and looks great in desk setups, flat-lays and content shoots.\n\nA neat add-on gift for anyone who loves an aesthetic workspace.",
+    "features": [
+      "Made to match your MoodBoard",
+      "Aesthetic desk-setup look",
+      "For coffee or tea",
+      "Great add-on gift"
+    ],
+    "specs": [
+      [
+        "Care",
+        "Hand wash only"
+      ],
+      [
+        "Best for",
+        "Desk setups, gifting"
+      ]
+    ]
+  },
+  "Wireless charging": {
+    "name": "Wireless Charger",
+    "label": "DROP IT, CHARGE IT",
+    "shortDescription": "A wireless charger for your phone. Just place it down and it starts charging — no fiddly cables.",
+    "description": "Say goodbye to fiddly cables. Place your phone on this wireless charger and it starts charging straight away. It keeps your desk or bedside table neat and makes topping up as easy as putting your phone down.\n\nWorks with phones that support wireless (Qi) charging.",
+    "features": [
+      "Place-and-charge convenience",
+      "Keeps your desk cable-free",
+      "Great for desk and bedside",
+      "Works with Qi wireless-charging phones"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Wireless charger"
+      ],
+      [
+        "Works with",
+        "Phones with Qi wireless charging"
+      ]
+    ]
+  },
+  "Bike wings": {
+    "name": "Bike Wings",
+    "label": "RIDE WITH WINGS",
+    "shortDescription": "Light-up wing projection for your bike that makes you more visible at night — and looks seriously cool.",
+    "description": "Give your ride a pair of wings. Bike Wings light up the road beside you with a wing-shaped glow, so cars and other riders can see you clearly at night.\n\nEasy to fit, eye-catching and a fun upgrade for cyclists, riders and night commuters.",
+    "features": [
+      "Wing-shaped light effect",
+      "Makes you more visible at night",
+      "Easy to fit",
+      "Cool upgrade for riders"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Bike light"
+      ],
+      [
+        "Best for",
+        "Night rides, commuters"
+      ]
+    ]
+  },
+  "Batman Door Beam": {
+    "name": "Batman Door Beam",
+    "label": "MAKE AN ENTRANCE",
+    "shortDescription": "A car door light that projects a bat-symbol onto the ground when you open the door. Every exit becomes an entrance.",
+    "description": "Step out like a hero. The Batman Door Beam fits on your car door and projects a bat-symbol onto the ground whenever the door opens.\n\nIt also lights up the ground so you can see where you're stepping at night. A cool gift for car lovers and superhero fans.",
+    "features": [
+      "Projects a bat-symbol when the door opens",
+      "Lights the ground at night",
+      "Easy car-door fitting",
+      "Gift for car lovers and fans"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Car door projector light"
+      ],
+      [
+        "Best for",
+        "Cars, gifting"
+      ]
+    ]
+  },
+  "Tail light": {
+    "name": "Tail Light",
+    "label": "BE SEEN FROM BEHIND",
+    "shortDescription": "A bright rear light for your bicycle that keeps you visible to traffic on night rides.",
+    "description": "Ride safer after dark. This bright tail light fits on the back of your bicycle and makes sure cars and other riders can see you from behind.\n\nCompact, easy to fit and a must-have for night commuters and weekend riders.",
+    "features": [
+      "Bright rear visibility",
+      "Compact design",
+      "Easy to fit",
+      "Essential for night rides"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Bicycle tail light"
+      ],
+      [
+        "Best for",
+        "Night rides, commuters"
+      ]
+    ]
+  },
+  "Batman Light for Bicycle": {
+    "name": "Batman Light for Bicycle",
+    "label": "THE BAT-SIGNAL, ON TWO WHEELS",
+    "shortDescription": "A bicycle light with a bat-symbol design. Light up your ride and look like a hero doing it.",
+    "description": "Turn every ride into a hero's patrol. This bicycle light features a bat-symbol design, lighting up your ride while helping others see you on the road.\n\nEasy to fit and a fun gift for kids, teens and superhero fans who love to cycle.",
+    "features": [
+      "Bat-symbol design",
+      "Helps you be seen on the road",
+      "Easy to fit",
+      "Fun gift for young riders"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Bicycle light"
+      ],
+      [
+        "Best for",
+        "Kids, teens, night rides"
+      ]
+    ]
+  },
+  "Three gold steel candle rods": {
+    "keepExisting": true,
+    "name": "Three Gold Steel Candle Rods",
+    "label": "GOLDEN GLOW, REFILLABLE",
+    "shortDescription": "Three gold steel candle rods with transparent glass oil reservoirs. Refillable, elegant and festive.",
+    "description": "Three gold steel candle rods with transparent glass oil reservoirs. Refillable, so you can use them again and again for dinners, festivals and celebrations.",
+    "features": [
+      "Set of three gold steel rods",
+      "Transparent glass oil reservoirs",
+      "Refillable — use again and again",
+      "Perfect for Diwali and dinners"
+    ],
+    "specs": [
+      [
+        "Set",
+        "3 candle rods"
+      ],
+      [
+        "Material",
+        "Gold-finish steel, glass"
+      ]
+    ]
+  },
+  "Men's Perfume Bracelet": {
+    "keepExisting": true,
+    "name": "Men's Perfume Bracelet",
+    "label": "WEAR YOUR SCENT",
+    "shortDescription": "A stylish bracelet that carries your favourite fragrance, so you smell great all day.",
+    "description": "Carry your favourite fragrance wherever you go with this stylish men's perfume bracelet. Add a few drops of your scent and enjoy a subtle fragrance all day.",
+    "features": [
+      "Holds your favourite fragrance",
+      "Stylish everyday bracelet",
+      "Subtle all-day scent",
+      "Great gift for men"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Perfume bracelet"
+      ],
+      [
+        "Best for",
+        "Everyday wear, gifting"
+      ]
+    ]
+  },
+  "Cuptone – 2-in-1 Loose Leaf Tea Infuser Cup": {
+    "keepExisting": true,
+    "name": "Cuptone – 2-in-1 Loose Leaf Tea Infuser Cup",
+    "label": "BREW AND SIP IN ONE",
+    "shortDescription": "A 2-in-1 cup that brews loose leaf tea and serves it. No teapot, no mess.",
+    "description": "Enjoy a better tea experience with the Cuptone loose leaf tea infuser cup. Brew your loose leaf tea right in the cup, then sip — no teapot or strainer needed.",
+    "features": [
+      "Brew and drink in one cup",
+      "For loose leaf tea",
+      "No teapot or strainer needed",
+      "Gift for tea lovers"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Tea infuser cup"
+      ],
+      [
+        "Care",
+        "Hand wash recommended"
+      ]
+    ]
+  },
+  "Spider-Man – Full-Cover Transparent Bubble Umbrella": {
+    "keepExisting": true,
+    "name": "Spider-Man – Full-Cover Transparent Bubble Umbrella",
+    "label": "SWING THROUGH THE RAIN",
+    "shortDescription": "A full-cover transparent bubble umbrella with a Spider-Man design. Stay dry and see where you're going.",
+    "description": "Stay protected from the rain with this eye-catching Spider-Man bubble umbrella. The deep dome shape covers your head and shoulders, and the transparent canopy lets you see clearly as you walk.",
+    "features": [
+      "Deep full-cover bubble shape",
+      "Transparent canopy — see through it",
+      "Spider-Man design",
+      "Fun gift for kids and fans"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Bubble umbrella"
+      ],
+      [
+        "Best for",
+        "Monsoon, kids, fans"
+      ]
+    ]
+  },
+  "Wild West – Cowboy Shadow Projection Lamp": {
+    "keepExisting": true,
+    "name": "Wild West – Cowboy Shadow Projection Lamp",
+    "label": "A COWBOY STANDOFF ON YOUR WALL",
+    "shortDescription": "A lamp that casts a dramatic cowboy shadow scene onto your wall. Wild West mood for any room.",
+    "description": "Bring the mysterious atmosphere of the Wild West into your room. This lamp casts a dramatic cowboy shadow scene onto the wall, turning any corner into a movie moment.",
+    "features": [
+      "Projects a cowboy shadow scene",
+      "Dramatic Wild West mood",
+      "Statement decor piece",
+      "Gift for western fans"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Shadow projection lamp"
+      ],
+      [
+        "Best for",
+        "Bedrooms, living rooms, gifting"
+      ]
+    ]
+  },
+  "The Holy Bible – Floral Book Stack Coffee Mug": {
+    "keepExisting": true,
+    "name": "The Holy Bible – Floral Book Stack Coffee Mug",
+    "label": "FAITH AND COFFEE",
+    "shortDescription": "A coffee mug shaped like a floral stack of books, featuring The Holy Bible. For faith and coffee lovers.",
+    "description": "Celebrate your love for faith and coffee with this floral book-stack mug featuring The Holy Bible. A beautiful piece for your morning coffee or tea, and a lovely gift for Christmas, Easter and birthdays.",
+    "features": [
+      "Floral book-stack design",
+      "Features The Holy Bible",
+      "For coffee or tea",
+      "Gift for Christmas and Easter"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Coffee mug"
+      ],
+      [
+        "Care",
+        "Hand wash only"
+      ]
+    ]
+  },
+  "Samurai Warrior – Katana Incense Holder with Ash Catcher": {
+    "keepExisting": true,
+    "name": "Samurai Warrior – Katana Incense Holder with Ash Catcher",
+    "label": "THE WAY OF THE INCENSE",
+    "shortDescription": "A samurai warrior incense holder with a katana design and a built-in ash catcher. Calm, artful and tidy.",
+    "description": "Bring a touch of Japanese warrior artistry to your space. This samurai incense holder features a katana design and a built-in ash catcher to keep things tidy while your incense burns.",
+    "features": [
+      "Samurai warrior figure",
+      "Katana design",
+      "Built-in ash catcher",
+      "Calm decor for any room"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Incense holder"
+      ],
+      [
+        "Best for",
+        "Meditation corners, desks, gifting"
+      ]
+    ]
+  },
+  "TILT – Portable Tilt-Activated Orb Lamp": {
+    "keepExisting": true,
+    "name": "TILT – Portable Tilt-Activated Orb Lamp",
+    "label": "TILT TO LIGHT",
+    "shortDescription": "A portable orb lamp you switch on by tilting it. Minimal, magical and easy to carry room to room.",
+    "description": "Bring minimalist elegance to any space with the TILT orb lamp. Just tilt it to switch it on — no buttons to search for. It's portable, so you can move it from your desk to your bedside to the balcony.",
+    "features": [
+      "Tilt to switch on",
+      "Portable orb design",
+      "Minimal, modern look",
+      "Move it room to room"
+    ],
+    "specs": [
+      [
+        "Type",
+        "Portable orb lamp"
+      ],
+      [
+        "Control",
+        "Tilt-activated"
+      ]
+    ]
+  }
+}
