@@ -15,7 +15,7 @@ import { normalizeOrderNumber } from "../utils/orderNumber.js";
 import { email, integer, isObjectId, line, phone, pincode } from "../utils/validate.js";
 import * as razorpay from "../services/razorpay.js";
 import { checkCoupon, couponDiscountFor } from "../services/couponService.js";
-import * as shiprocket from "../services/shiprocket.js";
+import * as shipway from "../services/shipway.js";
 import { refreshTracking } from "../services/shippingService.js";
 import {
   expireOrder,
@@ -650,11 +650,11 @@ function publicOrder(order, { includeEmail = false } = {}) {
       courier: order.shipping?.courier || "",
       awb: order.shipping?.awb || "",
       trackingUrl: order.shipping?.trackingUrl || "",
-      status: order.shipping?.srStatus || "",
+      status: order.shipping?.providerStatus || "",
       shippedAt: order.shipping?.shippedAt || null,
       deliveredAt: order.shipping?.deliveredAt || null,
     },
-    // Courier scans from Shiprocket (newest first), then our own updates.
+    // Courier scans from Shipway (newest first), then our own updates.
     courierEvents: (order.shipping?.events || []).map((event) => ({
       message: event.status,
       location: event.location || "",
@@ -700,7 +700,7 @@ export async function trackOrder(req, res) {
   const ship = order.shipping || {};
   const onTheWay = ["processing", "shipped", "out_for_delivery"].includes(order.status);
   const stale = !ship.syncedAt || Date.now() - new Date(ship.syncedAt).getTime() > TRACK_REFRESH_MS;
-  if (onTheWay && ship.awb && !ship.testMode && stale && shiprocket.isConfigured()) {
+  if (onTheWay && ship.awb && ship.provider === "shipway" && !ship.testMode && stale && shipway.isConfigured()) {
     try {
       order = await refreshTracking(order);
     } catch (error) {

@@ -12,7 +12,7 @@ import { env } from "./config/env.js";
 import { health } from "./controllers/storeController.js";
 import { serveMedia } from "./controllers/mediaController.js";
 import { razorpayWebhook } from "./controllers/orderController.js";
-import { shiprocketWebhook } from "./controllers/shippingController.js";
+import { shipwayWebhook } from "./controllers/shippingController.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorMiddleware.js";
 import { apiLimiter } from "./middleware/rateLimiters.js";
 import adminRoutes from "./routes/adminRoutes.js";
@@ -102,7 +102,7 @@ export function createApp() {
   app.get("/api/health", health);
   app.get("/api/media/:id", serveMedia);
 
-  app.post("/api/delivery/updates", shiprocketWebhook);
+  app.post("/api/delivery/updates", express.urlencoded({ extended: true, limit: "1mb" }), shipwayWebhook);
 
   app.use("/api", apiLimiter);
   app.use("/api/store", storeRoutes);

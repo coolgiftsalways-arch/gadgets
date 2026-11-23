@@ -13,7 +13,7 @@ import { sendMail } from "./mailer.js";
 import { customerOrderEmail, newOrderAlert } from "./emailTemplates.js";
 import { runInBackground } from "./background.js";
 import { countCouponUse } from "./couponService.js";
-import * as shiprocket from "./shiprocket.js";
+import * as shipway from "./shipway.js";
 
 // Statuses the admin can move a placed order between.
 export const ADMIN_STATUSES = PLACED_STATUSES;
@@ -307,15 +307,15 @@ export async function changeOrderStatus(order, nextStatus, { reason = "", notify
   const isCod = order.payment.method === "cod";
 
   if (nextStatus === "cancelled") {
-    // Free up the coupon use and cancel the shipment in Shiprocket (best effort;
+    // Free up the coupon use and cancel the shipment in Shipway (best effort;
     // it can't be cancelled once the courier has picked it up).
     runInBackground(`coupon release ${order.orderNumber}`, () => countCouponUse(order.coupon?.code, -1));
-    if (order.shipping?.srOrderId && !order.shipping.testMode && shiprocket.isConfigured()) {
+    if (order.shipping?.provider === "shipway" && order.shipping.pushedAt && !order.shipping.testMode && shipway.isConfigured()) {
       try {
-        await shiprocket.cancelOrders([order.shipping.srOrderId]);
-        order.shipping.srStatus = "CANCELED";
+        await shipway.cancel({ awb: order.shipping.awb, orderNumber: order.orderNumber });
+        order.shipping.providerStatus = "CANCELLED";
       } catch (error) {
-        order.shipping.lastError = `Couldn't cancel in Shiprocket: ${error.message}`;
+        order.shipping.lastError = `Couldn't cancel in Shipway: ${error.message}`;
       }
     }
     if (order.stockReserved) {

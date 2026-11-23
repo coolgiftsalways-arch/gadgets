@@ -159,12 +159,15 @@ const orderSchema = new mongoose.Schema(
       shippedAt: Date,
       deliveredAt: Date,
 
-      // Shiprocket (filled in by "Ship with Shiprocket" in the admin panel)
-      srOrderId: String,
-      shipmentId: String,
+      // Shipway (filled in by "Ship with Shipway" in the admin panel)
+      provider: String, // "shipway"
+      carrierId: String, // Shipway courier id
+      pushedAt: Date, // when the order was sent to Shipway
+      manifestId: String,
       labelUrl: String,
       pickupDate: String,
-      srStatus: String, // latest status text from Shiprocket, e.g. "IN TRANSIT"
+      providerStatus: String, // latest status text from Shipway, e.g. "In transit"
+      statusCode: String, // Shipway status code, e.g. "INT", "DEL"
       etd: String, // courier's expected delivery date
       lastError: String,
       testMode: String, // "mock" / "create_only" while testing

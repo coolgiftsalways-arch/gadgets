@@ -1,6 +1,7 @@
-// Ships an order with Shiprocket and keeps its tracking up to date.
+// Ships an order with Shipway and keeps its tracking up to date.
 import Order from "../models/Order.js";
-import * as shiprocket from "./shiprocket.js";
+import * as shipway from "./shipway.js";
+import { env } from "../config/env.js";
 import { changeOrderStatus } from "./orderService.js";
 import { conflict } from "../utils/httpError.js";
 
@@ -15,7 +16,9 @@ async function advanceTo(order, mapped) {
 
 function applyTracking(order, tracking) {
   const ship = order.shipping;
-  if (tracking.status) ship.srStatus = tracking.status;
+  if (tracking.code) ship.statusCode = tracking.code;
+  if (tracking.status) ship.providerStatus = tracking.status;
+  if (tracking.courier && !ship.courier) ship.courier = tracking.courier;
   if (tracking.etd) {
     ship.etd = tracking.etd;
     const date = new Date(tracking.etd);
@@ -26,26 +29,32 @@ function applyTracking(order, tracking) {
   ship.syncedAt = new Date();
 }
 
-// "Ship with Shiprocket": create order → assign courier + AWB → book pickup → label.
+const isShipway = (ship) => ship?.provider === "shipway";
+
+// "Ship with Shipway": push order + courier + AWB + label → manifest → pickup.
 // Safe to press again after an error: finished steps are skipped.
 export async function shipOrder(order) {
   if (!["pending", "processing", "shipped"].includes(order.status)) {
-    throw conflict("Only Pending or Processing orders can be shipped.");
+    throw conflict("Only Pending, Processing or Shipped orders can be sent to Shipway.");
   }
 
-  const mode = shiprocket.mode();
+  const mode = shipway.mode();
   const ship = order.shipping;
 
-  // ---------- TEST: nothing is sent to Shiprocket ----------
+  if (ship.awb && !isShipway(ship)) {
+    throw conflict(`This order already has a tracking number (${ship.awb}) that wasn't made by Shipway. Clear it in the manual shipping section first if you want to ship it again with Shipway.`);
+  }
+
+  // ---------- TEST: nothing is sent to Shipway ----------
   if (mode === "mock") {
     const tag = order.orderNumber.slice(-6);
     Object.assign(ship, {
+      provider: "shipway",
       testMode: "mock",
-      srOrderId: `TEST-${tag}`,
-      shipmentId: `TEST-${tag}`,
       awb: `TESTAWB${tag}`,
       courier: "TEST COURIER (not real)",
-      srStatus: "TEST — NOT SENT TO SHIPROCKET",
+      providerStatus: "TEST — NOT SENT TO SHIPWAY",
+      pushedAt: new Date(),
       lastError: "",
     });
     order.markModified("shipping");
@@ -54,67 +63,94 @@ export async function shipOrder(order) {
     return order;
   }
 
-  if (!shiprocket.isConfigured()) {
-    throw conflict("Shiprocket isn't set up yet — add SHIPROCKET_EMAIL and SHIPROCKET_PASSWORD to backend/.env.");
+  if (!shipway.isConfigured()) {
+    throw conflict("Shipway isn't set up yet — add SHIPWAY_EMAIL and SHIPWAY_LICENSE_KEY to backend/.env.");
   }
 
   if (ship.testMode === "mock") {
-    for (const key of ["srOrderId", "shipmentId", "awb", "courier", "srStatus", "testMode"]) ship[key] = undefined;
+    for (const key of ["awb", "courier", "providerStatus", "statusCode", "testMode", "pushedAt", "carrierId", "labelUrl", "trackingUrl"]) {
+      ship[key] = undefined;
+    }
   }
 
   try {
-    // 1. Create the order in Shiprocket (free)
-    if (!ship.shipmentId) {
-      const created = await shiprocket.createOrder(order);
-      if (!created.shipment_id) throw new Error(`Shiprocket: ${created.message || "order was not created"}`);
-      ship.srOrderId = String(created.order_id);
-      ship.shipmentId = String(created.shipment_id);
-      ship.srStatus = created.status || "NEW";
-      await order.save();
-    }
-
+    // ---------- TEST: only add the order in Shipway (no courier, no charge) ----------
     if (mode === "create_only") {
-      ship.testMode = "create_only";
-      ship.srStatus = "NEW (test – no courier booked)";
-      ship.lastError = "";
+      if (!ship.pushedAt) {
+        await shipway.pushOrder(order);
+        ship.pushedAt = new Date();
+      }
+      Object.assign(ship, { provider: "shipway", testMode: "create_only", providerStatus: "NEW (test – no courier booked)", lastError: "" });
       order.markModified("shipping");
       await order.save();
       return order;
     }
+
+    if (!env.shipway.warehouseId) {
+      throw new Error("Add SHIPWAY_WAREHOUSE_ID to backend/.env (Shipway → Settings → Warehouse, or the admin \"warehouse\" list).");
+    }
+    ship.provider = "shipway";
     ship.testMode = undefined;
 
-    // 2. Courier + tracking number (charges your Shiprocket wallet)
+    // 1. Push order + courier + AWB + label (charges your Shipway wallet)
     if (!ship.awb) {
-      const result = await shiprocket.assignAwb(ship.shipmentId);
-      const data = result?.response?.data || {};
-      if (!data.awb_code) {
-        throw new Error(`Shiprocket couldn't assign a courier: ${data.awb_assign_error || result.message || "no courier available for this PIN code"}`);
+      // If an earlier try (or someone in the Shipway panel) already got an AWB, use it.
+      const existing = ship.pushedAt ? await shipway.getOrder(order.orderNumber).catch(() => null) : null;
+      if (existing?.tracking_number) {
+        ship.awb = String(existing.tracking_number);
+        ship.courier = existing.name || existing.carrier_title || "";
+      } else {
+        const booked = await shipway.pushOrderWithLabel(order);
+        ship.awb = booked.awb;
+        ship.carrierId = booked.carrierId;
+        if (booked.labelUrl) ship.labelUrl = booked.labelUrl;
       }
-      ship.awb = data.awb_code;
-      ship.courier = data.courier_name || "";
-      ship.trackingUrl = shiprocket.trackingUrl(ship.awb);
-      ship.srStatus = "AWB ASSIGNED";
+      ship.pushedAt = ship.pushedAt || new Date();
+      ship.providerStatus = "AWB ASSIGNED";
       await order.save();
     }
 
-    // 3. Book the pickup
-    if (!ship.pickupDate) {
+    // Courier name isn't in the booking reply; tracking has it.
+    if (!ship.courier || !ship.trackingUrl) {
       try {
-        const pickup = await shiprocket.generatePickup(ship.shipmentId);
-        ship.pickupDate = pickup?.response?.pickup_scheduled_date || "requested";
-        ship.srStatus = "PICKUP SCHEDULED";
-      } catch (error) {
-        ship.lastError = error.message;
+        applyTracking(order, shipway.readTracking(await shipway.trackAwb(ship.awb), ship.awb));
+      } catch {
+        /* tracking may not be live for a few minutes */
       }
     }
 
-    // 4. Shipping label to print
-    if (!ship.labelUrl) {
-      const label = await shiprocket.generateLabel(ship.shipmentId).catch(() => null);
-      if (label?.label_url) ship.labelUrl = label.label_url;
+    // 2. Manifest (hands the order over for pickup)
+    let stepError = "";
+    if (!ship.manifestId) {
+      try {
+        const { manifestId } = await shipway.createManifest([order.orderNumber]);
+        ship.manifestId = manifestId || "created";
+        ship.providerStatus = "MANIFESTED";
+      } catch (error) {
+        stepError = error.message;
+      }
     }
 
-    if (ship.pickupDate) ship.lastError = "";
+    // 3. Book the pickup
+    if (!ship.pickupDate && ship.manifestId) {
+      if (!ship.carrierId) {
+        const existing = await shipway.getOrder(order.orderNumber).catch(() => null);
+        if (existing?.carrier_id) ship.carrierId = String(existing.carrier_id);
+      }
+      if (ship.carrierId) {
+        try {
+          const { pickupDate } = await shipway.createPickup(order, ship.carrierId);
+          ship.pickupDate = pickupDate;
+          ship.providerStatus = "PICKUP SCHEDULED";
+        } catch (error) {
+          stepError = `${error.message} — you can schedule the pickup in the Shipway panel.`;
+        }
+      } else {
+        stepError = "Couldn't find the courier for the pickup — schedule it in the Shipway panel.";
+      }
+    }
+
+    ship.lastError = stepError;
     order.markModified("shipping");
     await order.save();
     await advanceTo(order, "processing");
@@ -127,48 +163,51 @@ export async function shipOrder(order) {
   }
 }
 
-// "Refresh tracking" button and the Track Order page.
+// "Refresh tracking" button, the tracking sweep and the Track Order page.
 export async function refreshTracking(order) {
   if (!order.shipping?.awb) throw conflict("This order has no tracking number yet.");
   if (order.shipping.testMode === "mock") throw conflict("This is a TEST shipment — there is no real tracking.");
-
-  const tracking = shiprocket.readTracking(await shiprocket.trackAwb(order.shipping.awb));
+  // Tracking numbers typed in by hand work too, as long as Shipway knows them.
+  const tracking = shipway.readTracking(await shipway.trackAwb(order.shipping.awb), order.shipping.awb);
   applyTracking(order, tracking);
   order.markModified("shipping");
   await order.save();
-  await advanceTo(order, shiprocket.mapStatus(tracking.status));
+  await advanceTo(order, shipway.mapStatus(tracking.code, tracking.text));
   return order;
 }
 
-// Shiprocket webhook body -> update the matching order.
+// Shipway tracking webhook body -> update the matching order.
 export async function applyWebhook(body = {}) {
-  const awb = body.awb ? String(body.awb) : "";
-  const orderNumber = body.order_id ? String(body.order_id) : "";
+  const input = body.api_input && typeof body.api_input === "object" ? body.api_input : {};
+  const awb = String(body.awbno || input.awbno || "");
+  const orderNumber = String(body.order_id || input.order_id || "");
 
   let order = awb ? await Order.findOne({ "shipping.awb": awb }) : null;
   if (!order && orderNumber) order = await Order.findOne({ orderNumber });
   if (!order) return null;
 
   const ship = order.shipping;
-  if (awb) ship.awb = awb;
-  if (body.courier_name) ship.courier = body.courier_name;
-  if (!ship.trackingUrl && ship.awb) ship.trackingUrl = shiprocket.trackingUrl(ship.awb);
+  if (!ship.provider) ship.provider = "shipway";
+  if (awb && !ship.awb) ship.awb = awb;
+  if (body.carrier || input.carrier) ship.courier = ship.courier || String(body.carrier || input.carrier);
 
+  const code = String(body.current_status || input.current_status || "");
+  const text = String(body.scans_current_status || input.current_status_desc || "");
+
+  // scans come as { "0": newest, "1": … }
+  const scans = input.scans && typeof input.scans === "object" ? Object.values(input.scans) : [];
   applyTracking(order, {
-    status: body.current_status || "",
-    etd: body.etd || "",
-    trackUrl: "",
-    events: Array.isArray(body.scans) && body.scans.length
-      ? body.scans.slice(-20).reverse().map((scan) => ({
-          date: scan.date,
-          status: scan.activity || scan["sr-status-label"] || scan.status,
-          location: scan.location || "",
-        }))
+    code,
+    status: shipway.statusLabel(code, text),
+    etd: body.expected_delivery_date || input.extra_fields?.expected_delivery_date || "",
+    trackUrl: input.tracking_url || "",
+    events: scans.length
+      ? scans.slice(0, 20).map((scan) => ({ date: scan.time || scan.date, status: scan.status || scan.activity, location: scan.location || "" }))
       : null,
   });
 
   order.markModified("shipping");
   await order.save();
-  await advanceTo(order, shiprocket.mapStatus(body.current_status));
+  await advanceTo(order, shipway.mapStatus(code, text));
   return order;
 }

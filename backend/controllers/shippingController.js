@@ -30,20 +30,22 @@ const safeEqual = (a, b) =>
     crypto.createHash("sha256").update(String(b)).digest(),
   );
 
-// POST /api/delivery/updates — Shiprocket calls this when a shipment moves.
-// Shiprocket panel → Settings → API → Webhooks: URL https://YOURDOMAIN/api/delivery/updates,
-// token = SHIPROCKET_WEBHOOK_TOKEN. (Shiprocket doesn't allow its own name in the URL.)
-export async function shiprocketWebhook(req, res) {
-  const expected = env.shiprocket.webhookToken;
-  if (!expected || !safeEqual(req.get("x-api-key") || "", expected)) {
+// POST /api/delivery/updates?token=SHIPWAY_WEBHOOK_TOKEN — Shipway calls this when a shipment moves.
+// Shipway panel → Track → Tracking Webhooks → add
+//   https://YOURDOMAIN/api/delivery/updates?token=<SHIPWAY_WEBHOOK_TOKEN>
+// (Shipway doesn't sign webhooks, so the secret token in the URL is what keeps strangers out.)
+export async function shipwayWebhook(req, res) {
+  const expected = env.shipway.webhookToken;
+  const given = req.query?.token || req.get("x-api-key") || "";
+  if (!expected || !safeEqual(given, expected)) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
   try {
-    const order = await applyWebhook(req.body);
-    if (!order) console.warn("Shiprocket update for an unknown shipment:", req.body?.awb || req.body?.order_id);
+    const order = await applyWebhook(req.body || {});
+    if (!order) console.warn("Shipway update for an unknown shipment:", req.body?.awbno || req.body?.order_id);
   } catch (error) {
-    console.error("Shiprocket webhook failed:", error.message);
+    console.error("Shipway webhook failed:", error.message);
   }
-  res.json({ ok: true }); // always 200 so Shiprocket doesn't keep retrying
+  res.json({ ok: true }); // always 200 so Shipway doesn't keep retrying
 }

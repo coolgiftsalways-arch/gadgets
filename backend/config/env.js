@@ -104,21 +104,26 @@ export const env = {
     lowStockThreshold: clamp(int("LOW_STOCK_THRESHOLD", 5), 0, 1000),
   },
 
-  shiprocket: {
-    email: str("SHIPROCKET_EMAIL"),
-    password: process.env.SHIPROCKET_PASSWORD ? String(process.env.SHIPROCKET_PASSWORD) : "",
-    // live = real courier booking (charges your Shiprocket wallet)
-    // create_only = only creates the order in Shiprocket (no courier, no charge)
-    // mock = never calls Shiprocket; fake test data for trying the admin panel
-    mode: ["mock", "create_only"].includes(str("SHIPROCKET_MODE").toLowerCase())
-      ? str("SHIPROCKET_MODE").toLowerCase()
+  shipway: {
+    email: str("SHIPWAY_EMAIL"),
+    // Shipway → Profile → Manage Profile → License Key
+    licenseKey: process.env.SHIPWAY_LICENSE_KEY ? String(process.env.SHIPWAY_LICENSE_KEY).trim() : "",
+    // live = real courier booking (charges your Shipway wallet)
+    // create_only = only adds the order in Shipway (no courier, no charge)
+    // mock = never calls Shipway; fake test data for trying the admin panel
+    mode: ["mock", "create_only"].includes(str("SHIPWAY_MODE").toLowerCase())
+      ? str("SHIPWAY_MODE").toLowerCase()
       : "live",
-    pickupLocation: str("SHIPROCKET_PICKUP_LOCATION", "Primary"),
-    webhookToken: str("SHIPROCKET_WEBHOOK_TOKEN"),
-    itemWeightKg: Number(str("SHIPROCKET_ITEM_WEIGHT_KG", "0.5")) || 0.5,
-    boxLengthCm: int("SHIPROCKET_BOX_LENGTH_CM", 15),
-    boxBreadthCm: int("SHIPROCKET_BOX_BREADTH_CM", 15),
-    boxHeightCm: int("SHIPROCKET_BOX_HEIGHT_CM", 10),
+    warehouseId: str("SHIPWAY_WAREHOUSE_ID"),
+    returnWarehouseId: str("SHIPWAY_RETURN_WAREHOUSE_ID"), // blank = same as warehouse
+    carrierId: str("SHIPWAY_CARRIER_ID"), // blank = Shipway's recommended courier
+    pickupTime: str("SHIPWAY_PICKUP_TIME", "14:00"),
+    officeCloseTime: str("SHIPWAY_OFFICE_CLOSE_TIME", "18:00"),
+    webhookToken: str("SHIPWAY_WEBHOOK_TOKEN"),
+    itemWeightKg: Number(str("SHIPWAY_ITEM_WEIGHT_KG", "0.5")) || 0.5,
+    boxLengthCm: int("SHIPWAY_BOX_LENGTH_CM", 15),
+    boxBreadthCm: int("SHIPWAY_BOX_BREADTH_CM", 15),
+    boxHeightCm: int("SHIPWAY_BOX_HEIGHT_CM", 10),
   },
 
   // Photo + video storage (cloudinary.com → Settings → API Keys)

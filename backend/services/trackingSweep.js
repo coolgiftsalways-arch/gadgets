@@ -1,22 +1,23 @@
-// Keeps Shiprocket tracking up to date without a webhook.
+// Keeps Shipway tracking up to date without a webhook.
 //
-// Every 3 hours the server asks Shiprocket about each order that is on its
+// Every 3 hours the server asks Shipway about each order that is on its
 // way. When the courier reports a change (picked up, out for delivery,
 // delivered) the order status moves forward and the customer gets the email.
 import Order from "../models/Order.js";
 import { isDbReady } from "../config/db.js";
-import * as shiprocket from "./shiprocket.js";
+import * as shipway from "./shipway.js";
 import { refreshTracking } from "./shippingService.js";
 
 const SWEEP_EVERY_MS = 3 * 60 * 60 * 1000; // 3 hours
 const STALE_AFTER_MS = 2 * 60 * 60 * 1000; // skip orders checked in the last 2 hours
-const PAUSE_BETWEEN_MS = 1500; // be gentle with Shiprocket's API
+const PAUSE_BETWEEN_MS = 1500; // be gentle with Shipway's API
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Orders worth asking Shiprocket about.
+// Orders worth asking Shipway about.
 export const trackableFilter = () => ({
   status: { $in: ["processing", "shipped", "out_for_delivery"] },
+  "shipping.provider": "shipway",
   "shipping.awb": { $nin: ["", null] },
   "shipping.testMode": { $in: [null, ""] },
 });
@@ -24,7 +25,7 @@ export const trackableFilter = () => ({
 let running = false;
 
 export async function sweepTracking() {
-  if (running || !isDbReady() || !shiprocket.isConfigured()) return { checked: 0 };
+  if (running || !isDbReady() || !shipway.isConfigured()) return { checked: 0 };
   running = true;
   let checked = 0;
 

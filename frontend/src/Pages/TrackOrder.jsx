@@ -227,7 +227,7 @@ export default function TrackOrder() {
   // ==========================================
 
   const tracking =
-    order?.tracking || order?.shipment || order?.shiprocket || {};
+    order?.tracking || order?.shipment || {};
 
   const status =
     tracking.current_status ||

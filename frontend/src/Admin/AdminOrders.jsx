@@ -403,7 +403,7 @@ function OrderDrawer({ id, onClose, onChanged }) {
               </section>
             )}
 
-            {placed && <ShiprocketSection order={order} onUpdated={(fresh) => { apply(fresh); onChanged(); }} />}
+            {placed && <ShipwaySection order={order} onUpdated={(fresh) => { apply(fresh); onChanged(); }} />}
 
             <section className="gad-order-detail-section">
               <h3><Truck size={16} /> SHIPPING / TRACKING (MANUAL)</h3>
@@ -528,16 +528,18 @@ function OrderDrawer({ id, onClose, onChanged }) {
   );
 }
 
-// Shiprocket: create shipment, courier + AWB, pickup, label, live tracking.
-function ShiprocketSection({ order, onUpdated }) {
+// Shipway: push order, courier + AWB + label, manifest, pickup, live tracking.
+function ShipwaySection({ order, onUpdated }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const ship = order.shipping || {};
   const shippable = ["pending", "processing", "shipped"].includes(order.status);
-  const done = Boolean(ship.awb && ship.pickupDate && !ship.testMode);
+  const isShipway = ship.provider === "shipway";
+  const done = Boolean(isShipway && ship.awb && ship.pickupDate && !ship.testMode);
+  const otherAwb = Boolean(ship.awb && !isShipway);
 
   const run = async (kind) => {
-    if (kind === "ship" && !window.confirm("Send this order to Shiprocket?\n\nThis books a courier (charged to your Shiprocket wallet) and schedules a pickup.")) return;
+    if (kind === "ship" && !window.confirm("Send this order to Shipway?\n\nThis books a courier (charged to your Shipway wallet), makes the label and schedules a pickup.")) return;
     setBusy(kind);
     setError("");
     try {
@@ -560,31 +562,37 @@ function ShiprocketSection({ order, onUpdated }) {
 
   return (
     <section className="gad-order-detail-section">
-      <h3><Truck size={16} /> SHIPROCKET</h3>
+      <h3><Truck size={16} /> SHIPWAY</h3>
       {ship.testMode && (
         <p className="gad-orders-note">
-          {ship.testMode === "mock" ? "TEST shipment — nothing was sent to Shiprocket." : "TEST — created in Shiprocket only, no courier booked."}
+          {ship.testMode === "mock" ? "TEST shipment — nothing was sent to Shipway." : "TEST — added in Shipway only, no courier booked."}
         </p>
       )}
-      {ship.shipmentId ? (
+      {isShipway && (ship.pushedAt || ship.awb) ? (
         <>
-          {row("Status", ship.srStatus)}
+          {row("Status", ship.providerStatus)}
           {row("Courier", ship.courier)}
           {row("AWB", ship.awb)}
           {row("Pickup", ship.pickupDate)}
           {row("Expected", ship.etd)}
-          {row("Shiprocket ID", ship.srOrderId)}
+          {row("Manifest", ship.manifestId && ship.manifestId !== "created" ? ship.manifestId : "")}
         </>
       ) : (
-        <p>{shippable ? "Not sent to Shiprocket yet." : "Only Pending or Processing orders can be shipped."}</p>
+        <p>
+          {otherAwb
+            ? `Has a tracking number (${ship.awb}) that wasn't made by Shipway.`
+            : shippable
+              ? "Not sent to Shipway yet."
+              : "Only Pending, Processing or Shipped orders can be sent to Shipway."}
+        </p>
       )}
       {ship.lastError && <p className="gad-orders-note" style={{ color: "#9b1c1c" }}>{ship.lastError}</p>}
       {error && <p className="gad-orders-note" style={{ color: "#9b1c1c" }}>{error}</p>}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-        {shippable && !done && (
+        {shippable && !done && !otherAwb && (
           <button type="button" className="gad-orders-export" disabled={!!busy} onClick={() => run("ship")}>
-            <Truck size={15} /> {busy === "ship" ? "SENDING…" : ship.shipmentId ? "CONTINUE / RETRY" : "SHIP WITH SHIPROCKET"}
+            <Truck size={15} /> {busy === "ship" ? "SENDING…" : isShipway && (ship.pushedAt || ship.awb) && !ship.testMode ? "CONTINUE / RETRY" : "SHIP WITH SHIPWAY"}
           </button>
         )}
         {ship.awb && ship.testMode !== "mock" && (
