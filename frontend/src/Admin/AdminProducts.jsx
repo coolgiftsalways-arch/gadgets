@@ -35,6 +35,10 @@ const emptyForm = {
   colors: "",
   features: "",
   sortOrder: "",
+  shipWeight: "",
+  shipLength: "",
+  shipBreadth: "",
+  shipHeight: "",
 };
 
 // Shrinks a photo in the browser (max 1600px, JPEG) so uploads are quick.
@@ -138,6 +142,10 @@ const AdminProducts = () => {
       colors: (product.colors || []).join(", "),
       features: (product.features || []).join("\n"),
       sortOrder: String(product.sortOrder ?? ""),
+      shipWeight: product.shipping?.weightKg ? String(product.shipping.weightKg) : "",
+      shipLength: product.shipping?.lengthCm ? String(product.shipping.lengthCm) : "",
+      shipBreadth: product.shipping?.breadthCm ? String(product.shipping.breadthCm) : "",
+      shipHeight: product.shipping?.heightCm ? String(product.shipping.heightCm) : "",
     });
     setFormError("");
     setModalOpen(true);
@@ -233,6 +241,12 @@ const AdminProducts = () => {
       shortDescription: description.split("\n")[0].slice(0, 160),
       colors: form.colors,
       features: form.features,
+      shipping: {
+        weightKg: form.shipWeight,
+        lengthCm: form.shipLength,
+        breadthCm: form.shipBreadth,
+        heightCm: form.shipHeight,
+      },
     };
     if (form.sku.trim()) body.sku = form.sku.trim();
 
@@ -525,6 +539,25 @@ const AdminProducts = () => {
                       <option value="draft">Draft (hidden)</option>
                     </select>
                   </label>
+                </div>
+
+                <div className="gad-product-shipping">
+                  <div className="gad-product-shipping-head">
+                    <strong>SHIPPING (FOR COURIER)</strong>
+                    <span>One unit, fully packed. Leave empty to use the store default.</span>
+                  </div>
+                  <div className="gad-product-form-grid four">
+                    <label>PACKED WEIGHT (KG)<input type="number" min="0" step="0.01" name="shipWeight" value={form.shipWeight} onChange={updateField} placeholder="0.8" /></label>
+                    <label>BOX LENGTH (CM)<input type="number" min="0" step="0.5" name="shipLength" value={form.shipLength} onChange={updateField} placeholder="31" /></label>
+                    <label>BOX BREADTH (CM)<input type="number" min="0" step="0.5" name="shipBreadth" value={form.shipBreadth} onChange={updateField} placeholder="31" /></label>
+                    <label>BOX HEIGHT (CM)<input type="number" min="0" step="0.5" name="shipHeight" value={form.shipHeight} onChange={updateField} placeholder="10" /></label>
+                  </div>
+                  {form.shipLength && form.shipBreadth && form.shipHeight && (
+                    <p className="gad-product-shipping-hint">
+                      Box weight for couriers: {((form.shipLength * form.shipBreadth * form.shipHeight) / 5000).toFixed(2)} kg
+                      {form.shipWeight ? ` · charged as ${Math.max(Number(form.shipWeight), (form.shipLength * form.shipBreadth * form.shipHeight) / 5000).toFixed(2)} kg` : ""}
+                    </p>
+                  )}
                 </div>
 
                 <div className="gad-product-image-field" style={{ marginTop: 6 }}>

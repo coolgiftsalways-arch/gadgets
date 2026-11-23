@@ -78,6 +78,23 @@ function cleanPrice(value, label) {
 // Picks the fields an admin may set out of a request body, cleaned up.
 // Only fields that were actually sent are returned, so the same function
 // serves "create" and "edit one thing".
+// Packed weight (kg) + box size (cm) for one unit. Empty fields fall back to the store defaults.
+function cleanShipping(value) {
+  if (!value || typeof value !== "object") return {};
+  const num = (raw, label, min, max) => {
+    if (raw === "" || raw === null || raw === undefined) return undefined;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < min || n > max) throw badRequest(`${label} must be between ${min} and ${max}.`);
+    return Math.round(n * 1000) / 1000;
+  };
+  return {
+    weightKg: num(value.weightKg, "Packed weight (kg)", 0.01, 50),
+    lengthCm: num(value.lengthCm, "Box length (cm)", 1, 200),
+    breadthCm: num(value.breadthCm, "Box breadth (cm)", 1, 200),
+    heightCm: num(value.heightCm, "Box height (cm)", 1, 200),
+  };
+}
+
 function cleanProductInput(body) {
   const data = {};
   const has = (field) => body[field] !== undefined;
@@ -130,6 +147,7 @@ function cleanProductInput(body) {
   if (has("colors")) data.colors = stringList(body.colors, { maxItems: 12, maxLength: 30 });
   if (has("features")) data.features = stringList(body.features, { maxItems: 12, maxLength: 120 });
   if (has("specs")) data.specs = cleanSpecs(body.specs);
+  if (has("shipping")) data.shipping = cleanShipping(body.shipping);
 
   return data;
 }

@@ -1,0 +1,161 @@
+diff --git a/backend/models/Order.js b/backend/models/Order.js
+index 196310d..8144767 100644
+--- a/backend/models/Order.js
++++ b/backend/models/Order.js
+@@ -162,6 +162,7 @@ const orderSchema = new mongoose.Schema(
+ 
+       // Shipway (filled in by "Ship with Shipway" in the admin panel)
+       provider: String, // "shipway"
++      shipwayOrderId: String, // order number in Shipway if different (GAD-XXXX-R1 after a resend)
+       carrierId: String, // Shipway courier id
+       pushedAt: Date, // when the order was sent to Shipway
+       manifestId: String,
+diff --git a/backend/services/orderService.js b/backend/services/orderService.js
+index 068a355..642d891 100644
+--- a/backend/services/orderService.js
++++ b/backend/services/orderService.js
+@@ -312,7 +312,7 @@ export async function changeOrderStatus(order, nextStatus, { reason = "", notify
+     runInBackground(`coupon release ${order.orderNumber}`, () => countCouponUse(order.coupon?.code, -1));
+     if (order.shipping?.provider === "shipway" && order.shipping.pushedAt && !order.shipping.testMode && shipway.isConfigured()) {
+       try {
+-        await shipway.cancel({ awb: order.shipping.awb, orderNumber: order.orderNumber });
++        await shipway.cancel({ awb: order.shipping.awb, orderNumber: shipway.shipwayId(order) });
+         order.shipping.providerStatus = "CANCELLED";
+       } catch (error) {
+         order.shipping.lastError = `Couldn't cancel in Shipway: ${error.message}`;
+diff --git a/backend/services/shippingService.js b/backend/services/shippingService.js
+index 9d74022..a241a48 100644
+--- a/backend/services/shippingService.js
++++ b/backend/services/shippingService.js
+@@ -123,7 +123,7 @@ export async function shipOrder(order, { carrierId = "", parcel: rawParcel = nul
+     // 1. Push order + courier + AWB + label (charges your Shipway wallet)
+     if (!ship.awb) {
+       // If an earlier try (or someone in the Shipway panel) already got an AWB, use it.
+-      const existing = ship.pushedAt ? await shipway.getOrder(order.orderNumber).catch(() => null) : null;
++      const existing = ship.pushedAt ? await shipway.getOrder(shipway.shipwayId(order)).catch(() => null) : null;
+       if (existing?.tracking_number) {
+         ship.awb = String(existing.tracking_number);
+         ship.courier = existing.name || existing.carrier_title || "";
+@@ -135,7 +135,7 @@ export async function shipOrder(order, { carrierId = "", parcel: rawParcel = nul
+         } catch (error) {
+           // Added earlier in test mode (no courier)? Clear that copy in Shipway and book it properly.
+           if (!ship.pushedAt || !/exist|already|duplicate/i.test(error.message) || /carrier/i.test(error.message)) throw error;
+-          await shipway.cancel({ orderNumber: order.orderNumber }).catch(() => {});
++          await shipway.cancel({ orderNumber: shipway.shipwayId(order) }).catch(() => {});
+           booked = await book();
+         }
+         ship.awb = booked.awb;
+@@ -160,7 +160,7 @@ export async function shipOrder(order, { carrierId = "", parcel: rawParcel = nul
+     let stepError = "";
+     if (!ship.manifestId) {
+       try {
+-        const { manifestId } = await shipway.createManifest([order.orderNumber]);
++        const { manifestId } = await shipway.createManifest([shipway.shipwayId(order)]);
+         ship.manifestId = manifestId || "created";
+         ship.providerStatus = "MANIFESTED";
+       } catch (error) {
+@@ -171,7 +171,7 @@ export async function shipOrder(order, { carrierId = "", parcel: rawParcel = nul
+     // 3. Book the pickup
+     if (!ship.pickupDate && ship.manifestId) {
+       if (!ship.carrierId) {
+-        const existing = await shipway.getOrder(order.orderNumber).catch(() => null);
++        const existing = await shipway.getOrder(shipway.shipwayId(order)).catch(() => null);
+         if (existing?.carrier_id) ship.carrierId = String(existing.carrier_id);
+       }
+       if (ship.carrierId) {
+@@ -221,8 +221,10 @@ export async function sendToShipway(order, { parcel: rawParcel = null, resend =
+     throw conflict(`This order already has a tracking number (${ship.awb}) that wasn't made by Shipway.`);
+   }
+ 
+-  // "Send again" after the order was cancelled / deleted in Shipway.
++  // "Send again" after the order was cancelled / deleted in Shipway: Shipway keeps a
++  // cancelled order number cancelled, so it goes in under a new one (GAD-XXXX-R1).
+   if (resend && !ship.awb) {
++    if (ship.pushedAt && ship.testMode !== "mock") ship.shipwayOrderId = shipway.nextShipwayId(order);
+     ship.pushedAt = undefined;
+     ship.testMode = undefined;
+   }
+@@ -266,13 +268,15 @@ export async function syncFromShipway(order) {
+   if (ship.testMode === "mock") throw conflict("This is a TEST order — it isn't really in Shipway.");
+   if (ship.awb) return { order, linked: true };
+ 
+-  const existing = await shipway.getOrder(order.orderNumber);
++  const existing = await shipway.getOrder(shipway.shipwayId(order));
+   const cancelledThere =
+     !existing ||
+     String(existing.status || "").toUpperCase() === "C" ||
+-    /CANCEL|^CAN$/i.test(String(existing.shipment_status || existing.shipment_status_name || ""));
++    [existing.status, existing.order_status, existing.status_name, existing.shipment_status, existing.shipment_status_name]
++      .some((value) => /cancel|^CAN$/i.test(String(value || "")));
+   if (cancelledThere) {
+-    // Cancelled or deleted in Shipway: show SEND TO SHIPWAY again.
++    // Cancelled or deleted in Shipway: show SEND TO SHIPWAY again (under a new Shipway order number).
++    if (existing) ship.shipwayOrderId = shipway.nextShipwayId(order);
+     ship.pushedAt = undefined;
+     ship.providerStatus = existing ? "CANCELLED IN SHIPWAY" : "NOT IN SHIPWAY";
+     ship.syncedAt = new Date();
+@@ -326,7 +330,11 @@ export async function applyWebhook(body = {}) {
+   const orderNumber = String(body.order_id || input.order_id || "");
+ 
+   let order = awb ? await Order.findOne({ "shipping.awb": awb }) : null;
+-  if (!order && orderNumber) order = await Order.findOne({ orderNumber });
++  if (!order && orderNumber) {
++    order =
++      (await Order.findOne({ "shipping.shipwayOrderId": orderNumber })) ||
++      (await Order.findOne({ orderNumber: orderNumber.replace(/-R\d+$/, "") }));
++  }
+   if (!order) return null;
+ 
+   const ship = order.shipping;
+diff --git a/backend/services/shipway.js b/backend/services/shipway.js
+index ab98eed..d3bd06e 100644
+--- a/backend/services/shipway.js
++++ b/backend/services/shipway.js
+@@ -6,6 +6,17 @@ import { env } from "../config/env.js";
+ 
+ const BASE = "https://app.shipway.com/api";
+ 
++// The order number Shipway knows this order by. Normally our order number; after the
++// order was cancelled in Shipway and sent again it gets a suffix (GAD-XXXX-R1, -R2 …),
++// because Shipway keeps a cancelled order number cancelled.
++export const shipwayId = (order) => order.shipping?.shipwayOrderId || order.orderNumber;
++
++export function nextShipwayId(order) {
++  const current = shipwayId(order);
++  const match = /-R(\d+)$/.exec(current);
++  return match ? current.replace(/-R\d+$/, `-R${Number(match[1]) + 1}`) : `${order.orderNumber}-R1`;
++}
++
+ export const isConfigured = () => Boolean(env.shipway.email && env.shipway.licenseKey);
+ export const mode = () => env.shipway.mode;
+ 
+@@ -217,7 +228,7 @@ export function buildOrderPayload(order, { withLabel = false, warehouseId = "",
+   });
+ 
+   const payload = {
+-    order_id: order.orderNumber,
++    order_id: shipwayId(order),
+     products: order.items.map((item) => ({
+       product: item.color ? `${item.name} (${item.color})` : item.name,
+       price: String(item.price),
+@@ -304,7 +315,7 @@ export async function createPickup(order, carrierId, warehouseId) {
+       warehouse_id: String(warehouseId),
+       return_warehouse_id: String(returnWarehouseId || warehouseId),
+       payment_type: order.payment.method === "cod" ? "C" : "P",
+-      order_ids: [order.orderNumber],
++      order_ids: [shipwayId(order)],
+     },
+   });
+   if (failed(data)) throw new Error(`Shipway pickup: ${messageOf(data) || "failed"}`);
+diff --git a/frontend/src/Admin/AdminOrders.jsx b/frontend/src/Admin/AdminOrders.jsx
+index 3ce0ec1..5bdd988 100644
+--- a/frontend/src/Admin/AdminOrders.jsx
++++ b/frontend/src/Admin/AdminOrders.jsx
+@@ -893,6 +893,7 @@ function ShipwaySection({ order, onUpdated }) {
+       {waitingForCourier && (
+         <div className="gad-ship-waiting">
+           <strong>✓ In your Shipway account</strong>
++          {ship.shipwayOrderId && <span>Shipway order no.: <b>{ship.shipwayOrderId}</b></span>}
+           <span>
+             Book the courier in the Shipway dashboard (New Orders). The tracking number appears here automatically —
+             or click CHECK NOW.

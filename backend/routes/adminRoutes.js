@@ -36,7 +36,7 @@ import {
 } from "../controllers/adminInboxController.js";
 import { cloudinarySignature, uploadMedia } from "../controllers/mediaController.js";
 import { getHomepageAdmin, saveHomepage } from "../controllers/homepageController.js";
-import { ship, track } from "../controllers/shippingController.js";
+import { couriers, send, ship, sync, track } from "../controllers/shippingController.js";
 import {
   createCoupon,
   deleteCoupon,
@@ -65,7 +65,10 @@ router.patch("/orders/:id", updateOrder);
 router.delete("/orders/:id", deleteOrder);
 router.post("/orders/:id/email", resendEmail);
 router.post("/orders/:id/recheck-payment", recheckPayment);
+router.get("/orders/:id/couriers", couriers);
 router.post("/orders/:id/ship", ship);
+router.post("/orders/:id/send", send);
+router.post("/orders/:id/sync", sync);
 router.post("/orders/:id/tracking", track);
 
 router.get("/coupons", listCoupons);

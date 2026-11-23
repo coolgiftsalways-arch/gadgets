@@ -5,6 +5,7 @@ import { env } from "../config/env.js";
 import { HttpError, badRequest, conflict, notFound } from "../utils/httpError.js";
 import { boolean, escapeRegex, isObjectId, line, phone as cleanPhone, pincode as cleanPincode, text } from "../utils/validate.js";
 import { flagOrders, withFlags } from "../services/orderFlags.js";
+import { parcelFor } from "../services/parcel.js";
 import { CUSTOMER_EMAIL_TYPES } from "../services/emailTemplates.js";
 import {
   changeOrderStatus,
@@ -116,7 +117,7 @@ export async function getOrder(req, res) {
   }
 
   res.set("Cache-Control", "no-store");
-  res.json({ order: await withFlags(order) });
+  res.json({ order: { ...(await withFlags(order)), parcel: await parcelFor(order) } });
 }
 
 const note = (order, message) => order.timeline.push({ status: order.status, message, at: new Date() });

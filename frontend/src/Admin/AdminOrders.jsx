@@ -311,7 +311,7 @@ function OrderDrawer({ id, onClose, onChanged }) {
 
   // Some replies (e.g. Shipway) don't include warnings; keep the last ones.
   const apply = (fresh) => {
-    setOrder((prev) => ({ ...fresh, flags: fresh.flags ?? prev?.flags }));
+    setOrder((prev) => ({ ...fresh, flags: fresh.flags ?? prev?.flags, parcel: fresh.parcel ?? prev?.parcel }));
     setShipping({
       courier: fresh.shipping?.courier || "",
       awb: fresh.shipping?.awb || "",
@@ -743,24 +743,129 @@ function OrderDrawer({ id, onClose, onChanged }) {
 function ShipwaySection({ order, onUpdated }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [note, setNote] = useState("");
   const ship = order.shipping || {};
   const shippable = ["pending", "processing", "shipped"].includes(order.status);
   const isShipway = ship.provider === "shipway";
-  const done = Boolean(isShipway && ship.awb && ship.pickupDate && !ship.testMode);
   const otherAwb = Boolean(ship.awb && !isShipway);
+  const sent = Boolean(isShipway && ship.pushedAt && ship.testMode !== "mock");
+  const canSend = shippable && !otherAwb && !ship.awb && !sent;
+  const waitingForCourier = sent && !ship.awb && shippable;
+  // Booked from here but the manifest / pickup step failed: offer to finish it.
+  const unfinished = Boolean(isShipway && ship.awb && !ship.pickupDate && ship.labelUrl && ship.lastError && shippable);
 
-  const run = async (kind) => {
-    if (kind === "ship" && !window.confirm("Send this order to Shipway?\n\nThis books a courier (charged to your Shipway wallet), makes the label and schedules a pickup.")) return;
+  // Optional: book the courier from here instead of the Shipway dashboard.
+  const [showBooking, setShowBooking] = useState(false);
+  const [courierInfo, setCourierInfo] = useState(null);
+  const [courierError, setCourierError] = useState("");
+  const [loadingCouriers, setLoadingCouriers] = useState(false);
+  const [carrierId, setCarrierId] = useState("auto");
+
+  // Parcel (weight + box) sent to Shipway — filled in from the products, editable here.
+  const parcelFrom = (p = {}) => ({
+    weightKg: p.weightKg ?? "",
+    lengthCm: p.lengthCm ?? "",
+    breadthCm: p.breadthCm ?? "",
+    heightCm: p.heightCm ?? "",
+  });
+  const [parcel, setParcel] = useState(() => parcelFrom(order.parcel));
+  useEffect(() => {
+    setParcel(parcelFrom(order.parcel));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order._id, order.parcel?.weightKg, order.parcel?.lengthCm, order.parcel?.breadthCm, order.parcel?.heightCm]);
+  const parcelReady = ["weightKg", "lengthCm", "breadthCm", "heightCm"].every((key) => Number(parcel[key]) > 0);
+  const boxKg = parcelReady ? (parcel.lengthCm * parcel.breadthCm * parcel.heightCm) / 5000 : 0;
+  const chargedKg = parcelReady ? Math.max(Number(parcel.weightKg), boxKg) : 0;
+  const parcelBody = () => (parcelReady ? {
+    weightKg: Number(parcel.weightKg),
+    lengthCm: Number(parcel.lengthCm),
+    breadthCm: Number(parcel.breadthCm),
+    heightCm: Number(parcel.heightCm),
+  } : null);
+
+  const call = async (kind, path, body) => {
     setBusy(kind);
     setError("");
+    setNote("");
     try {
-      const result = await adminFetch(`/orders/${order._id}/${kind === "ship" ? "ship" : "tracking"}`, { method: "POST" });
+      const result = await adminFetch(`/orders/${order._id}/${path}`, { method: "POST", ...(body ? { body } : {}) });
       onUpdated(result.order);
+      return result;
     } catch (err) {
       setError(err.message);
+      return null;
     } finally {
       setBusy("");
     }
+  };
+
+  const send = () => {
+    if (!parcelReady) {
+      setError("Please fill in the parcel weight and box size first.");
+      return;
+    }
+    if (!window.confirm(`Send this order to Shipway?\n\nParcel: ${parcel.weightKg} kg · ${parcel.lengthCm}×${parcel.breadthCm}×${parcel.heightCm} cm\n\nIt is only ADDED to your Shipway account — no courier is booked, nothing is charged and no pickup is scheduled. You can book the courier later in Shipway.`)) return;
+    call("send", "send", { parcel: parcelBody() });
+  };
+
+  // SEND AGAIN: first show the parcel box, then send once the admin confirms.
+  const [resending, setResending] = useState(false);
+  const sendAgain = async () => {
+    if (!parcelReady) {
+      setError("Please fill in the parcel weight and box size first.");
+      return;
+    }
+    if (!window.confirm(`Send this order to Shipway again?\n\nParcel: ${parcel.weightKg} kg · ${parcel.lengthCm}×${parcel.breadthCm}×${parcel.heightCm} cm\n\nOnly do this if you cancelled or deleted it in Shipway — otherwise it may appear there twice.`)) return;
+    const result = await call("send", "send", { resend: true, parcel: parcelBody() });
+    if (result) {
+      setResending(false);
+      setNote("Sent to Shipway again.");
+    }
+  };
+
+  const sync = async (silent = false) => {
+    const result = await call("sync", "sync");
+    if (result?.removed) {
+      setNote("This order was cancelled or deleted in Shipway — you can send it again.");
+    } else if (result && !silent) {
+      setNote(result.linked ? "Tracking number found and linked." : "No courier booked in Shipway yet.");
+    }
+  };
+
+  // Opening an order that's waiting in Shipway checks whether a courier was booked there.
+  useEffect(() => {
+    if (waitingForCourier) sync(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order._id]);
+
+  const loadCouriers = useCallback(async () => {
+    setLoadingCouriers(true);
+    setCourierError("");
+    try {
+      const p = parcelBody();
+      const query = p ? `?${new URLSearchParams(Object.entries(p).map(([k, v]) => [k, String(v)]))}` : "";
+      const result = await adminFetch(`/orders/${order._id}/couriers${query}`);
+      setCourierInfo(result);
+      setCarrierId(result.couriers?.[0]?.id || "auto");
+    } catch (err) {
+      setCourierError(err.message);
+    } finally {
+      setLoadingCouriers(false);
+    }
+  }, [order._id, parcel.weightKg, parcel.lengthCm, parcel.breadthCm, parcel.heightCm]);
+
+  useEffect(() => {
+    if (showBooking && !courierInfo) loadCouriers();
+  }, [showBooking, courierInfo, loadCouriers]);
+
+  const live = courierInfo?.mode === "live";
+  const picked = courierInfo?.couriers?.find((c) => c.id === carrierId);
+  const priceText = (c) => (c.charge ? ` — ₹${c.charge}${c.rtoCharge ? ` (RTO ₹${c.rtoCharge})` : ""}` : "");
+
+  const book = () => {
+    const courierLine = picked ? `\nCourier: ${picked.name}${priceText(picked)}` : "\nCourier: Shipway recommended";
+    if (!window.confirm(`Book the courier from here?${courierLine}\n\nThis charges your Shipway wallet, makes the label and schedules a pickup.`)) return;
+    call("ship", "ship", { carrierId: live ? carrierId : "", parcel: parcelBody() });
   };
 
   const row = (label, value) =>
@@ -776,44 +881,177 @@ function ShipwaySection({ order, onUpdated }) {
       <h3><Truck size={16} /> SHIPWAY</h3>
       {isShipway && ship.testMode && (
         <p className="gad-orders-note">
-          {ship.testMode === "mock" ? "TEST shipment — nothing was sent to Shipway." : "TEST — added in Shipway only, no courier booked."}
+          {ship.testMode === "mock" ? "TEST — nothing was sent to Shipway." : "TEST — added in Shipway only."}
         </p>
       )}
-      {isShipway && (ship.pushedAt || ship.awb) ? (
+
+      {otherAwb && <p>Has a tracking number ({ship.awb}) that wasn't made by Shipway.</p>}
+      {!otherAwb && !sent && !ship.awb && (
+        <p>{shippable ? "Not sent to Shipway yet." : "Only Pending, Processing or Shipped orders can be sent to Shipway."}</p>
+      )}
+
+      {waitingForCourier && (
+        <div className="gad-ship-waiting">
+          <strong>✓ In your Shipway account</strong>
+          {ship.shipwayOrderId && <span>Shipway order no.: <b>{ship.shipwayOrderId}</b></span>}
+          <span>
+            Book the courier in the Shipway dashboard (New Orders). The tracking number appears here automatically —
+            or click CHECK NOW.
+          </span>
+        </div>
+      )}
+
+      {isShipway && ship.awb && (
         <>
           {row("Status", ship.providerStatus)}
           {row("Courier", ship.courier)}
           {row("AWB", ship.awb)}
           {row("Pickup", ship.pickupDate)}
           {row("Expected", ship.etd)}
-          {row("Manifest", ship.manifestId && ship.manifestId !== "created" ? ship.manifestId : "")}
         </>
-      ) : (
-        <p>
-          {otherAwb
-            ? `Has a tracking number (${ship.awb}) that wasn't made by Shipway.`
-            : shippable
-              ? "Not sent to Shipway yet."
-              : "Only Pending, Processing or Shipped orders can be sent to Shipway."}
-        </p>
       )}
-      {ship.lastError && <p className="gad-orders-note" style={{ color: "#9b1c1c" }}>{ship.lastError}</p>}
+
+      {note && <p className="gad-orders-note">{note}</p>}
+      {ship.lastError && !error && (!sent || unfinished) && <p className="gad-orders-note" style={{ color: "#9b1c1c" }}>{ship.lastError}</p>}
       {error && <p className="gad-orders-note" style={{ color: "#9b1c1c" }}>{error}</p>}
 
+      {(canSend || (resending && waitingForCourier) || (showBooking && !ship.awb)) && (
+        <div className="gad-ship-parcel">
+          <div className="gad-ship-parcel-head">
+            <strong>PARCEL</strong>
+            <span>
+              {order.parcel?.source === "order"
+                ? "Saved for this order"
+                : order.parcel?.source === "products"
+                  ? "From the products' shipping details"
+                  : "From product details / store defaults — check it"}
+            </span>
+          </div>
+          <div className="gad-ship-parcel-grid">
+            {[
+              ["weightKg", "Weight (kg)", "0.01"],
+              ["lengthCm", "Length (cm)", "0.5"],
+              ["breadthCm", "Breadth (cm)", "0.5"],
+              ["heightCm", "Height (cm)", "0.5"],
+            ].map(([key, label, step]) => (
+              <label key={key}>
+                {label}
+                <input
+                  type="number"
+                  min="0"
+                  step={step}
+                  value={parcel[key]}
+                  onChange={(event) => {
+                    setParcel({ ...parcel, [key]: event.target.value });
+                    setCourierInfo(null);
+                  }}
+                />
+              </label>
+            ))}
+          </div>
+          {parcelReady && (
+            <p className="gad-orders-note" style={{ margin: 0 }}>
+              Box weight {boxKg.toFixed(2)} kg · courier charges <strong>{chargedKg.toFixed(2)} kg</strong> (the higher of the two)
+            </p>
+          )}
+        </div>
+      )}
+
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-        {shippable && !done && !otherAwb && (
-          <button type="button" className="gad-orders-export" disabled={!!busy} onClick={() => run("ship")}>
-            <Truck size={15} /> {busy === "ship" ? "SENDING…" : isShipway && (ship.pushedAt || ship.awb) && !ship.testMode ? "CONTINUE / RETRY" : "SHIP WITH SHIPWAY"}
+        {canSend && (
+          <button type="button" className="gad-orders-export" disabled={!!busy} onClick={send}>
+            <Truck size={15} /> {busy === "send" ? "SENDING…" : "SEND TO SHIPWAY"}
+          </button>
+        )}
+        {waitingForCourier && (
+          <>
+            <a className="gad-orders-export" href="https://app.shipway.com/" target="_blank" rel="noreferrer">
+              OPEN SHIPWAY
+            </a>
+            <button type="button" className="gad-orders-export" disabled={!!busy} onClick={() => sync(false)}>
+              {busy === "sync" ? "CHECKING…" : "CHECK NOW"}
+            </button>
+            {!resending ? (
+              <button type="button" className="gad-orders-export gad-orders-export-outline" disabled={!!busy} onClick={() => setResending(true)}>
+                SEND AGAIN
+              </button>
+            ) : (
+              <>
+                <button type="button" className="gad-orders-export" disabled={!!busy} onClick={sendAgain}>
+                  {busy === "send" ? "SENDING…" : "CONFIRM & SEND AGAIN"}
+                </button>
+                <button type="button" className="gad-orders-export gad-orders-export-outline" disabled={!!busy} onClick={() => setResending(false)}>
+                  CANCEL
+                </button>
+              </>
+            )}
+          </>
+        )}
+        {unfinished && (
+          <button type="button" className="gad-orders-export" disabled={!!busy} onClick={() => call("ship", "ship", {})}>
+            {busy === "ship" ? "RETRYING…" : "FINISH PICKUP"}
           </button>
         )}
         {ship.awb && ship.testMode !== "mock" && (
-          <button type="button" className="gad-orders-export" disabled={!!busy} onClick={() => run("track")}>
+          <button type="button" className="gad-orders-export" disabled={!!busy} onClick={() => call("track", "tracking")}>
             {busy === "track" ? "REFRESHING…" : "REFRESH TRACKING"}
           </button>
         )}
         {ship.labelUrl && <a className="gad-orders-export" href={ship.labelUrl} target="_blank" rel="noreferrer">PRINT LABEL</a>}
         {ship.trackingUrl && <a className="gad-orders-export" href={ship.trackingUrl} target="_blank" rel="noreferrer">TRACK</a>}
       </div>
+
+      {/* Optional: book the courier from the admin panel instead */}
+      {shippable && !otherAwb && !ship.awb && (
+        <div style={{ marginTop: 12 }}>
+          {!showBooking ? (
+            <button type="button" className="gad-order-edit-link" style={{ marginLeft: 0 }} onClick={() => setShowBooking(true)}>
+              OR BOOK THE COURIER FROM HERE
+            </button>
+          ) : (
+            <div className="gad-ship-courier">
+              {loadingCouriers && <p className="gad-orders-note">Checking couriers for PIN {order.shippingAddress?.pincode}…</p>}
+              {courierError && (
+                <p className="gad-orders-note" style={{ color: "#9b1c1c" }}>
+                  {courierError}{" "}
+                  <button type="button" className="gad-order-edit-link" onClick={loadCouriers}>RETRY</button>
+                </p>
+              )}
+              {courierInfo && !live && (
+                <p className="gad-orders-note">Booking a courier works only with SHIPWAY_MODE=live.</p>
+              )}
+              {live && !loadingCouriers && (
+                <>
+                  {courierInfo.warehouse && (
+                    <p className="gad-orders-note">
+                      Pickup from: <strong>{courierInfo.warehouse.title || `Warehouse ${courierInfo.warehouse.id}`}</strong>
+                      {courierInfo.warehouse.pincode ? ` · ${courierInfo.warehouse.city} ${courierInfo.warehouse.pincode}` : ""}
+                    </p>
+                  )}
+                  <label className="gad-ship-courier-label" htmlFor={`courier-${order._id}`}>
+                    COURIER
+                    <button type="button" className="gad-order-edit-link" onClick={loadCouriers}>REFRESH</button>
+                  </label>
+                  <select id={`courier-${order._id}`} value={carrierId} onChange={(event) => setCarrierId(event.target.value)}>
+                    {courierInfo.couriers.map((c, index) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}{priceText(c)}{index === 0 && c.charge ? " · cheapest" : ""}
+                      </option>
+                    ))}
+                    <option value="auto">Let Shipway choose (recommended courier)</option>
+                  </select>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button type="button" className="gad-orders-export" disabled={!!busy} onClick={book}>
+                      <Truck size={15} /> {busy === "ship" ? "BOOKING…" : "BOOK COURIER + PICKUP"}
+                    </button>
+                    <button type="button" className="gad-order-edit-link" onClick={() => setShowBooking(false)}>CLOSE</button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {ship.events?.length > 0 && (
         <div style={{ marginTop: 10 }}>

@@ -312,7 +312,7 @@ export async function changeOrderStatus(order, nextStatus, { reason = "", notify
     runInBackground(`coupon release ${order.orderNumber}`, () => countCouponUse(order.coupon?.code, -1));
     if (order.shipping?.provider === "shipway" && order.shipping.pushedAt && !order.shipping.testMode && shipway.isConfigured()) {
       try {
-        await shipway.cancel({ awb: order.shipping.awb, orderNumber: order.orderNumber });
+        await shipway.cancel({ awb: order.shipping.awb, orderNumber: shipway.shipwayId(order) });
         order.shipping.providerStatus = "CANCELLED";
       } catch (error) {
         order.shipping.lastError = `Couldn't cancel in Shipway: ${error.message}`;

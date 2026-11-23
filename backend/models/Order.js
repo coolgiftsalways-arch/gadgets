@@ -162,11 +162,19 @@ const orderSchema = new mongoose.Schema(
 
       // Shipway (filled in by "Ship with Shipway" in the admin panel)
       provider: String, // "shipway"
+      shipwayOrderId: String, // order number in Shipway if different (GAD-XXXX-R1 after a resend)
       carrierId: String, // Shipway courier id
       pushedAt: Date, // when the order was sent to Shipway
       manifestId: String,
       labelUrl: String,
       pickupDate: String,
+      // Parcel sent to Shipway (set in the admin panel; otherwise worked out from the products)
+      parcel: {
+        weightKg: Number,
+        lengthCm: Number,
+        breadthCm: Number,
+        heightCm: Number,
+      },
       providerStatus: String, // latest status text from Shipway, e.g. "In transit"
       statusCode: String, // Shipway status code, e.g. "INT", "DEL"
       etd: String, // courier's expected delivery date

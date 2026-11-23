@@ -555,6 +555,7 @@
 .gad-product-image-field>span,
 .gad-product-fields label,
 .gad-product-form-grid.three label,
+.gad-product-form-grid.four label,
 .gad-product-status-field {
      color: var(--gad-admin-muted);
      font-size: 9px;
@@ -608,6 +609,7 @@
 .gad-product-fields select,
 .gad-product-fields textarea,
 .gad-product-form-grid.three input,
+.gad-product-form-grid.four input,
 .gad-product-status-field select {
      width: 100%;
      min-height: 39px;
@@ -630,6 +632,7 @@
 .gad-product-fields select:focus,
 .gad-product-fields textarea:focus,
 .gad-product-form-grid.three input:focus,
+.gad-product-form-grid.four input:focus,
 .gad-product-status-field select:focus {
      border-color: #164e74;
 }
@@ -877,5 +880,47 @@
 
      .gad-product-view-copy {
           padding-right: 0;
+     }
+}
+/* Shipping (for courier) fields */
+.gad-product-shipping {
+     display: grid;
+     gap: 12px;
+     margin-top: 6px;
+     padding: 14px;
+     border: 1px dashed var(--gad-admin-line, rgba(16, 16, 14, .2));
+     border-radius: 12px;
+}
+
+.gad-product-shipping-head {
+     display: grid;
+     gap: 3px;
+}
+
+.gad-product-shipping-head strong {
+     font-size: 11px;
+     letter-spacing: .1em;
+}
+
+.gad-product-shipping-head span,
+.gad-product-shipping-hint {
+     margin: 0;
+     color: var(--gad-admin-muted, #77766e);
+     font-size: 12px;
+}
+
+.gad-product-form-grid.four {
+     grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.gad-product-form-grid.four label {
+     display: flex;
+     flex-direction: column;
+     gap: 7px;
+}
+
+@media (max-width: 700px) {
+     .gad-product-form-grid.four {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
      }
 }

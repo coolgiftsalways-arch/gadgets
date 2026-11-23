@@ -68,6 +68,13 @@ const productSchema = new mongoose.Schema(
     // draft = hidden from the shop. "Out of stock" is simply stock === 0.
     status: { type: String, enum: ["active", "draft"], default: "active", index: true },
     featured: { type: Boolean, default: false },
+    // Packed parcel for ONE unit (product + box + padding), used for courier bookings.
+    shipping: {
+      weightKg: Number,
+      lengthCm: Number,
+      breadthCm: Number,
+      heightCm: Number,
+    },
     sortOrder: { type: Number, default: 0 },
   },
   { timestamps: true },

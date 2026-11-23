@@ -6,6 +6,17 @@ import { env } from "../config/env.js";
 
 const BASE = "https://app.shipway.com/api";
 
+// The order number Shipway knows this order by. Normally our order number; after the
+// order was cancelled in Shipway and sent again it gets a suffix (GAD-XXXX-R1, -R2 …),
+// because Shipway keeps a cancelled order number cancelled.
+export const shipwayId = (order) => order.shipping?.shipwayOrderId || order.orderNumber;
+
+export function nextShipwayId(order) {
+  const current = shipwayId(order);
+  const match = /-R(\d+)$/.exec(current);
+  return match ? current.replace(/-R\d+$/, `-R${Number(match[1]) + 1}`) : `${order.orderNumber}-R1`;
+}
+
 export const isConfigured = () => Boolean(env.shipway.email && env.shipway.licenseKey);
 export const mode = () => env.shipway.mode;
 
@@ -97,11 +108,110 @@ export function nextPickupDate(now = new Date()) {
   return `${d.year}-${d.month}-${d.day}`;
 }
 
+// ---------- warehouse (pickup address) ----------
+
+let warehouseCache = null;
+let warehouseCacheAt = 0;
+
+export async function getWarehouses() {
+  const data = await api("/getwarehouses");
+  const message = data?.message;
+  const list = Array.isArray(message) ? message : message && typeof message === "object" ? Object.values(message) : [];
+  return list.map((w) => ({
+    id: String(w.warehouse_id),
+    title: w.title || "",
+    city: w.city || "",
+    pincode: String(w.pincode || ""),
+    isDefault: String(w.default) === "1",
+  }));
+}
+
+// The pickup warehouse: SHIPWAY_WAREHOUSE_ID if set, otherwise your default one in Shipway.
+export async function resolveWarehouse() {
+  if (warehouseCache && Date.now() - warehouseCacheAt < 10 * 60 * 1000) return warehouseCache;
+  const wanted = env.shipway.warehouseId;
+  let list = [];
+  try {
+    list = await getWarehouses();
+  } catch (error) {
+    if (wanted) return { id: wanted, pincode: "", title: "" }; // can still ship without its PIN code
+    throw error;
+  }
+  const found = wanted ? list.find((w) => w.id === String(wanted)) : list.find((w) => w.isDefault) || list[0];
+  if (!found) {
+    throw new Error(
+      wanted
+        ? `Warehouse ${wanted} (SHIPWAY_WAREHOUSE_ID) isn't in your Shipway account. Remove that line to use your default pickup address.`
+        : "No pickup address in Shipway yet. Add one in Shipway → Settings → Warehouse.",
+    );
+  }
+  warehouseCache = found;
+  warehouseCacheAt = Date.now();
+  return found;
+}
+
+// ---------- couriers ----------
+
+const unitsOf = (order) => order.items.reduce((sum, item) => sum + item.quantity, 0);
+const weightKg = (order) => Math.max(0.1, +(unitsOf(order) * env.shipway.itemWeightKg).toFixed(2));
+
+// Couriers that can take this order, cheapest first:
+// Shipway's own couriers (with prices) + your own courier accounts that serve the PIN code.
+export async function courierOptions(order, parcel) {
+  const warehouse = await resolveWarehouse();
+  const cod = order.payment.method === "cod";
+  const toPin = order.shippingAddress.pincode;
+  const options = new Map();
+  const notes = [];
+
+  if (warehouse.pincode) {
+    try {
+      const data = await api("/getshipwaycarrierrates", {
+        query: {
+          fromPincode: warehouse.pincode,
+          toPincode: toPin,
+          paymentType: cod ? "cod" : "prepaid",
+          weight: parcel ? parcel.weightKg : weightKg(order),
+          length: parcel ? parcel.lengthCm : env.shipway.boxLengthCm,
+          breadth: parcel ? parcel.breadthCm : env.shipway.boxBreadthCm,
+          height: parcel ? parcel.heightCm : env.shipway.boxHeightCm,
+          cummulativePrice: cod ? order.total : undefined,
+        },
+      });
+      for (const rate of Array.isArray(data?.rate_card) ? data.rate_card : []) {
+        options.set(String(rate.carrier_id), {
+          id: String(rate.carrier_id),
+          name: rate.courier_name || `Courier ${rate.carrier_id}`,
+          charge: Number(rate.delivery_charge) || null,
+          rtoCharge: Number(rate.rto_charge) || null,
+        });
+      }
+    } catch (error) {
+      notes.push(`Prices unavailable: ${error.message}`);
+    }
+  }
+
+  try {
+    const data = await api("/pincodeserviceable", { query: { pincode: toPin, payment_type: cod ? "C" : "P" } });
+    for (const carrier of Array.isArray(data?.message) ? data.message : []) {
+      const id = String(carrier.carrier_id);
+      if (!options.has(id)) {
+        options.set(id, { id, name: carrier.carrier_title || carrier.name || `Courier ${id}`, charge: null, rtoCharge: null });
+      }
+    }
+  } catch (error) {
+    notes.push(`Serviceability check failed: ${error.message}`);
+  }
+
+  const couriers = [...options.values()].sort((a, b) => (a.charge ?? Infinity) - (b.charge ?? Infinity));
+  return { warehouse, couriers, notes };
+}
+
 // One of our orders -> Shipway's "push order" request. Amounts are rupees.
-export function buildOrderPayload(order, { withLabel = false } = {}) {
-  const units = order.items.reduce((sum, item) => sum + item.quantity, 0);
+export function buildOrderPayload(order, { withLabel = false, warehouseId = "", carrierId = "", parcel = null } = {}) {
+  const units = unitsOf(order);
   const address = order.shippingAddress;
-  const { warehouseId, returnWarehouseId, carrierId, itemWeightKg, boxLengthCm, boxBreadthCm, boxHeightCm } = env.shipway;
+  const { returnWarehouseId, itemWeightKg, boxLengthCm, boxBreadthCm, boxHeightCm } = env.shipway;
   const discount = (order.discount || 0) + (order.couponDiscount || 0);
   const customer = order.customer;
 
@@ -118,7 +228,7 @@ export function buildOrderPayload(order, { withLabel = false } = {}) {
   });
 
   const payload = {
-    order_id: order.orderNumber,
+    order_id: shipwayId(order),
     products: order.items.map((item) => ({
       product: item.color ? `${item.name} (${item.color})` : item.name,
       price: String(item.price),
@@ -136,10 +246,11 @@ export function buildOrderPayload(order, { withLabel = false } = {}) {
     email: customer.email,
     ...person("billing"),
     ...person("shipping"),
-    order_weight: String(Math.max(100, Math.round(units * itemWeightKg * 1000))), // grams
-    box_length: String(boxLengthCm),
-    box_breadth: String(boxBreadthCm),
-    box_height: String(boxHeightCm),
+    // grams / cm — from the admin panel (or the products), else the .env defaults
+    order_weight: String(Math.max(50, Math.round((parcel ? parcel.weightKg : units * itemWeightKg) * 1000))),
+    box_length: String(Math.round(parcel ? parcel.lengthCm : boxLengthCm)),
+    box_breadth: String(Math.round(parcel ? parcel.breadthCm : boxBreadthCm)),
+    box_height: String(Math.round(parcel ? parcel.heightCm : boxHeightCm)),
     order_date: swDateTime(order.placedAt || order.createdAt),
   };
 
@@ -147,27 +258,33 @@ export function buildOrderPayload(order, { withLabel = false } = {}) {
     payload.warehouse_id = String(warehouseId);
     payload.return_warehouse_id = String(returnWarehouseId || warehouseId);
     // Empty = Shipway picks its recommended courier.
-    if (carrierId) payload.carrier_id = Number(carrierId);
+    if (carrierId && /^\d+$/.test(String(carrierId))) payload.carrier_id = Number(carrierId);
   }
   return payload;
 }
 
 // Push the order to Shipway only (no courier, nothing charged).
-export async function pushOrder(order) {
-  const data = await api("/v2orders", { method: "POST", body: buildOrderPayload(order) });
+export async function pushOrder(order, parcel = null) {
+  const data = await api("/v2orders", { method: "POST", body: buildOrderPayload(order, { parcel }) });
   if (failed(data)) throw new Error(`Shipway: ${messageOf(data) || "order was not added"}`);
   return data;
 }
 
 // Push the order + assign a courier and AWB + make the label (charges your Shipway wallet).
 // Returns { awb, carrierId, labelUrl, message }.
-export async function pushOrderWithLabel(order) {
-  const data = await api("/v2orders", { method: "POST", body: buildOrderPayload(order, { withLabel: true }) });
+export async function pushOrderWithLabel(order, { warehouseId, carrierId, parcel = null } = {}) {
+  const data = await api("/v2orders", { method: "POST", body: buildOrderPayload(order, { withLabel: true, warehouseId, carrierId, parcel }) });
   const awb = data?.awb_response || {};
   if (awb.AWB) {
     return { awb: String(awb.AWB), carrierId: awb.carrier_id ? String(awb.carrier_id) : "", labelUrl: awb.shipping_url || "" };
   }
-  if (failed(data)) throw new Error(`Shipway: ${messageOf(data) || "order was not added"}`);
+  if (failed(data)) {
+    const reason = messageOf(data) || "order was not added";
+    if (/carrier/i.test(reason)) {
+      throw new Error(`Shipway: ${reason} — choose a courier from the list and try again.`);
+    }
+    throw new Error(`Shipway: ${reason}`);
+  }
   throw new Error(`Shipway couldn't assign a courier: ${messageOf(awb) || messageOf(data) || "no courier available for this PIN code"}`);
 }
 
@@ -184,8 +301,8 @@ export async function createManifest(orderNumbers) {
   return { manifestId: String(data["manifest ids"] || data.manifest_ids || data.manifest_id || "") };
 }
 
-export async function createPickup(order, carrierId) {
-  const { warehouseId, returnWarehouseId, pickupTime, officeCloseTime } = env.shipway;
+export async function createPickup(order, carrierId, warehouseId) {
+  const { returnWarehouseId, pickupTime, officeCloseTime } = env.shipway;
   const pickupDate = nextPickupDate();
   const data = await api("/createpickup/", {
     method: "POST",
@@ -198,7 +315,7 @@ export async function createPickup(order, carrierId) {
       warehouse_id: String(warehouseId),
       return_warehouse_id: String(returnWarehouseId || warehouseId),
       payment_type: order.payment.method === "cod" ? "C" : "P",
-      order_ids: [order.orderNumber],
+      order_ids: [shipwayId(order)],
     },
   });
   if (failed(data)) throw new Error(`Shipway pickup: ${messageOf(data) || "failed"}`);

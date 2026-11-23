@@ -1,163 +1,106 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import gsap from "gsap";
-
 import {
-  Search,
+  AlertCircle,
   ArrowUpRight,
+  Box,
+  Check,
+  Copy,
+  ExternalLink,
+  MapPin,
+  MessageCircle,
   Package,
   PackageCheck,
-  Truck,
-  MapPin,
-  Clock3,
-  Check,
-  Radio,
-  Box,
-  ShieldCheck,
-  ExternalLink,
   RefreshCw,
-  AlertCircle,
+  Search,
+  ShieldCheck,
+  Truck,
+  XCircle,
 } from "lucide-react";
 
 import "../Style/TrackOrder.css";
 
-// ==========================================
-// API CONFIGURATION
-// ==========================================
-
 const API_URL = import.meta.env.VITE_API_URL || "/api";
+const WHATSAPP = "917039235169";
 
 // ==========================================
-// HELPER FUNCTIONS
+// HELPERS
 // ==========================================
 
-const formatDate = (date) => {
-  if (!date) return "Date unavailable";
-
-  const parsedDate = new Date(date);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return date;
-  }
-
-  return parsedDate.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+const toDate = (value) => {
+  if (!value) return null;
+  const date = new Date(String(value).replace(" ", "T"));
+  return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const formatPrice = (price) => {
-  if (price === undefined || price === null) return "—";
-
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 2,
-  }).format(Number(price) || 0);
+const formatDay = (value) => {
+  const date = toDate(value);
+  return date
+    ? date.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })
+    : "";
 };
 
-const getStatus = (status = "") => {
-  const value = String(status).toLowerCase();
-
-  if (value.includes("deliver")) {
-    return "delivered";
-  }
-
-  if (value.includes("out for delivery")) {
-    return "out-for-delivery";
-  }
-
-  if (
-    value.includes("transit") ||
-    value.includes("shipped") ||
-    value.includes("dispatched")
-  ) {
-    return "shipped";
-  }
-
-  if (value.includes("cancel")) {
-    return "cancelled";
-  }
-
-  if (value.includes("pickup")) {
-    return "picked-up";
-  }
-
-  return "processing";
+const formatDateTime = (value) => {
+  const date = toDate(value);
+  if (!date) return value ? String(value) : "";
+  return `${date.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · ${date
+    .toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })
+    .toLowerCase()}`;
 };
 
-const getStatusLabel = (status = "") => {
-  const labels = {
-    delivered: "Delivered",
-    "out-for-delivery": "Out for delivery",
-    shipped: "In transit",
-    cancelled: "Cancelled",
-    "picked-up": "Picked up",
-    processing: "Processing",
-  };
+const formatPrice = (price) =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(
+    Number(price) || 0,
+  );
 
-  return labels[getStatus(status)] || status || "Processing";
+const STEPS = [
+  { key: "pending", title: "Order placed", icon: Package },
+  { key: "processing", title: "Packed", icon: Box },
+  { key: "shipped", title: "Shipped", icon: Truck },
+  { key: "out_for_delivery", title: "Out for delivery", icon: MapPin },
+  { key: "delivered", title: "Delivered", icon: PackageCheck },
+];
+
+const HEADLINES = {
+  pending: { title: "Order confirmed", text: "We've got your order and will start packing it soon." },
+  processing: { title: "Being packed", text: "Your order is being packed and will be handed to the courier shortly." },
+  shipped: { title: "On its way", text: "Your parcel is with the courier and moving towards you." },
+  out_for_delivery: { title: "Out for delivery", text: "Your parcel will reach you today. Please keep your phone handy." },
+  delivered: { title: "Delivered", text: "Your order has been delivered. Enjoy your new gadget!" },
+  cancelled: { title: "Cancelled", text: "This order was cancelled. If you have questions, we're happy to help." },
 };
+
+const paymentText = (payment = {}) =>
+  payment.label || (payment.method === "cod" ? "Cash on Delivery" : payment.method === "upi" ? "Paid online" : "—");
 
 // ==========================================
-// TRACK ORDER COMPONENT
+// PAGE
 // ==========================================
 
 export default function TrackOrder() {
-  const [orderId, setOrderId] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [orderId, setOrderId] = useState(searchParams.get("order") || "");
   const [order, setOrder] = useState(null);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const pageRef = useRef(null);
   const resultRef = useRef(null);
 
-  // ==========================================
-  // GSAP ANIMATIONS
-  // ==========================================
-
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.from(".track-hero-content > *", {
-        y: 45,
-        opacity: 0,
-        duration: 1,
-        stagger: 0.12,
-        ease: "power4.out",
-      });
-
-      gsap.from(".track-search-card", {
-        y: 35,
-        opacity: 0,
-        duration: 0.9,
-        delay: 0.25,
-        ease: "power3.out",
-      });
-
-      gsap.from(".track-decoration", {
-        scale: 0.7,
-        opacity: 0,
-        duration: 1.2,
-        delay: 0.3,
-        ease: "power3.out",
-      });
+      gsap.from(".track-hero-copy > *", { y: 30, opacity: 0, duration: 0.8, stagger: 0.08, ease: "power3.out" });
+      gsap.from(".track-how", { y: 30, opacity: 0, duration: 0.8, delay: 0.2, ease: "power3.out" });
     }, pageRef);
-
     return () => ctx.revert();
   }, []);
 
-  // ==========================================
-  // FETCH ORDER TRACKING
-  // ==========================================
-
-  const handleTrackOrder = async (event) => {
-    event.preventDefault();
-
-    const formattedId = orderId.trim();
-
-    if (!formattedId) {
-      setError("Please enter your order ID.");
+  const lookUp = async (rawId) => {
+    const id = String(rawId || "").trim().toUpperCase();
+    if (!id) {
+      setError("Please enter your order number.");
       return;
     }
 
@@ -166,639 +109,329 @@ export default function TrackOrder() {
     setOrder(null);
 
     try {
-      const response = await fetch(
-        `${API_URL}/orders/${encodeURIComponent(formattedId)}/tracking`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
+      const response = await fetch(`${API_URL}/orders/${encodeURIComponent(id)}/tracking`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "We couldn't find that order. Please check the number.");
+      if (!data.order) throw new Error("Tracking details are not available right now. Please try again.");
 
-      const data = await response.json();
+      setOrder(data.order);
+      setSearchParams({ order: id }, { replace: true });
 
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-            data.error ||
-            "Unable to find your order. Please check your order ID.",
-        );
-      }
-
-      // Support common API response structures.
-      const orderData = data.order || data.data?.order || data.data || data;
-
-      if (!orderData || typeof orderData !== "object") {
-        throw new Error("Invalid tracking information received.");
-      }
-
-      setOrder(orderData);
-
-      // Animate tracking results.
       requestAnimationFrame(() => {
-        if (resultRef.current) {
-          gsap.fromTo(
-            resultRef.current,
-            {
-              opacity: 0,
-              y: 40,
-            },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.8,
-              ease: "power3.out",
-            },
-          );
-        }
+        if (!resultRef.current) return;
+        resultRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        gsap.fromTo(resultRef.current, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" });
       });
     } catch (err) {
-      console.error("Tracking error:", err);
-
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // ==========================================
-  // ORDER DATA
-  // ==========================================
+  // Links in order emails open /track-order?order=GAD-… — look it up straight away.
+  useEffect(() => {
+    const fromLink = searchParams.get("order");
+    if (fromLink) lookUp(fromLink);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const tracking =
-    order?.tracking || order?.shipment || {};
+  const submit = (event) => {
+    event.preventDefault();
+    lookUp(orderId);
+  };
 
-  const status =
-    tracking.current_status ||
-    tracking.status ||
-    order?.orderStatus ||
-    order?.status ||
-    "Processing";
-
-  const normalizedStatus = getStatus(status);
-
-  const timeline =
-    (order?.courierEvents?.length ? [...order.courierEvents, ...(order.timeline || [])] : null) ||
-    tracking.activities ||
-    tracking.tracking_data?.shipment_track_activities ||
-    tracking.tracking_data?.track_activities ||
-    order?.timeline ||
-    order?.history ||
-    [];
-
-  const items = order?.items || order?.products || order?.orderItems || [];
-
-  const courier =
-    tracking.courier_name ||
-    tracking.courier ||
-    tracking.courierName ||
-    order?.courier ||
-    "Courier details pending";
-
-  const awb =
-    tracking.awb_code || tracking.awb || tracking.awbCode || order?.awb || "";
-
-  const trackingUrl =
-    tracking.tracking_url || tracking.trackingUrl || order?.trackingUrl || "";
-
-  const deliveryDate =
-    tracking.edd ||
-    tracking.estimated_delivery_date ||
-    tracking.expected_delivery ||
-    order?.estimatedDelivery ||
-    order?.deliveryDate;
-
-  const orderNumber =
-    order?.orderId ||
-    order?.order_id ||
-    order?.orderNumber ||
-    order?._id ||
-    order?.id ||
-    orderId;
-
-  const total =
-    order?.totalAmount ?? order?.total ?? order?.grandTotal ?? order?.amount;
-
-  const paymentMethod =
-    order?.paymentMethod ||
-    order?.payment_method ||
-    order?.payment?.method ||
-    "Not available";
-
-  // ==========================================
-  // TRACKING STEPS
-  // ==========================================
-
-  const steps = [
-    {
-      title: "Order placed",
-      description: "Your order has been received.",
-      icon: Package,
-    },
-    {
-      title: "Processing",
-      description: "Your order is being prepared.",
-      icon: Box,
-    },
-    {
-      title: "Shipped",
-      description: "Your package is on its way.",
-      icon: Truck,
-    },
-    {
-      title: "Out for delivery",
-      description: "Your package is almost there.",
-      icon: MapPin,
-    },
-    {
-      title: "Delivered",
-      description: "Your order has arrived.",
-      icon: PackageCheck,
-    },
-  ];
-
-  const getActiveStep = () => {
-    switch (normalizedStatus) {
-      case "delivered":
-        return 5;
-
-      case "out-for-delivery":
-        return 4;
-
-      case "shipped":
-        return 3;
-
-      case "picked-up":
-        return 3;
-
-      case "cancelled":
-        return 0;
-
-      default:
-        return 2;
+  const copyAwb = async (awb) => {
+    try {
+      await navigator.clipboard.writeText(awb);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* clipboard blocked — ignore */
     }
   };
 
-  const activeStep = getActiveStep();
-
-  // ==========================================
-  // RENDER
-  // ==========================================
+  // ---------- order data ----------
+  const status = order?.status || "pending";
+  const cancelled = status === "cancelled";
+  const stepIndex = Math.max(0, STEPS.findIndex((step) => step.key === status));
+  const headline = HEADLINES[status] || HEADLINES.pending;
+  const tracking = order?.tracking || {};
+  const eta = order?.estimatedDelivery;
+  const etaText =
+    status === "delivered"
+      ? formatDay(tracking.deliveredAt) || "Delivered"
+      : eta
+        ? formatDay(eta.from) === formatDay(eta.to)
+          ? formatDay(eta.to)
+          : `${formatDay(eta.from)} – ${formatDay(eta.to)}`
+        : "Awaiting update";
+  const events = [...(order?.courierEvents || []), ...(order?.timeline || [])];
+  const items = order?.items || [];
 
   return (
     <div className="track-page" ref={pageRef}>
-      {/* HERO */}
-
+      {/* ---------- HERO + SEARCH ---------- */}
       <section className="track-hero">
-        <div className="track-grid" />
+        <div className="track-grid" aria-hidden="true" />
 
-        <div className="track-decoration">
-          <div className="track-orbit orbit-one" />
-          <div className="track-orbit orbit-two" />
-
-          <div className="track-orbit-center">
-            <PackageCheck size={75} strokeWidth={1} />
-            <span>G</span>
-          </div>
-
-          <div className="track-floating-icon floating-one">
-            <Truck size={23} />
-          </div>
-
-          <div className="track-floating-icon floating-two">
-            <MapPin size={23} />
-          </div>
-        </div>
-
-        <div className="track-hero-content">
-          <div className="track-eyebrow">
-            <span className="track-live-dot" />
-            GADGETÉ DELIVERY SYSTEM
-          </div>
+        <div className="track-hero-copy">
+          <span className="track-eyebrow">
+            <span className="track-live-dot" /> LIVE ORDER TRACKING
+          </span>
 
           <h1>
-            YOUR ORDER.
-            <br />
-            <span>YOUR JOURNEY.</span>
+            TRACK YOUR <span>ORDER.</span>
           </h1>
 
-          <p>
-            Every great delivery has a story. Follow yours, from our hands to
-            yours.
-          </p>
+          <p className="track-lead">See where your parcel is, who's delivering it and when it will arrive.</p>
 
-          <div className="track-hero-bottom">
-            <span>01 — TRACKING EXPERIENCE</span>
-            <span>GADGETÉ® INDIA</span>
-          </div>
-        </div>
-
-        <div className="track-hero-index">
-          <span>SCROLL TO</span>
-          <ArrowUpRight size={18} />
-        </div>
-      </section>
-
-      {/* SEARCH SECTION */}
-
-      <section className="track-search-section">
-        <div className="track-section-label">
-          <span>01 / FIND YOUR ORDER</span>
-          <span>ORDER TRACKING</span>
-        </div>
-
-        <div className="track-search-card">
-          <div className="track-search-heading">
-            <div>
-              <span className="track-small-label">WHERE IS YOUR PACKAGE?</span>
-
-              <h2>
-                Let's find <span>it.</span>
-              </h2>
-            </div>
-
-            <div className="track-search-icon">
-              <Search size={30} />
-            </div>
-          </div>
-
-          <form className="track-search-form" onSubmit={handleTrackOrder}>
-            <div className="track-input-wrap">
+          <form className="track-search" onSubmit={submit}>
+            <label className="track-input" htmlFor="track-order-id">
               <Search size={19} />
-
               <input
+                id="track-order-id"
                 type="text"
-                placeholder="Enter your order ID..."
+                inputMode="text"
+                autoComplete="off"
+                spellCheck="false"
+                placeholder="Order number, e.g. GAD-7K3M9QX2"
                 value={orderId}
-                onChange={(e) => {
-                  setOrderId(e.target.value);
+                onChange={(event) => {
+                  setOrderId(event.target.value);
                   setError("");
                 }}
               />
-
               {orderId && (
-                <button
-                  type="button"
-                  className="track-clear"
-                  onClick={() => setOrderId("")}
-                  aria-label="Clear order ID"
-                >
+                <button type="button" className="track-clear" onClick={() => setOrderId("")} aria-label="Clear">
                   ×
                 </button>
               )}
-            </div>
+            </label>
 
             <button type="submit" className="track-submit" disabled={loading}>
               {loading ? (
                 <>
-                  <RefreshCw className="track-spin" size={18} />
-                  TRACKING...
+                  <RefreshCw className="track-spin" size={18} /> TRACKING…
                 </>
               ) : (
                 <>
-                  TRACK ORDER
-                  <ArrowUpRight size={20} />
+                  TRACK <ArrowUpRight size={19} />
                 </>
               )}
             </button>
           </form>
 
-          {error && (
-            <div className="track-error">
-              <AlertCircle size={18} />
-              <span>{error}</span>
-            </div>
+          {error ? (
+            <p className="track-error" role="alert">
+              <AlertCircle size={17} /> {error}
+            </p>
+          ) : (
+            <p className="track-hint">
+              <ShieldCheck size={15} /> Your order number is in your confirmation email.
+            </p>
           )}
-
-          <div className="track-search-footer">
-            <span>
-              <ShieldCheck size={15} />
-              SECURE ORDER LOOKUP
-            </span>
-
-            <span>ENTER YOUR ORDER NUMBER TO BEGIN ↗</span>
-          </div>
         </div>
+
+        <aside className="track-how" aria-label="How delivery works">
+          <span className="track-label">FROM US TO YOU</span>
+          <ol>
+            {STEPS.map(({ key, title, icon: Icon }, index) => (
+              <li key={key}>
+                <span className="track-how-icon">
+                  <Icon size={18} />
+                </span>
+                <span className="track-how-text">
+                  <strong>{title}</strong>
+                  <small>
+                    {
+                      [
+                        "We confirm your order",
+                        "Packed with care",
+                        "Handed to our courier",
+                        "Arriving today",
+                        "In your hands",
+                      ][index]
+                    }
+                  </small>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </aside>
       </section>
 
-      {/* TRACKING RESULTS */}
-
+      {/* ---------- RESULTS ---------- */}
       {order && (
         <section className="track-results" ref={resultRef}>
-          <div className="track-section-label">
-            <span>02 / YOUR SHIPMENT</span>
-            <span>LIVE ORDER DETAILS</span>
-          </div>
-
-          {/* STATUS HEADER */}
-
-          <div className="track-status-card">
-            <div className="track-status-main">
-              <div className="track-status-icon">
-                {normalizedStatus === "delivered" ? (
-                  <PackageCheck size={34} />
-                ) : (
-                  <Truck size={34} />
+          <div className={`track-status ${cancelled ? "is-cancelled" : ""}`}>
+            <div className="track-status-top">
+              <div>
+                <span className="track-label">ORDER {order.orderNumber}</span>
+                <h2>
+                  {headline.title}
+                  <span>.</span>
+                </h2>
+                <p>{headline.text}</p>
+                {tracking.status && !cancelled && status !== "delivered" && (
+                  <span className="track-courier-status">
+                    <span className="track-live-dot" /> Latest from courier: {tracking.status}
+                  </span>
                 )}
               </div>
 
-              <div>
-                <span className="track-small-label">
-                  CURRENT SHIPMENT STATUS
-                </span>
-
-                <h2>
-                  {getStatusLabel(status)}
-                  <span>.</span>
-                </h2>
-
-                <p>Order #{String(orderNumber).slice(-12)}</p>
+              <div className="track-eta">
+                <span>{status === "delivered" ? "DELIVERED ON" : cancelled ? "STATUS" : "EXPECTED BY"}</span>
+                <strong>{cancelled ? "Cancelled" : etaText}</strong>
+                {order.shipTo && (
+                  <small>
+                    <MapPin size={13} /> {order.shipTo}
+                  </small>
+                )}
               </div>
             </div>
 
-            <div className="track-status-badge">
-              <span className="track-live-dot" />
-              {normalizedStatus === "delivered"
-                ? "COMPLETED"
-                : normalizedStatus === "cancelled"
-                  ? "CANCELLED"
-                  : "IN PROGRESS"}
-            </div>
-          </div>
-
-          {/* DELIVERY INFORMATION */}
-
-          <div className="track-info-grid">
-            <div className="track-info-card">
-              <Clock3 size={21} />
-
-              <span>ESTIMATED DELIVERY</span>
-
-              <strong>
-                {deliveryDate ? formatDate(deliveryDate) : "Awaiting update"}
-              </strong>
-            </div>
-
-            <div className="track-info-card">
-              <Truck size={21} />
-
-              <span>COURIER PARTNER</span>
-
-              <strong>{courier}</strong>
-            </div>
-
-            <div className="track-info-card">
-              <Radio size={21} />
-
-              <span>AWB / TRACKING ID</span>
-
-              <strong>{awb || "Not assigned yet"}</strong>
-            </div>
-          </div>
-
-          {/* PROGRESS */}
-
-          <div className="track-progress-card">
-            <div className="track-card-heading">
-              <div>
-                <span className="track-small-label">DELIVERY PROGRESS</span>
-
-                <h3>On its way.</h3>
-              </div>
-
-              <span className="track-progress-count">
-                {Math.round((activeStep / 5) * 100)}%
-              </span>
-            </div>
-
-            <div className="track-progress-line">
-              <div
-                className="track-progress-active"
-                style={{
-                  width: `${(activeStep / 5) * 100}%`,
-                }}
-              />
-            </div>
-
-            <div className="track-steps">
-              {steps.map((step, index) => {
-                const Icon = step.icon;
-                const completed = index < activeStep;
-                const active = index === activeStep - 1;
-
-                return (
-                  <div
-                    className={`track-step ${
-                      completed ? "completed" : ""
-                    } ${active ? "active" : ""}`}
-                    key={step.title}
-                  >
-                    <div className="track-step-icon">
-                      {completed ? <Check size={17} /> : <Icon size={17} />}
-                    </div>
-
-                    <div className="track-step-text">
-                      <strong>{step.title}</strong>
-                      <span>{step.description}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* TRACKING TIMELINE */}
-
-          <div className="track-timeline-card">
-            <div className="track-card-heading">
-              <div>
-                <span className="track-small-label">SHIPMENT ACTIVITY</span>
-
-                <h3>Journey log.</h3>
-              </div>
-
-              <Radio size={22} />
-            </div>
-
-            {timeline.length > 0 ? (
-              <div className="track-timeline">
-                {timeline.map((activity, index) => {
-                  const activityDate =
-                    activity.date ||
-                    activity.timestamp ||
-                    activity.activity_date;
-
-                  const activityStatus =
-                    activity.message ||
-                    activity.activity ||
-                    activity.status ||
-                    activity.description ||
-                    "Shipment updated";
-
-                  const location =
-                    activity.location ||
-                    activity.city ||
-                    activity.current_location ||
-                    "";
-
-                  return (
-                    <div className="track-timeline-item" key={index}>
-                      <div className="track-timeline-marker">
-                        <span />
-                      </div>
-
-                      <div className="track-timeline-content">
-                        <div className="track-timeline-top">
-                          <strong>{activityStatus}</strong>
-
-                          <span>{formatDate(activityDate)}</span>
-                        </div>
-
-                        {location && (
-                          <p>
-                            <MapPin size={14} />
-                            {location}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="track-empty-timeline">
-                <Clock3 size={27} />
-
-                <p>
-                  Shipment activity will appear here once your order is updated.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* ORDER MANIFEST */}
-
-          <div className="track-manifest-card">
-            <div className="track-card-heading">
-              <div>
-                <span className="track-small-label">YOUR PURCHASE</span>
-
-                <h3>Order manifest.</h3>
-              </div>
-
-              <Package size={25} />
-            </div>
-
-            {items.length > 0 ? (
-              <div className="track-items">
-                {items.map((item, index) => {
-                  const product = item.product || item;
-
-                  const name =
-                    product.name ||
-                    product.title ||
-                    item.productName ||
-                    "Product";
-
-                  const image =
-                    product.image || product.images?.[0] || item.image;
-
-                  const quantity = item.quantity || 1;
-
-                  const price = item.price || product.price || 0;
-
-                  return (
-                    <div className="track-product" key={item._id || index}>
-                      <div className="track-product-image">
-                        {image ? (
-                          <img src={image} alt={name} />
-                        ) : (
-                          <Package size={26} />
-                        )}
-                      </div>
-
-                      <div className="track-product-info">
-                        <strong>{name}</strong>
-
-                        <span>QUANTITY: {quantity}</span>
-                      </div>
-
-                      <strong className="track-product-price">
-                        {formatPrice(price * quantity)}
-                      </strong>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="track-no-items">
-                Product details are not available.
+            {cancelled ? (
+              <p className="track-cancel-note">
+                <XCircle size={18} /> Paid online? Your refund goes back to the original payment method within 5–7 working
+                days.
               </p>
+            ) : (
+              <ol className="track-steps" style={{ "--progress": `${(stepIndex / (STEPS.length - 1)) * 100}%` }}>
+                {STEPS.map(({ key, title, icon: Icon }, index) => (
+                  <li
+                    key={key}
+                    className={`${index < stepIndex ? "is-done" : ""} ${index === stepIndex ? "is-current" : ""}`}
+                  >
+                    <span className="track-step-dot">{index < stepIndex ? <Check size={16} /> : <Icon size={16} />}</span>
+                    <span className="track-step-title">{title}</span>
+                  </li>
+                ))}
+              </ol>
             )}
-
-            <div className="track-order-total">
-              <div>
-                <span>PAYMENT METHOD</span>
-                <strong>{paymentMethod}</strong>
-              </div>
-
-              <div className="track-total-price">
-                <span>ORDER TOTAL</span>
-                <strong>{formatPrice(total)}</strong>
-              </div>
-            </div>
           </div>
 
-          {/* TRACKING LINK */}
+          {/* courier strip */}
+          <div className="track-courier">
+            <div>
+              <span className="track-label">COURIER</span>
+              <strong>{tracking.courier || "Assigned when your order ships"}</strong>
+            </div>
+            <div>
+              <span className="track-label">TRACKING NUMBER (AWB)</span>
+              {tracking.awb ? (
+                <button type="button" className="track-awb" onClick={() => copyAwb(tracking.awb)}>
+                  {tracking.awb} {copied ? <Check size={15} /> : <Copy size={15} />}
+                  <span className="sr-only">{copied ? "Copied" : "Copy"}</span>
+                </button>
+              ) : (
+                <strong>Not assigned yet</strong>
+              )}
+            </div>
+            {tracking.trackingUrl && (
+              <a className="track-courier-link" href={tracking.trackingUrl} target="_blank" rel="noopener noreferrer">
+                TRACK ON COURIER SITE <ExternalLink size={16} />
+              </a>
+            )}
+          </div>
 
-          {trackingUrl && (
-            <a
-              href={trackingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="track-external-link"
-            >
-              TRACK WITH COURIER PARTNER
-              <ExternalLink size={18} />
-            </a>
-          )}
+          <div className="track-columns">
+            {/* journey */}
+            <article className="track-card">
+              <header className="track-card-head">
+                <span className="track-label">SHIPMENT UPDATES</span>
+                <h3>Journey log.</h3>
+              </header>
+
+              {events.length ? (
+                <ol className="track-timeline">
+                  {events.map((event, index) => (
+                    <li key={index} className={index === 0 ? "is-latest" : ""}>
+                      <span className="track-timeline-dot" />
+                      <div>
+                        <strong>{event.message || event.status || "Shipment updated"}</strong>
+                        <small>
+                          {formatDateTime(event.date)}
+                          {event.location ? ` · ${event.location}` : ""}
+                        </small>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="track-empty">Updates will appear here as your order moves.</p>
+              )}
+            </article>
+
+            {/* summary */}
+            <article className="track-card">
+              <header className="track-card-head">
+                <span className="track-label">YOUR ORDER</span>
+                <h3>Summary.</h3>
+              </header>
+
+              <ul className="track-items">
+                {items.map((item, index) => (
+                  <li key={index}>
+                    <span className="track-item-image">
+                      {item.image ? <img src={item.image} alt="" loading="lazy" /> : <Package size={22} />}
+                    </span>
+                    <span className="track-item-info">
+                      <strong>{item.name}</strong>
+                      <small>
+                        Qty {item.quantity}
+                        {item.color ? ` · ${item.color}` : ""}
+                      </small>
+                    </span>
+                    <span className="track-item-price">{formatPrice((item.price || 0) * (item.quantity || 1))}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <dl className="track-totals">
+                <div>
+                  <dt>Payment</dt>
+                  <dd>{paymentText(order.payment)}</dd>
+                </div>
+                {order.placedAt && (
+                  <div>
+                    <dt>Ordered on</dt>
+                    <dd>{formatDateTime(order.placedAt)}</dd>
+                  </div>
+                )}
+                <div className="track-total">
+                  <dt>Total</dt>
+                  <dd>{formatPrice(order.total)}</dd>
+                </div>
+              </dl>
+            </article>
+          </div>
         </section>
       )}
 
-      {/* BOTTOM CTA */}
-
-      <section className="track-bottom">
-        <div className="track-bottom-left">
-          <span>GADGETÉ® — THE FUTURE IN YOUR HANDS</span>
-
+      {/* ---------- HELP ---------- */}
+      <section className="track-help">
+        <div>
+          <span className="track-label">NEED HELP?</span>
           <h2>
-            GOOD THINGS
-            <br />
-            ARE <span>ON THEIR WAY.</span>
+            Questions about your <span>delivery?</span>
           </h2>
+          <p>Message us with your order number — we usually reply within a few hours.</p>
         </div>
-
-        <div className="track-bottom-right">
-          <p>
-            Need a little help with your order? Our customer care team is here
-            for you.
-          </p>
-
-          <a href="/contact">
-            CONTACT SUPPORT
-            <ArrowUpRight size={19} />
+        <div className="track-help-actions">
+          <a
+            className="track-help-primary"
+            href={`https://wa.me/${WHATSAPP}${order ? `?text=${encodeURIComponent(`Hi, I need help with order ${order.orderNumber}`)}` : ""}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <MessageCircle size={18} /> WHATSAPP US
           </a>
+          <Link className="track-help-secondary" to="/contact">
+            CONTACT SUPPORT <ArrowUpRight size={17} />
+          </Link>
         </div>
       </section>
-
-      {/* FOOTER STRIP */}
-
-      <div className="track-footer-strip">
-        <span>GADGETÉ®</span>
-        <span>GOOD TECH. BETTER LIFE.</span>
-        <span>MADE TO MOVE ↗</span>
-      </div>
     </div>
   );
 }

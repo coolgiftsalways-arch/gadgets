@@ -6,7 +6,7 @@
 import Order from "../models/Order.js";
 import { isDbReady } from "../config/db.js";
 import * as shipway from "./shipway.js";
-import { refreshTracking } from "./shippingService.js";
+import { refreshTracking, syncFromShipway } from "./shippingService.js";
 
 const SWEEP_EVERY_MS = 3 * 60 * 60 * 1000; // 3 hours
 const STALE_AFTER_MS = 2 * 60 * 60 * 1000; // skip orders checked in the last 2 hours
@@ -39,6 +39,23 @@ export async function sweepTracking() {
     })
       .sort({ "shipping.syncedAt": 1 })
       .limit(300);
+
+    // Orders sent to Shipway whose courier was booked in the Shipway dashboard.
+    const waiting = await Order.find({
+      status: { $in: ["pending", "processing"] },
+      "shipping.provider": "shipway",
+      "shipping.pushedAt": { $ne: null },
+      "shipping.awb": { $in: ["", null] },
+      "shipping.testMode": { $in: [null, ""] },
+    }).limit(100);
+    for (const order of waiting) {
+      try {
+        await syncFromShipway(order);
+      } catch (error) {
+        console.warn(`Shipway sync failed for ${order.orderNumber}: ${error.message}`);
+      }
+      await sleep(PAUSE_BETWEEN_MS);
+    }
 
     for (const order of orders) {
       try {

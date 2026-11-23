@@ -3,7 +3,7 @@ import Order from "../models/Order.js";
 import { env } from "../config/env.js";
 import { notFound } from "../utils/httpError.js";
 import { isObjectId } from "../utils/validate.js";
-import { applyWebhook, refreshTracking, shipOrder } from "../services/shippingService.js";
+import { applyWebhook, courierChoices, refreshTracking, sendToShipway, shipOrder, syncFromShipway } from "../services/shippingService.js";
 
 async function findOrder(id) {
   if (!isObjectId(id)) throw notFound("Order not found.");
@@ -12,10 +12,37 @@ async function findOrder(id) {
   return order;
 }
 
-// POST /api/admin/orders/:id/ship
+// GET /api/admin/orders/:id/couriers — couriers (with prices) that can deliver this order
+export async function couriers(req, res) {
+  const q = req.query || {};
+  const parcel = q.weightKg ? { weightKg: q.weightKg, lengthCm: q.lengthCm, breadthCm: q.breadthCm, heightCm: q.heightCm } : null;
+  const result = await courierChoices(await findOrder(req.params.id), parcel);
+  res.set("Cache-Control", "no-store");
+  res.json(result);
+}
+
+// POST /api/admin/orders/:id/ship  { carrierId? }
 export async function ship(req, res) {
-  const order = await shipOrder(await findOrder(req.params.id));
+  const raw = String(req.body?.carrierId ?? "").trim();
+  // a courier id, "auto" (Shipway's recommendation) or nothing (SHIPWAY_CARRIER_ID / recommendation)
+  const carrierId = /^\d{1,10}$/.test(raw) || raw === "auto" ? raw : "";
+  const order = await shipOrder(await findOrder(req.params.id), { carrierId, parcel: req.body?.parcel || null });
   res.json({ order });
+}
+
+// POST /api/admin/orders/:id/send — add the order to Shipway only (no courier, no pickup)
+export async function send(req, res) {
+  const order = await sendToShipway(await findOrder(req.params.id), {
+    parcel: req.body?.parcel || null,
+    resend: req.body?.resend === true,
+  });
+  res.json({ order });
+}
+
+// POST /api/admin/orders/:id/sync — pick up the courier + AWB booked in Shipway's dashboard
+export async function sync(req, res) {
+  const { order, linked, removed = false } = await syncFromShipway(await findOrder(req.params.id));
+  res.json({ order, linked, removed });
 }
 
 // POST /api/admin/orders/:id/tracking
