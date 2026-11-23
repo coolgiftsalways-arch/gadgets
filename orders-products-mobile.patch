@@ -1,0 +1,289 @@
+diff --git a/backend/controllers/adminOrderController.js b/backend/controllers/adminOrderController.js
+index 3a0942b..ce690ec 100644
+--- a/backend/controllers/adminOrderController.js
++++ b/backend/controllers/adminOrderController.js
+@@ -59,7 +59,7 @@ const SORTS = {
+ };
+ 
+ const LIST_FIELDS =
+-  "orderNumber customer shippingAddress items.quantity items.name items.product total payment.method payment.status status placedAt createdAt seenByAdmin attention source codConfirmedAt";
++  "orderNumber customer shippingAddress items.quantity items.name items.color items.product total payment.method payment.status status placedAt createdAt seenByAdmin attention source codConfirmedAt";
+ 
+ // GET /api/admin/orders?status=&payment=&q=&sort=&page=&limit=
+ export async function listOrders(req, res) {
+diff --git a/frontend/src/Admin/AdminOrders.jsx b/frontend/src/Admin/AdminOrders.jsx
+index a7183c5..35d98a1 100644
+--- a/frontend/src/Admin/AdminOrders.jsx
++++ b/frontend/src/Admin/AdminOrders.jsx
+@@ -198,8 +198,8 @@ const AdminOrders = () => {
+                 <th>CUSTOMER</th>
+                 <th>PHONE</th>
+                 <th>ADDRESS</th>
++                <th>PRODUCTS</th>
+                 <th>DATE & TIME</th>
+-                <th>ITEMS</th>
+                 <th>TOTAL</th>
+                 <th>PAYMENT</th>
+                 <th>STATUS</th>
+@@ -216,10 +216,10 @@ const AdminOrders = () => {
+                       {order.orderNumber}
+                       {order.seenByAdmin === false && <b style={{ color: "#c0392b" }}> • NEW</b>}
+                     </td>
+-                    <td>
++                    <td className="gad-order-customer-cell">
+                       <div className="gad-order-customer">
+                         <span>{initials(name)}</span>
+-                        <div style={{ display: "grid", gap: 4 }}>
++                        <div style={{ display: "grid", gap: 5 }}>
+                           <strong>{name}</strong>
+                           <OrderChips order={order} />
+                         </div>
+@@ -227,36 +227,41 @@ const AdminOrders = () => {
+                     </td>
+                     <td className="gad-order-phone-cell">
+                       <a href={`tel:+91${order.customer.phone}`} onClick={(event) => event.stopPropagation()}>
+-                        +91 {order.customer.phone}
++                        <Phone size={13} /> +91 {order.customer.phone}
+                       </a>
+                     </td>
+                     <td className="gad-order-address-cell">
+-                      {order.shippingAddress ? (
+-                        <>
+-                          <span>{[order.shippingAddress.line1, order.shippingAddress.line2].filter(Boolean).join(", ")}</span>
+-                          <small>
+-                            {order.shippingAddress.city}, {order.shippingAddress.state} – {order.shippingAddress.pincode}
+-                          </small>
+-                        </>
+-                      ) : "—"}
++                      <AddressLines order={order} />
++                    </td>
++                    <td className="gad-order-products-cell">
++                      <ul>
++                        {order.items.map((item, index) => (
++                          <li key={index}>
++                            <strong>{item.name}</strong>
++                            <small>
++                              × {item.quantity}
++                              {item.color ? ` · ${item.color}` : ""}
++                            </small>
++                          </li>
++                        ))}
++                      </ul>
+                     </td>
+                     <td className="gad-order-date-cell">
+                       <strong>{formatDate(when)}</strong>
+                       <small>{formatTime(when)}</small>
+                     </td>
+-                    <td className="gad-order-items-cell">{order.items.reduce((sum, item) => sum + item.quantity, 0)} item(s)</td>
+                     <td className="gad-order-total-cell">{money(order.total)}</td>
+-                    <td>
++                    <td className="gad-order-payment-cell">
+                       <span className={`gad-order-payment ${order.payment.method === "cod" ? "cod" : "online"}`}>
+                         {paymentLabel(order.payment)}
+                       </span>
+                     </td>
+-                    <td>
++                    <td className="gad-order-status-cell">
+                       <span className={`gad-order-status-pill ${statusClass(order.status)}`}>
+                         {statusLabel(order.status)}
+                       </span>
+                     </td>
+-                    <td>
++                    <td className="gad-order-view-cell">
+                       <button type="button" className="gad-order-view-button" aria-label={`View ${order.orderNumber}`}>
+                         <Eye size={16} />
+                       </button>
+@@ -841,6 +846,23 @@ function whatsappLink(order) {
+   return `https://wa.me/91${order.customer.phone}?text=${encodeURIComponent(text)}`;
+ }
+ 
++// Address for the list: leaves out lines that are just a phone number
++// (the phone has its own column); the CHECK ADDRESS tag still flags them.
++function AddressLines({ order }) {
++  const a = order.shippingAddress;
++  if (!a) return "—";
++  const phoneOnly = (value) => /^\+?[\d\s-]{10,15}$/.test(String(value || "").trim());
++  const street = [a.line1, a.line2].filter((value) => value && !phoneOnly(value)).join(", ");
++  return (
++    <>
++      {street ? <span>{street}</span> : <span className="gad-order-address-missing">No street address given</span>}
++      <small>
++        {a.city}, {a.state} – {a.pincode}
++      </small>
++    </>
++  );
++}
++
+ // Small tags under the customer name in the orders list.
+ function OrderChips({ order }) {
+   const chips = [];
+diff --git a/frontend/src/Admincss/AdminOrders.css b/frontend/src/Admincss/AdminOrders.css
+index a83f8d6..f056a07 100644
+--- a/frontend/src/Admincss/AdminOrders.css
++++ b/frontend/src/Admincss/AdminOrders.css
+@@ -280,7 +280,7 @@
+ 
+ .gad-orders-table {
+      width: 100%;
+-     min-width: 1180px;
++     min-width: 1300px;
+      border-collapse: collapse;
+      text-align: left;
+ }
+@@ -390,8 +390,29 @@
+      font-size: 12px;
+ }
+ 
+-.gad-order-items-cell {
+-     white-space: nowrap;
++.gad-order-products-cell {
++     min-width: 170px;
++     max-width: 230px;
++}
++
++.gad-order-products-cell ul {
++     display: grid;
++     gap: 6px;
++     margin: 0;
++     padding: 0;
++     list-style: none;
++}
++
++.gad-order-products-cell li strong {
++     display: block;
++     font-size: 13px;
++     font-weight: 600;
++     line-height: 1.35;
++}
++
++.gad-order-products-cell li small {
++     color: var(--gad-admin-muted);
++     font-size: 12px;
+ }
+ 
+ .gad-order-total-cell {
+@@ -928,11 +949,23 @@
+ }
+ 
+ .gad-order-phone-cell a {
++     display: inline-flex;
++     align-items: center;
++     gap: 6px;
+      color: inherit;
+      font-weight: 600;
+      text-decoration: none;
+ }
+ 
++.gad-order-phone-cell svg {
++     color: var(--gad-admin-muted);
++}
++
++.gad-order-address-missing {
++     color: #b8620c;
++     font-style: italic;
++}
++
+ .gad-order-phone-cell a:hover {
+      text-decoration: underline;
+ }
+@@ -955,3 +988,100 @@
+      color: var(--gad-admin-muted);
+      font-size: 12px;
+ }
++
++
++/* ---------- Orders list on phones: one clear card per order ---------- */
++@media (max-width: 700px) {
++     .gad-orders-table tr {
++          grid-template-columns: minmax(0, 1fr) auto;
++          grid-template-areas:
++               "id       status"
++               "customer customer"
++               "phone    phone"
++               "address  address"
++               "products products"
++               "date     total"
++               "payment  view";
++          gap: 10px 12px;
++          padding: 16px;
++          border-radius: 14px;
++     }
++
++     .gad-orders-table tbody tr:nth-child(even) {
++          background: var(--gad-admin-panel);
++     }
++
++     .gad-orders-table tbody td.gad-order-id-cell {
++          grid-area: id;
++          align-self: center;
++          font-size: 13px !important;
++     }
++
++     .gad-orders-table tbody td.gad-order-status-cell {
++          grid-area: status;
++          justify-self: end;
++     }
++
++     .gad-orders-table tbody td.gad-order-customer-cell {
++          grid-area: customer;
++          padding-bottom: 10px !important;
++          border-bottom: 1px dashed var(--gad-admin-line) !important;
++     }
++
++     .gad-order-customer {
++          min-width: 0;
++     }
++
++     .gad-orders-table tbody td.gad-order-phone-cell {
++          grid-area: phone;
++          font-size: 14px;
++     }
++
++     .gad-orders-table tbody td.gad-order-address-cell {
++          grid-area: address;
++          min-width: 0;
++          max-width: none;
++          font-size: 13px;
++     }
++
++     .gad-orders-table tbody td.gad-order-products-cell {
++          grid-area: products;
++          min-width: 0;
++          max-width: none;
++          padding: 10px 12px !important;
++          background: var(--gad-admin-page);
++          border-radius: 10px;
++     }
++
++     .gad-orders-table tbody td.gad-order-date-cell {
++          grid-area: date;
++          align-self: center;
++     }
++
++     .gad-orders-table tbody td.gad-order-date-cell strong,
++     .gad-orders-table tbody td.gad-order-date-cell small {
++          display: inline;
++          margin: 0;
++     }
++
++     .gad-orders-table tbody td.gad-order-date-cell small::before {
++          content: " · ";
++     }
++
++     .gad-orders-table tbody td.gad-order-total-cell {
++          grid-area: total;
++          justify-self: end;
++          align-self: center;
++          font-size: 17px;
++     }
++
++     .gad-orders-table tbody td.gad-order-payment-cell {
++          grid-area: payment;
++          align-self: center;
++     }
++
++     .gad-orders-table tbody td.gad-order-view-cell {
++          grid-area: view;
++          justify-self: end;
++     }
++}

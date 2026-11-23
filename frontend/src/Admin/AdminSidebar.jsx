@@ -3,11 +3,9 @@ import { NavLink } from "react-router-dom";
 
 import {
   LayoutDashboard,
-  Users,
   ShoppingCart,
   Package,
   TicketPercent,
-  Film,
   Sun,
   Moon,
   Menu,
@@ -67,11 +65,6 @@ const AdminSidebar = () => {
       end: true,
     },
     {
-      name: "Customers",
-      path: "/admin/customers",
-      icon: Users,
-    },
-    {
       name: "Orders",
       path: "/admin/orders",
       icon: ShoppingCart,
@@ -85,11 +78,6 @@ const AdminSidebar = () => {
       name: "Coupons",
       path: "/admin/coupons",
       icon: TicketPercent,
-    },
-    {
-      name: "Homepage",
-      path: "/admin/homepage",
-      icon: Film,
     },
   ];
 

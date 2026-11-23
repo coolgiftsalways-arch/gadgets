@@ -23,7 +23,11 @@ import {
   Save,
   AlertTriangle,
   Trash2,
+  ShieldCheck,
+  MessageCircle,
+  Pencil,
 } from "lucide-react";
+import { STATES } from "../data/indianStates";
 import {
   STATUS_OPTIONS,
   adminDownload,
@@ -192,8 +196,10 @@ const AdminOrders = () => {
               <tr>
                 <th>ORDER ID</th>
                 <th>CUSTOMER</th>
+                <th>PHONE</th>
+                <th>ADDRESS</th>
+                <th>PRODUCTS</th>
                 <th>DATE & TIME</th>
-                <th>ITEMS</th>
                 <th>TOTAL</th>
                 <th>PAYMENT</th>
                 <th>STATUS</th>
@@ -210,29 +216,52 @@ const AdminOrders = () => {
                       {order.orderNumber}
                       {order.seenByAdmin === false && <b style={{ color: "#c0392b" }}> • NEW</b>}
                     </td>
-                    <td>
+                    <td className="gad-order-customer-cell">
                       <div className="gad-order-customer">
                         <span>{initials(name)}</span>
-                        <strong>{name}</strong>
+                        <div style={{ display: "grid", gap: 5 }}>
+                          <strong>{name}</strong>
+                          <OrderChips order={order} />
+                        </div>
                       </div>
+                    </td>
+                    <td className="gad-order-phone-cell">
+                      <a href={`tel:+91${order.customer.phone}`} onClick={(event) => event.stopPropagation()}>
+                        <Phone size={13} /> +91 {order.customer.phone}
+                      </a>
+                    </td>
+                    <td className="gad-order-address-cell">
+                      <AddressLines order={order} />
+                    </td>
+                    <td className="gad-order-products-cell">
+                      <ul>
+                        {order.items.map((item, index) => (
+                          <li key={index}>
+                            <strong>{item.name}</strong>
+                            <small>
+                              × {item.quantity}
+                              {item.color ? ` · ${item.color}` : ""}
+                            </small>
+                          </li>
+                        ))}
+                      </ul>
                     </td>
                     <td className="gad-order-date-cell">
                       <strong>{formatDate(when)}</strong>
                       <small>{formatTime(when)}</small>
                     </td>
-                    <td>{order.items.reduce((sum, item) => sum + item.quantity, 0)} item(s)</td>
                     <td className="gad-order-total-cell">{money(order.total)}</td>
-                    <td>
+                    <td className="gad-order-payment-cell">
                       <span className={`gad-order-payment ${order.payment.method === "cod" ? "cod" : "online"}`}>
                         {paymentLabel(order.payment)}
                       </span>
                     </td>
-                    <td>
+                    <td className="gad-order-status-cell">
                       <span className={`gad-order-status-pill ${statusClass(order.status)}`}>
                         {statusLabel(order.status)}
                       </span>
                     </td>
-                    <td>
+                    <td className="gad-order-view-cell">
                       <button type="button" className="gad-order-view-button" aria-label={`View ${order.orderNumber}`}>
                         <Eye size={16} />
                       </button>
@@ -277,8 +306,12 @@ function OrderDrawer({ id, onClose, onChanged }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const [editing, setEditing] = useState(false);
+  const [contact, setContact] = useState(null);
+
+  // Some replies (e.g. Shipway) don't include warnings; keep the last ones.
   const apply = (fresh) => {
-    setOrder(fresh);
+    setOrder((prev) => ({ ...fresh, flags: fresh.flags ?? prev?.flags }));
     setShipping({
       courier: fresh.shipping?.courier || "",
       awb: fresh.shipping?.awb || "",
@@ -374,6 +407,38 @@ function OrderDrawer({ id, onClose, onChanged }) {
     }
   };
 
+  const startEdit = () => {
+    const addr = order.shippingAddress || {};
+    setContact({
+      phone: order.customer.phone || "",
+      line1: addr.line1 || "",
+      line2: addr.line2 || "",
+      city: addr.city || "",
+      state: addr.state || "",
+      pincode: addr.pincode || "",
+    });
+    setEditing(true);
+  };
+
+  const saveContact = async (event) => {
+    event.preventDefault();
+    const { phone, ...address } = contact;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await adminFetch(`/orders/${id}`, { method: "PATCH", body: { phone, address } });
+      apply(result.order);
+      setEditing(false);
+      setMessage("Address saved.");
+      onChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const a = order?.shippingAddress;
   const placed = order && !["awaiting_payment", "expired"].includes(order.status);
 
@@ -402,6 +467,69 @@ function OrderDrawer({ id, onClose, onChanged }) {
             )}
             {message && <p className="gad-orders-note">{message}</p>}
             {error && <p className="gad-orders-note" style={{ color: "#9b1c1c" }}>{error}</p>}
+
+            {order.flags?.duplicateOf?.length > 0 && (
+              <p className="gad-order-warning">
+                <AlertTriangle size={15} />
+                <span>
+                  <strong>Possible duplicate.</strong> Same phone number ordered the same product within 48 hours:{" "}
+                  {order.flags.duplicateOf.join(", ")}. Confirm with the customer before shipping both.
+                </span>
+              </p>
+            )}
+            {order.flags?.addressIssue && (
+              <p className="gad-order-warning">
+                <AlertTriangle size={15} />
+                <span>
+                  <strong>Check the address.</strong> {order.flags.addressIssue}. Ask the customer for the full address and
+                  use EDIT below before shipping.
+                </span>
+              </p>
+            )}
+
+            {placed && ["pending", "processing"].includes(order.status) && (
+              <section className="gad-order-detail-section">
+                <h3><ShieldCheck size={16} /> CONFIRM ORDER</h3>
+                {order.codConfirmedAt ? (
+                  <p className="gad-order-confirmed">
+                    <CheckCircle2 size={16} /> Confirmed with the customer on {formatDateTime(order.codConfirmedAt)}.
+                  </p>
+                ) : (
+                  <p style={{ fontSize: 13, opacity: 0.8 }}>
+                    {order.payment.method === "cod"
+                      ? "Cash on Delivery — confirm the order and address with the customer before shipping. This cuts returned parcels (RTO)."
+                      : "Optional: confirm the delivery address with the customer before shipping."}
+                  </p>
+                )}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  <a
+                    className="gad-orders-export"
+                    href={whatsappLink(order)}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ background: "#1f8f4e", borderColor: "#1f8f4e", color: "#fff" }}
+                  >
+                    <MessageCircle size={15} /> CONFIRM ON WHATSAPP
+                  </a>
+                  <a className="gad-orders-export" href={`tel:+91${order.customer.phone}`}>
+                    <Phone size={15} /> CALL
+                  </a>
+                  <button
+                    type="button"
+                    className="gad-orders-export"
+                    disabled={busy}
+                    onClick={() =>
+                      save(
+                        { confirmed: !order.codConfirmedAt },
+                        order.codConfirmedAt ? "Confirmation removed." : "Marked as confirmed.",
+                      )
+                    }
+                  >
+                    <CheckCircle2 size={15} /> {order.codConfirmedAt ? "UNDO CONFIRMED" : "MARK CONFIRMED"}
+                  </button>
+                </div>
+              </section>
+            )}
 
             {placed ? (
               <section className="gad-order-update-section">
@@ -451,13 +579,64 @@ function OrderDrawer({ id, onClose, onChanged }) {
             </section>
 
             <section className="gad-order-detail-section">
-              <h3><UserRound size={16} /> CUSTOMER INFORMATION</h3>
+              <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <UserRound size={16} /> CUSTOMER INFORMATION
+                {!editing && (
+                  <button type="button" className="gad-order-edit-link" onClick={startEdit}>
+                    <Pencil size={13} /> EDIT
+                  </button>
+                )}
+              </h3>
               <div className="gad-order-customer-detail"><strong>{customerName(order.customer)}</strong></div>
               <p><Mail size={15} /> <a href={`mailto:${order.customer.email}`}>{order.customer.email}</a></p>
-              <p><Phone size={15} /> <a href={`tel:+91${order.customer.phone}`}>+91 {order.customer.phone}</a></p>
-              <p>
-                <MapPin size={15} /> {a.line1}{a.line2 ? `, ${a.line2}` : ""}, {a.city}, {a.state} – {a.pincode}
-              </p>
+              {!editing ? (
+                <>
+                  <p><Phone size={15} /> <a href={`tel:+91${order.customer.phone}`}>+91 {order.customer.phone}</a></p>
+                  <p>
+                    <MapPin size={15} /> {a.line1}{a.line2 ? `, ${a.line2}` : ""}, {a.city}, {a.state} – {a.pincode}
+                  </p>
+                </>
+              ) : (
+                <form className="gad-order-edit-form" onSubmit={saveContact}>
+                  <label>
+                    Mobile number
+                    <input value={contact.phone} inputMode="numeric" onChange={(e) => setContact({ ...contact, phone: e.target.value })} />
+                  </label>
+                  <label>
+                    Address line 1 (house / flat, street)
+                    <input value={contact.line1} onChange={(e) => setContact({ ...contact, line1: e.target.value })} />
+                  </label>
+                  <label>
+                    Address line 2 (area, landmark)
+                    <input value={contact.line2} onChange={(e) => setContact({ ...contact, line2: e.target.value })} />
+                  </label>
+                  <div className="gad-order-edit-row">
+                    <label>
+                      City
+                      <input value={contact.city} onChange={(e) => setContact({ ...contact, city: e.target.value })} />
+                    </label>
+                    <label>
+                      PIN code
+                      <input value={contact.pincode} inputMode="numeric" maxLength={6} onChange={(e) => setContact({ ...contact, pincode: e.target.value })} />
+                    </label>
+                  </div>
+                  <label>
+                    State
+                    <select value={contact.state} onChange={(e) => setContact({ ...contact, state: e.target.value })}>
+                      {STATES.map((state) => <option key={state} value={state}>{state}</option>)}
+                    </select>
+                  </label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button type="submit" className="gad-orders-export" disabled={busy}>
+                      <Save size={15} /> SAVE ADDRESS
+                    </button>
+                    <button type="button" className="gad-orders-export" disabled={busy} onClick={() => setEditing(false)} style={{ background: "transparent", color: "inherit" }}>
+                      CANCEL
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 12, opacity: 0.7 }}>The customer isn't emailed. Save before clicking SHIP WITH SHIPWAY.</p>
+                </form>
+              )}
             </section>
 
             <section className="gad-order-detail-section">
@@ -647,6 +826,59 @@ function ShipwaySection({ order, onUpdated }) {
         </div>
       )}
     </section>
+  );
+}
+
+// WhatsApp chat with the customer, order details already typed in.
+function whatsappLink(order) {
+  const a = order.shippingAddress || {};
+  const items = order.items.map((item) => `${item.name}${item.quantity > 1 ? ` x${item.quantity}` : ""}`).join(", ");
+  const pay = order.payment.method === "cod" ? `${money(order.total)} Cash on Delivery` : `${money(order.total)} (paid online)`;
+  const text = [
+    `Hi ${order.customer.firstName}, this is GADGETÉ (coolgadgetshub.in).`,
+    `Please confirm your order ${order.orderNumber}:`,
+    `• ${items}`,
+    `• ${pay}`,
+    `• Delivery to: ${[a.line1, a.line2, a.city, a.state].filter(Boolean).join(", ")} – ${a.pincode}`,
+    ``,
+    `Reply YES to confirm, or send the correct full address (house no., street, area, landmark).`,
+  ].join("\n");
+  return `https://wa.me/91${order.customer.phone}?text=${encodeURIComponent(text)}`;
+}
+
+// Address for the list: leaves out lines that are just a phone number
+// (the phone has its own column); the CHECK ADDRESS tag still flags them.
+function AddressLines({ order }) {
+  const a = order.shippingAddress;
+  if (!a) return "—";
+  const phoneOnly = (value) => /^\+?[\d\s-]{10,15}$/.test(String(value || "").trim());
+  const street = [a.line1, a.line2].filter((value) => value && !phoneOnly(value)).join(", ");
+  return (
+    <>
+      {street ? <span>{street}</span> : <span className="gad-order-address-missing">No street address given</span>}
+      <small>
+        {a.city}, {a.state} – {a.pincode}
+      </small>
+    </>
+  );
+}
+
+// Small tags under the customer name in the orders list.
+function OrderChips({ order }) {
+  const chips = [];
+  if (order.flags?.duplicateOf?.length) chips.push(["DUPLICATE?", "danger", `Also ordered: ${order.flags.duplicateOf.join(", ")}`]);
+  if (order.flags?.addressIssue) chips.push(["CHECK ADDRESS", "warn", order.flags.addressIssue]);
+  if (["pending", "processing"].includes(order.status)) {
+    if (order.codConfirmedAt) chips.push(["CONFIRMED", "ok", "Confirmed with the customer"]);
+    else if (order.payment?.method === "cod") chips.push(["NOT CONFIRMED", "muted", "COD order not confirmed yet"]);
+  }
+  if (!chips.length) return null;
+  return (
+    <span className="gad-order-chips">
+      {chips.map(([label, tone, title]) => (
+        <span key={label} className={`gad-order-chip ${tone}`} title={title}>{label}</span>
+      ))}
+    </span>
   );
 }
 

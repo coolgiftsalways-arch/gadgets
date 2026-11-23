@@ -40,11 +40,9 @@ import Checkout from "./Pages/Checkout";
 import AdminLayout from "./Admin/AdminLayout";
 import AdminLogin from "./Admin/AdminLogin";
 import AdminDashboard from "./Admin/AdminDashboard";
-import AdminCustomers from "./Admin/AdminCustomers";
 import AdminOrders from "./Admin/AdminOrders";
 import AdminProducts from "./Admin/AdminProducts";
 import AdminCoupons from "./Admin/AdminCoupons";
-import AdminHomepage from "./Admin/AdminHomepage";
 
 // ==========================================
 // GLOBAL CSS
@@ -560,11 +558,9 @@ function App() {
 
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
-          <Route path="customers" element={<AdminCustomers />} />
           <Route path="orders" element={<AdminOrders />} />
           <Route path="products" element={<AdminProducts />} />
           <Route path="coupons" element={<AdminCoupons />} />
-          <Route path="homepage" element={<AdminHomepage />} />
         </Route>
 
       </Routes>

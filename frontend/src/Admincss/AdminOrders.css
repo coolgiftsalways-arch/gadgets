@@ -280,7 +280,7 @@
 
 .gad-orders-table {
      width: 100%;
-     min-width: 900px;
+     min-width: 1300px;
      border-collapse: collapse;
      text-align: left;
 }
@@ -290,25 +290,41 @@
 }
 
 .gad-orders-table th {
-     padding: 12px 11px;
+     padding: 14px 10px;
      color: var(--gad-admin-muted);
-     font-size: 8px;
+     font-size: 10px;
      font-weight: 800;
-     letter-spacing: .9px;
+     letter-spacing: 1px;
      white-space: nowrap;
 }
 
 .gad-orders-table th:first-child,
 .gad-orders-table td:first-child {
-     padding-left: 20px;
+     padding-left: 24px;
+}
+
+.gad-orders-table th:last-child,
+.gad-orders-table td:last-child {
+     padding-right: 18px;
+     text-align: center;
 }
 
 .gad-orders-table td {
-     padding: 12px 11px;
+     padding: 20px 10px;
      border-top: 1px solid var(--gad-admin-line);
      color: var(--gad-admin-text);
-     font-size: 10px;
+     font-size: 13px;
+     line-height: 1.45;
      vertical-align: middle;
+}
+
+/* light striping so each order is easy to follow across the row */
+.gad-orders-table tbody tr:nth-child(even) {
+     background: rgba(22, 78, 116, .025);
+}
+
+:root[data-admin-theme="dark"] .gad-orders-table tbody tr:nth-child(even) {
+     background: rgba(255, 255, 255, .02);
 }
 
 .gad-orders-table tbody tr:hover {
@@ -321,7 +337,7 @@
 
 .gad-order-id-cell {
      color: #164e74 !important;
-     font-size: 9px !important;
+     font-size: 12px !important;
      font-weight: 800;
      white-space: nowrap;
 }
@@ -333,24 +349,26 @@
 .gad-order-customer {
      display: flex;
      align-items: center;
-     gap: 8px;
-     white-space: nowrap;
+     gap: 12px;
+     min-width: 228px;
 }
 
 .gad-order-customer>span {
-     width: 29px;
-     height: 29px;
+     width: 36px;
+     height: 36px;
+     flex: 0 0 auto;
      display: grid;
      place-items: center;
-     border-radius: 8px;
+     border-radius: 10px;
      background: #164e74;
      color: #fff;
-     font-size: 9px;
+     font-size: 12px;
      font-weight: 800;
 }
 
 .gad-order-customer strong {
-     font-size: 10px;
+     font-size: 14px;
+     white-space: nowrap;
 }
 
 .gad-order-date-cell {
@@ -362,13 +380,43 @@
      display: block;
 }
 
+.gad-order-date-cell strong {
+     font-size: 13px;
+}
+
 .gad-order-date-cell small {
      margin-top: 3px;
      color: var(--gad-admin-muted);
-     font-size: 9px;
+     font-size: 12px;
+}
+
+.gad-order-products-cell {
+     min-width: 170px;
+     max-width: 230px;
+}
+
+.gad-order-products-cell ul {
+     display: grid;
+     gap: 6px;
+     margin: 0;
+     padding: 0;
+     list-style: none;
+}
+
+.gad-order-products-cell li strong {
+     display: block;
+     font-size: 13px;
+     font-weight: 600;
+     line-height: 1.35;
+}
+
+.gad-order-products-cell li small {
+     color: var(--gad-admin-muted);
+     font-size: 12px;
 }
 
 .gad-order-total-cell {
+     font-size: 14px;
      font-weight: 800;
      white-space: nowrap;
 }
@@ -378,9 +426,9 @@
      display: inline-flex;
      align-items: center;
      gap: 5px;
-     padding: 5px 8px;
+     padding: 6px 11px;
      border-radius: 30px;
-     font-size: 8px;
+     font-size: 11px;
      font-weight: 700;
      white-space: nowrap;
 }
@@ -421,8 +469,8 @@
 }
 
 .gad-order-view-button {
-     width: 29px;
-     height: 29px;
+     width: 36px;
+     height: 36px;
      display: grid;
      place-items: center;
      border: 1px solid var(--gad-admin-line);
@@ -778,5 +826,262 @@
 
      .gad-order-drawer {
           padding: 17px;
+     }
+}
+/* ---------- Order warnings, confirmation and address editing ---------- */
+
+.gad-order-chips {
+     display: flex;
+     flex-wrap: wrap;
+     gap: 4px;
+}
+
+.gad-order-chip {
+     padding: 3px 7px;
+     border-radius: 5px;
+     font-size: 10px;
+     font-weight: 700;
+     letter-spacing: .06em;
+     white-space: nowrap;
+}
+
+.gad-order-chip.danger {
+     background: rgba(192, 57, 43, .13);
+     color: #c0392b;
+}
+
+.gad-order-chip.warn {
+     background: rgba(214, 120, 20, .15);
+     color: #b8620c;
+}
+
+.gad-order-chip.ok {
+     background: rgba(62, 157, 105, .14);
+     color: #2f8a57;
+}
+
+.gad-order-chip.muted {
+     background: rgba(127, 127, 127, .14);
+     color: var(--gad-admin-muted);
+}
+
+.gad-order-warning {
+     display: flex;
+     gap: 10px;
+     margin: 10px 0;
+     padding: 12px 14px;
+     background: rgba(214, 120, 20, .12);
+     border: 1px solid rgba(214, 120, 20, .35);
+     border-radius: 10px;
+     color: inherit;
+     font-size: 13px;
+     line-height: 1.5;
+}
+
+.gad-order-warning svg {
+     flex: 0 0 auto;
+     margin-top: 2px;
+     color: #b8620c;
+}
+
+.gad-order-confirmed {
+     display: flex;
+     align-items: center;
+     gap: 8px;
+     color: #2f8a57;
+     font-weight: 600;
+}
+
+.gad-order-edit-link {
+     display: inline-flex;
+     align-items: center;
+     gap: 4px;
+     margin-left: auto;
+     padding: 4px 8px;
+     background: transparent;
+     border: 1px solid var(--gad-admin-line);
+     border-radius: 6px;
+     color: inherit;
+     font-size: 11px;
+     font-weight: 700;
+     letter-spacing: .08em;
+     cursor: pointer;
+}
+
+.gad-order-edit-form {
+     display: grid;
+     gap: 10px;
+     margin-top: 8px;
+}
+
+.gad-order-edit-form label {
+     display: grid;
+     gap: 4px;
+     font-size: 12px;
+     opacity: .85;
+}
+
+.gad-order-edit-form input,
+.gad-order-edit-form select {
+     width: 100%;
+     height: 40px;
+     padding: 0 10px;
+     background: transparent;
+     border: 1px solid currentColor;
+     border-radius: 8px;
+     color: inherit;
+     font-size: 15px;
+}
+
+.gad-order-edit-form select option {
+     color: #10100e;
+}
+
+.gad-order-edit-row {
+     display: grid;
+     grid-template-columns: 1fr 120px;
+     gap: 10px;
+}
+
+/* Phone + address columns in the orders list */
+.gad-order-phone-cell {
+     white-space: nowrap;
+}
+
+.gad-order-phone-cell a {
+     display: inline-flex;
+     align-items: center;
+     gap: 6px;
+     color: inherit;
+     font-weight: 600;
+     text-decoration: none;
+}
+
+.gad-order-phone-cell svg {
+     color: var(--gad-admin-muted);
+}
+
+.gad-order-address-missing {
+     color: #b8620c;
+     font-style: italic;
+}
+
+.gad-order-phone-cell a:hover {
+     text-decoration: underline;
+}
+
+.gad-order-address-cell {
+     min-width: 230px;
+     max-width: 320px;
+     line-height: 1.45;
+     white-space: normal;
+}
+
+.gad-order-address-cell span,
+.gad-order-address-cell small {
+     display: block;
+     overflow-wrap: anywhere;
+}
+
+.gad-order-address-cell small {
+     margin-top: 4px;
+     color: var(--gad-admin-muted);
+     font-size: 12px;
+}
+
+
+/* ---------- Orders list on phones: one clear card per order ---------- */
+@media (max-width: 700px) {
+     .gad-orders-table tr {
+          grid-template-columns: minmax(0, 1fr) auto;
+          grid-template-areas:
+               "id       status"
+               "customer customer"
+               "phone    phone"
+               "address  address"
+               "products products"
+               "date     total"
+               "payment  view";
+          gap: 10px 12px;
+          padding: 16px;
+          border-radius: 14px;
+     }
+
+     .gad-orders-table tbody tr:nth-child(even) {
+          background: var(--gad-admin-panel);
+     }
+
+     .gad-orders-table tbody td.gad-order-id-cell {
+          grid-area: id;
+          align-self: center;
+          font-size: 13px !important;
+     }
+
+     .gad-orders-table tbody td.gad-order-status-cell {
+          grid-area: status;
+          justify-self: end;
+     }
+
+     .gad-orders-table tbody td.gad-order-customer-cell {
+          grid-area: customer;
+          padding-bottom: 10px !important;
+          border-bottom: 1px dashed var(--gad-admin-line) !important;
+     }
+
+     .gad-order-customer {
+          min-width: 0;
+     }
+
+     .gad-orders-table tbody td.gad-order-phone-cell {
+          grid-area: phone;
+          font-size: 14px;
+     }
+
+     .gad-orders-table tbody td.gad-order-address-cell {
+          grid-area: address;
+          min-width: 0;
+          max-width: none;
+          font-size: 13px;
+     }
+
+     .gad-orders-table tbody td.gad-order-products-cell {
+          grid-area: products;
+          min-width: 0;
+          max-width: none;
+          padding: 10px 12px !important;
+          background: var(--gad-admin-page);
+          border-radius: 10px;
+     }
+
+     .gad-orders-table tbody td.gad-order-date-cell {
+          grid-area: date;
+          align-self: center;
+     }
+
+     .gad-orders-table tbody td.gad-order-date-cell strong,
+     .gad-orders-table tbody td.gad-order-date-cell small {
+          display: inline;
+          margin: 0;
+     }
+
+     .gad-orders-table tbody td.gad-order-date-cell small::before {
+          content: " · ";
+     }
+
+     .gad-orders-table tbody td.gad-order-total-cell {
+          grid-area: total;
+          justify-self: end;
+          align-self: center;
+          font-size: 17px;
+     }
+
+     .gad-orders-table tbody td.gad-order-payment-cell {
+          grid-area: payment;
+          align-self: center;
+     }
+
+     .gad-orders-table tbody td.gad-order-view-cell {
+          grid-area: view;
+          justify-self: end;
      }
 }

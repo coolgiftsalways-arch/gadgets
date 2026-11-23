@@ -149,6 +149,7 @@ const orderSchema = new mongoose.Schema(
     attention: { type: String, default: "" },
 
     placedAt: { type: Date, index: true }, // when it became a real order
+    codConfirmedAt: Date, // admin confirmed the order with the customer (call / WhatsApp)
     seenByAdmin: { type: Boolean, default: true, index: true },
 
     shipping: {

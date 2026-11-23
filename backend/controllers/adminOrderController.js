@@ -1,9 +1,10 @@
 // Admin: list, search, export and manage orders.
 import Order from "../models/Order.js";
-import { ORDER_STATUSES, PAYMENT_METHODS, PLACED_STATUSES, STATUS_LABELS } from "../config/store.js";
+import { INDIAN_STATES, ORDER_STATUSES, PAYMENT_METHODS, PLACED_STATUSES, STATUS_LABELS } from "../config/store.js";
 import { env } from "../config/env.js";
 import { HttpError, badRequest, conflict, notFound } from "../utils/httpError.js";
-import { boolean, escapeRegex, isObjectId, line, text } from "../utils/validate.js";
+import { boolean, escapeRegex, isObjectId, line, phone as cleanPhone, pincode as cleanPincode, text } from "../utils/validate.js";
+import { flagOrders, withFlags } from "../services/orderFlags.js";
 import { CUSTOMER_EMAIL_TYPES } from "../services/emailTemplates.js";
 import {
   changeOrderStatus,
@@ -58,7 +59,7 @@ const SORTS = {
 };
 
 const LIST_FIELDS =
-  "orderNumber customer shippingAddress.city shippingAddress.state shippingAddress.pincode items.quantity items.name total payment.method payment.status status placedAt createdAt seenByAdmin attention source";
+  "orderNumber customer shippingAddress items.quantity items.name items.color items.product total payment.method payment.status status placedAt createdAt seenByAdmin attention source codConfirmedAt";
 
 // GET /api/admin/orders?status=&payment=&q=&sort=&page=&limit=
 export async function listOrders(req, res) {
@@ -77,10 +78,11 @@ export async function listOrders(req, res) {
   ]);
 
   const counts = Object.fromEntries(statusAgg.map((row) => [row._id, row.count]));
+  const flags = await flagOrders(items);
 
   res.set("Cache-Control", "no-store");
   res.json({
-    items,
+    items: items.map((order) => ({ ...order.toObject(), flags: flags.get(String(order._id)) })),
     total,
     page,
     pages: Math.max(1, Math.ceil(total / limit)),
@@ -114,7 +116,51 @@ export async function getOrder(req, res) {
   }
 
   res.set("Cache-Control", "no-store");
-  res.json({ order });
+  res.json({ order: await withFlags(order) });
+}
+
+const note = (order, message) => order.timeline.push({ status: order.status, message, at: new Date() });
+
+// Fix the delivery address / phone before shipping.
+function applyContact(order, rawAddress, rawPhone) {
+  if (rawAddress === undefined && rawPhone === undefined) return;
+
+  const ship = order.shipping || {};
+  if (ship.provider === "shipway" && ship.awb && !ship.testMode && order.status !== "cancelled") {
+    throw conflict("This order is already booked with a courier in Shipway. Change the address in the Shipway panel instead.");
+  }
+
+  const changes = [];
+  if (rawAddress && typeof rawAddress === "object") {
+    const next = {
+      line1: line(rawAddress.line1, 200),
+      line2: line(rawAddress.line2, 200),
+      city: line(rawAddress.city, 80),
+      state: line(rawAddress.state, 60),
+      pincode: cleanPincode(rawAddress.pincode),
+    };
+    if (!next.line1) throw badRequest("Please enter address line 1.");
+    if (!next.city) throw badRequest("Please enter the city.");
+    if (!INDIAN_STATES.includes(next.state)) throw badRequest("Please choose a valid state.");
+    if (!next.pincode) throw badRequest("Please enter a valid 6-digit PIN code.");
+
+    const before = order.shippingAddress || {};
+    if (["line1", "line2", "city", "state", "pincode"].some((key) => (before[key] || "") !== next[key])) {
+      Object.assign(order.shippingAddress, next);
+      changes.push("address");
+    }
+  }
+
+  if (rawPhone !== undefined) {
+    const next = cleanPhone(rawPhone);
+    if (!next) throw badRequest("Please enter a valid 10-digit mobile number.");
+    if (next !== order.customer.phone) {
+      order.customer.phone = next;
+      changes.push("phone");
+    }
+  }
+
+  if (changes.length) note(order, `Delivery ${changes.join(" and ")} updated by admin.`);
 }
 
 function applyShipping(order, raw) {
@@ -154,6 +200,19 @@ export async function updateOrder(req, res) {
 
   if (body.adminNote !== undefined) order.adminNote = text(body.adminNote, 2000);
 
+  applyContact(order, body.address, body.phone);
+
+  if (body.confirmed !== undefined) {
+    const confirmed = boolean(body.confirmed);
+    if (confirmed && !order.codConfirmedAt) {
+      order.codConfirmedAt = new Date();
+      note(order, "Order confirmed with the customer.");
+    } else if (!confirmed && order.codConfirmedAt) {
+      order.codConfirmedAt = undefined;
+      note(order, "Order confirmation removed.");
+    }
+  }
+
   if (body.refunded !== undefined) await setRefunded(order, boolean(body.refunded));
 
   if (body.status !== undefined && body.status !== order.status) {
@@ -165,7 +224,7 @@ export async function updateOrder(req, res) {
     await order.save();
   }
 
-  res.json({ order });
+  res.json({ order: await withFlags(order) });
 }
 
 // DELETE /api/admin/orders/:id — permanently removes the order
