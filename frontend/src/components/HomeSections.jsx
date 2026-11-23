@@ -18,6 +18,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { products as trendingProducts } from "../data/products";
 import "../Style/HomeSections.css";
+import { showToast } from "./Toast";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -125,7 +126,7 @@ export default function HomeSections() {
         ];
     localStorage.setItem("gadgete_cart", JSON.stringify(updated));
     window.dispatchEvent(new Event("gadgete-cart-updated"));
-    window.alert(`${product.name} added to cart!`);
+    showToast(`${product.name} added to your cart`, { link: "/cart", linkText: "VIEW CART" });
   };
 
   const handleBuyNow = (product, event) => {

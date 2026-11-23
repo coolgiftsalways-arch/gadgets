@@ -11,6 +11,7 @@ import {
   system,
 } from "../controllers/adminController.js";
 import {
+  deleteOrder,
   exportOrders,
   getOrder,
   listOrders,
@@ -61,6 +62,7 @@ router.get("/orders", listOrders);
 router.get("/orders/export.csv", exportOrders);
 router.get("/orders/:id", getOrder);
 router.patch("/orders/:id", updateOrder);
+router.delete("/orders/:id", deleteOrder);
 router.post("/orders/:id/email", resendEmail);
 router.post("/orders/:id/recheck-payment", recheckPayment);
 router.post("/orders/:id/ship", ship);

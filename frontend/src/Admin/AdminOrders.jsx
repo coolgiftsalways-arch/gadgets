@@ -22,6 +22,7 @@ import {
   Send,
   Save,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import {
   STATUS_OPTIONS,
@@ -350,6 +351,29 @@ function OrderDrawer({ id, onClose, onChanged }) {
     }
   };
 
+  const remove = async () => {
+    const typed = window.prompt(
+      `Delete order ${order.orderNumber} permanently?\n\nThis can't be undone. Reserved stock goes back and the coupon use is freed. The customer is NOT emailed.\n\nType the order number to confirm:`,
+      "",
+    );
+    if (typed === null) return;
+    if (typed.trim().toUpperCase() !== order.orderNumber.toUpperCase()) {
+      setError("Order number didn't match — nothing was deleted.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await adminFetch(`/orders/${id}`, { method: "DELETE" });
+      onChanged();
+      window.dispatchEvent(new Event("gadgete-admin-refresh"));
+      onClose();
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  };
+
   const a = order?.shippingAddress;
   const placed = order && !["awaiting_payment", "expired"].includes(order.status);
 
@@ -521,6 +545,14 @@ function OrderDrawer({ id, onClose, onChanged }) {
                 </div>
               ))}
             </section>
+
+            <section className="gad-order-detail-section">
+              <h3 style={{ color: "#9b1c1c" }}><Trash2 size={16} /> DELETE ORDER</h3>
+              <p className="gad-orders-note">Removes this order for good. Use it for test or spam orders. For a real order that won't ship, set the status to Cancelled instead — that keeps the record and emails the customer.</p>
+              <button type="button" className="gad-orders-export" disabled={busy} onClick={remove} style={{ background: "#9b1c1c", borderColor: "#9b1c1c", color: "#fff" }}>
+                <Trash2 size={15} /> DELETE ORDER
+              </button>
+            </section>
           </>
         )}
       </aside>
@@ -563,7 +595,7 @@ function ShipwaySection({ order, onUpdated }) {
   return (
     <section className="gad-order-detail-section">
       <h3><Truck size={16} /> SHIPWAY</h3>
-      {ship.testMode && (
+      {isShipway && ship.testMode && (
         <p className="gad-orders-note">
           {ship.testMode === "mock" ? "TEST shipment — nothing was sent to Shipway." : "TEST — added in Shipway only, no courier booked."}
         </p>

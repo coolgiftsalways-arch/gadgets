@@ -7,6 +7,7 @@ import { boolean, escapeRegex, isObjectId, line, text } from "../utils/validate.
 import { CUSTOMER_EMAIL_TYPES } from "../services/emailTemplates.js";
 import {
   changeOrderStatus,
+  deleteOrder as removeOrder,
   sendOrderEmail,
   setRefunded,
   syncPayment,
@@ -165,6 +166,13 @@ export async function updateOrder(req, res) {
   }
 
   res.json({ order });
+}
+
+// DELETE /api/admin/orders/:id — permanently removes the order
+export async function deleteOrder(req, res) {
+  const order = await findOrder(req.params.id);
+  await removeOrder(order);
+  res.json({ ok: true, message: `Order ${order.orderNumber} deleted.` });
 }
 
 // POST /api/admin/orders/:id/email  { type } — send (or re-send) a customer email

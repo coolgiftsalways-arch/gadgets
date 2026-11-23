@@ -26,6 +26,8 @@ import OrderResult from "./Pages/OrderResult";
 import Shop from "./Pages/Shop";
 import About from "./Pages/About";
 import CustomerCare from "./Pages/CustomerCare";
+import { PrivacyPolicy, Terms } from "./Pages/Legal";
+import { ToastHost } from "./components/Toast";
 import ProductDetails from "./Pages/ProductDetails";
 import TrackOrder from "./Pages/TrackOrder";
 import Cart from "./Pages/Cart";
@@ -443,6 +445,16 @@ function Contact() {
   );
 }
 
+function LegalPage({ children }) {
+  return (
+    <div className="gadgete-app">
+      <Navbar />
+      <main>{children}</main>
+      <Footer />
+    </div>
+  );
+}
+
 function ProductPage() {
   return (
     <div className="gadgete-app">
@@ -506,6 +518,7 @@ function App() {
     <BrowserRouter>
       <ScrollManager />
       <PageLoader />
+      <ToastHost />
 
       <Routes>
         {/* PUBLIC WEBSITE ROUTES */}
@@ -518,6 +531,8 @@ function App() {
         <Route path="/track-order" element={<TrackOrderPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/privacy-policy" element={<LegalPage><PrivacyPolicy /></LegalPage>} />
+        <Route path="/terms" element={<LegalPage><Terms /></LegalPage>} />
 
         {/* ORDER SUCCESS - KEEP OUTSIDE ADMIN */}
 

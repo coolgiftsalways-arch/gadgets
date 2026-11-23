@@ -13,6 +13,7 @@ import {
   X,
   ExternalLink,
   AlertTriangle,
+  Banknote,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -241,6 +242,27 @@ const AdminDashboard = () => {
             <small>{note}</small>
           </article>
         ))}
+
+        <article className="gad-stat-card gad-stat-card-cod">
+          <div className="gad-stat-top">
+            <span>CASH ON DELIVERY</span>
+            <span className="gad-stat-icon"><Banknote size={19} /></span>
+          </div>
+          <div className="gad-cod-grid">
+            <div>
+              <strong className="gad-stat-value">{money(stats?.cod?.total)}</strong>
+              <small>COD total · {stats?.cod?.orders ?? 0} order(s)</small>
+            </div>
+            <div>
+              <strong className="gad-stat-value">{money(stats?.cod?.toCollect)}</strong>
+              <small>To collect · {stats?.cod?.toCollectOrders ?? 0} order(s)</small>
+            </div>
+            <div>
+              <strong className="gad-stat-value">{money(stats?.cod?.collected)}</strong>
+              <small>Collected · {stats?.cod?.collectedOrders ?? 0} order(s)</small>
+            </div>
+          </div>
+        </article>
       </section>
 
       <section className="gad-dashboard-main-grid">

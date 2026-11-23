@@ -31,6 +31,7 @@ import { Link } from "react-router-dom";
 import gsap from "gsap";
 import { apiRequest } from "../api/api";
 import "../Style/Shop.css";
+import { showToast } from "../components/Toast";
 
 // ==========================================
 // PRODUCT ICONS FROM DATABASE
@@ -446,10 +447,10 @@ export default function Shop() {
         })
       );
 
-      window.alert(`${product.name} added to your cart!`);
+      showToast(`${product.name} added to your cart`, { link: "/cart", linkText: "VIEW CART" });
     } catch (error) {
       console.error("Cart error:", error);
-      window.alert("Unable to add product to cart.");
+      showToast("Couldn't add this product to your cart. Please try again.", { error: true });
     }
   };
 

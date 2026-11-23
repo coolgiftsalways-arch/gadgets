@@ -57,6 +57,22 @@ const COLLECTED = { "payment.status": "paid", status: { $in: NOT_CANCELLED } };
 
 const dayKey = (date) => new Date(date).toLocaleDateString("en-CA", { timeZone: env.store.timezone });
 
+// COD orders by payment status -> { total, orders, toCollect, toCollectOrders, collected, collectedOrders }
+function codSummary(rows) {
+  const by = Object.fromEntries(rows.map((row) => [row._id, row]));
+  const pick = (status) => ({ total: by[status]?.total || 0, count: by[status]?.count || 0 });
+  const pending = pick("pending");
+  const paid = pick("paid");
+  return {
+    total: rows.reduce((sum, row) => sum + row.total, 0),
+    orders: rows.reduce((sum, row) => sum + row.count, 0),
+    toCollect: pending.total,
+    toCollectOrders: pending.count,
+    collected: paid.total,
+    collectedOrders: paid.count,
+  };
+}
+
 const sumOf = (rows) => ({ total: rows[0]?.total || 0, count: rows[0]?.count || 0 });
 
 const percentChange = (current, previous) => {
@@ -92,6 +108,7 @@ export async function stats(req, res) {
     unreadMessages,
     unseenOrders,
     attentionCount,
+    codAgg,
   ] = await Promise.all([
     Order.aggregate([{ $match: COLLECTED }, totals]),
     Order.aggregate([{ $match: SALES }, totals]),
@@ -130,6 +147,11 @@ export async function stats(req, res) {
     Contact.countDocuments({ read: false }),
     Order.countDocuments({ seenByAdmin: false, status: { $in: PLACED_STATUSES } }),
     Order.countDocuments({ attention: { $nin: ["", null] }, status: { $in: NOT_CANCELLED } }),
+    // Cash on Delivery orders (not cancelled), split by whether the cash has come in.
+    Order.aggregate([
+      { $match: { "payment.method": "cod", status: { $in: NOT_CANCELLED } } },
+      { $group: { _id: "$payment.status", total: { $sum: "$total" }, count: { $sum: 1 } } },
+    ]),
   ]);
 
   // One bar per day, including days with no sales.
@@ -161,6 +183,7 @@ export async function stats(req, res) {
     paidOrders: sumOf(revenueAgg).count,
     sales: sumOf(salesAgg).total,
     pendingCod: sumOf(pendingCodAgg).total,
+    cod: codSummary(codAgg),
     totalOrders,
     statusCounts,
     toFulfil: (statusCounts.pending || 0) + (statusCounts.processing || 0),

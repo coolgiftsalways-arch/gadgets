@@ -3,9 +3,10 @@ import { Link } from "react-router-dom";
 import { ArrowUp, ArrowUpRight, Check } from "lucide-react";
 import "../Style/Footer.css";
 
-// Replace with your actual WhatsApp number.
-// Include country code, without + or spaces.
-const WHATSAPP_NUMBER = "919876543210";
+// WhatsApp number with country code, without + or spaces.
+const WHATSAPP_NUMBER = "917039235169";
+// Your Instagram profile link.
+const INSTAGRAM_URL = "https://www.instagram.com/coolgadgetshub.in/";
 
 const SocialIcons = {
   Instagram: () => (
@@ -24,17 +25,7 @@ const SocialIcons = {
     </svg>
   ),
 
-  Youtube: () => (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.2 3.6-6.2 3.6Z" />
-    </svg>
-  ),
 
-  Linkedin: () => (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M5.2 3a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4ZM3.3 9h3.8v12H3.3V9Zm6.2 0h3.6v1.6h.1a4 4 0 0 1 3.6-2c3.9 0 4.6 2.5 4.6 5.7V21h-3.8v-5.9c0-1.4 0-3.2-2-3.2s-2.3 1.5-2.3 3.1V21H9.5V9Z" />
-    </svg>
-  ),
 
   WhatsApp: () => (
     <svg
@@ -88,28 +79,13 @@ function Footer() {
   const socialLinks = [
     {
       name: "Instagram",
-      url: "https://www.instagram.com/",
+      url: INSTAGRAM_URL,
       icon: <SocialIcons.Instagram />,
-    },
-    {
-      name: "YouTube",
-      url: "https://www.youtube.com/",
-      icon: <SocialIcons.Youtube />,
-    },
-    {
-      name: "X",
-      url: "https://x.com/",
-      icon: <span className="footer-x-icon">𝕏</span>,
     },
     {
       name: "WhatsApp",
       url: `https://wa.me/${WHATSAPP_NUMBER}`,
       icon: <SocialIcons.WhatsApp />,
-    },
-    {
-      name: "LinkedIn",
-      url: "https://www.linkedin.com/",
-      icon: <SocialIcons.Linkedin />,
     },
   ];
 
@@ -192,7 +168,7 @@ function Footer() {
           <h3>SUPPORT</h3>
           <Link to="/contact">Customer Care</Link>
           <Link to="/track-order">Track Order</Link>
-          <Link to="/contact">Returns &amp; Refunds</Link>
+          <Link to="/terms#returns">Returns &amp; Refunds</Link>
           <Link to="/contact">FAQs</Link>
         </nav>
 

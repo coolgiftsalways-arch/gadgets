@@ -183,6 +183,16 @@
      line-height: 1.5;
 }
 
+/* Keep long product descriptions to two lines in the cart */
+.ge-cart-product-info .ge-cart-product-desc {
+     display: -webkit-box;
+     overflow: hidden;
+     -webkit-box-orient: vertical;
+     -webkit-line-clamp: 2;
+     line-clamp: 2;
+     color: rgba(16, 16, 14, 0.7);
+}
+
 .ge-cart-color {
      display: flex;
      align-items: center;

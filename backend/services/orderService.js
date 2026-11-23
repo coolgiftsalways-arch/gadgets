@@ -401,3 +401,29 @@ export async function setRefunded(order, refunded) {
   await order.save();
   return order;
 }
+
+// ---------- deleting ----------
+
+// Permanently removes an order. Puts reserved stock back and frees the coupon
+// use. Refuses while a real Shipway shipment is still live — cancel it first,
+// which also cancels it in Shipway.
+export async function deleteOrder(order) {
+  const ship = order.shipping || {};
+  const liveShipment =
+    ship.provider === "shipway" && ship.awb && !ship.testMode && order.status !== "cancelled";
+  if (liveShipment) {
+    throw conflict(
+      `This order has a live Shipway shipment (AWB ${ship.awb}). Set its status to Cancelled first — that cancels the courier too — then delete it.`,
+    );
+  }
+
+  if (order.stockReserved) await releaseStock(order.items);
+
+  // The coupon use was counted when the order was placed and given back on cancel.
+  const couponCounted = PLACED_STATUSES.includes(order.status) && order.status !== "cancelled";
+  if (couponCounted) {
+    runInBackground(`coupon release ${order.orderNumber}`, () => countCouponUse(order.coupon?.code, -1));
+  }
+
+  await Order.deleteOne({ _id: order._id });
+}

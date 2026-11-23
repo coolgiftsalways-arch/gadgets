@@ -217,9 +217,9 @@ const Cart = () => {
 
                       <h2>{name}</h2>
 
-                      <p>
-                        {item.description ||
-                          item.shortDescription ||
+                      <p className="ge-cart-product-desc">
+                        {item.shortDescription ||
+                          item.description ||
                           "Designed for your everyday lifestyle."}
                       </p>
 

@@ -6,11 +6,11 @@ import "../Style/CustomerCare.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
-// Replace these with your actual business contact details.
 const SUPPORT = {
-  whatsapp: "919876543210",
-  phone: "+919876543210",
-  email: "support@yourdomain.com",
+  whatsapp: "917039235169", // country code, no + or spaces
+  phone: "+917039235169",
+  phoneDisplay: "+91 70392 35169",
+  email: "info@coolgadgetshub.in",
   hours: "MON – SAT  |  10:00 AM – 8:00 PM",
 };
 
@@ -105,7 +105,7 @@ const contactOptions = [
   {
     id: "phone",
     title: "CALL US",
-    description: SUPPORT.phone,
+    description: SUPPORT.phoneDisplay,
     icon: "phone",
     link: `tel:${SUPPORT.phone}`,
     className: "cc-phone",
@@ -130,8 +130,8 @@ const contactOptions = [
 
 const supportLinks = [
   { title: "ORDER HELP", icon: "truck", href: "/track-order" },
-  { title: "WARRANTY SUPPORT", icon: "shield", href: "/warranty" },
-  { title: "RETURNS & EXCHANGES", icon: "return", href: "/returns" },
+  { title: "WARRANTY SUPPORT", icon: "shield", href: "/terms#warranty" },
+  { title: "RETURNS & EXCHANGES", icon: "return", href: "/terms#returns" },
   { title: "PRODUCT SUPPORT", icon: "settings", href: "/shop" },
 ];
 
