@@ -23,6 +23,13 @@ import "../Style/Checkout.css";
 import { STATES } from "../data/indianStates";
 
 
+// Emoji burst shown when the shopper picks UPI. Each piece flies out to (x, y).
+const CONFETTI = [
+  ["🎉", -150, -70], ["🎊", -110, -105], ["✨", -60, -125], ["🎉", -15, -135],
+  ["🎊", 35, -128], ["✨", 85, -112], ["🎉", 130, -85], ["🎊", 160, -45],
+  ["✨", -165, -25], ["🎉", 55, -60], ["🎊", -80, -55], ["✨", 110, -20],
+];
+
 const newKey = () =>
   (crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`).replace(/[^A-Za-z0-9_-]/g, "");
 
@@ -83,6 +90,9 @@ const Checkout = () => {
     coupon?.code && (coupon.paymentMethod === "any" || coupon.paymentMethod === paymentMethod);
 
   const option = quote?.options?.[paymentMethod];
+
+  // UPI saving to celebrate. The banner remounts each time UPI is picked, so the 🎉 burst replays.
+  const upiSaving = quote?.options?.upi?.enabled ? quote.options.upi.discount || 0 : 0;
 
   const handleChange = (event) => {
     const { name } = event.target;
@@ -331,6 +341,23 @@ const Checkout = () => {
                   </small>
                 </span>
               </label>
+            )}
+
+            {paymentMethod === "upi" && upiSaving > 0 && (
+              <div className="ge-upi-congrats" role="status">
+                <span className="ge-upi-confetti" aria-hidden="true">
+                  {CONFETTI.map(([emoji, x, y], i) => (
+                    <span key={i} style={{ "--x": `${x}px`, "--y": `${y}px`, "--d": `${(i % 4) * 40}ms` }}>
+                      {emoji}
+                    </span>
+                  ))}
+                </span>
+                <span className="ge-upi-congrats-icon" aria-hidden="true">🎉</span>
+                <span>
+                  <strong>Congrats! You&apos;ve saved {quote.options.upi.discountPercent}% on this order</strong>
+                  <small>That&apos;s {formatPrice(upiSaving)} off — just for paying by UPI 🎉</small>
+                </span>
+              </div>
             )}
 
             {quote?.options?.cod?.enabled && (

@@ -467,6 +467,81 @@
      border: 2px solid var(--ge-yellow);
 }
 
+/* UPI SAVINGS CELEBRATION */
+
+.ge-upi-congrats {
+     position: relative;
+     display: flex;
+     align-items: center;
+     gap: 12px;
+     margin-top: 11px;
+     padding: 10px 14px;
+     border-radius: 10px;
+     background: var(--ge-yellow);
+     color: var(--ge-black);
+     animation: ge-congrats-pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.ge-upi-congrats strong {
+     display: block;
+     font-size: 15px;
+     line-height: 1.25;
+}
+
+.ge-upi-congrats small {
+     display: block;
+     margin-top: 2px;
+     font-size: 12px;
+     font-weight: 600;
+}
+
+.ge-upi-congrats-icon {
+     flex: none;
+     font-size: 28px;
+     animation: ge-congrats-wiggle 0.9s ease-in-out 0.3s 2;
+}
+
+.ge-upi-confetti {
+     position: absolute;
+     inset: 0;
+     pointer-events: none;
+}
+
+.ge-upi-confetti span {
+     position: absolute;
+     left: 50%;
+     top: 50%;
+     font-size: 22px;
+     opacity: 0;
+     animation: ge-confetti-burst 1.3s ease-out var(--d) forwards;
+}
+
+@keyframes ge-congrats-pop {
+     from { opacity: 0; transform: scale(0.85); }
+     to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ge-congrats-wiggle {
+     0%, 100% { transform: rotate(0); }
+     25% { transform: rotate(-15deg) scale(1.15); }
+     75% { transform: rotate(15deg) scale(1.15); }
+}
+
+@keyframes ge-confetti-burst {
+     0% { opacity: 1; transform: translate(-50%, -50%) scale(0.4); }
+     70% { opacity: 1; }
+     100% {
+          opacity: 0;
+          transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y) + 40px)) scale(1.1) rotate(25deg);
+     }
+}
+
+@media (prefers-reduced-motion: reduce) {
+     .ge-upi-congrats,
+     .ge-upi-congrats-icon { animation: none; }
+     .ge-upi-confetti { display: none; }
+}
+
 .ge-payment-option input {
      position: absolute;
      width: 1px;
