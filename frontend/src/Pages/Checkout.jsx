@@ -66,6 +66,17 @@ const Checkout = () => {
       .catch((err) => setQuoteError(err.message));
   }, [items, couponCode]);
 
+  // Once a valid mobile number is typed, save the cart so the store can follow up
+  // on WhatsApp if the shopper leaves without ordering. Never blocks checkout.
+  const { firstName, lastName, phone, email, city, state } = form;
+  useEffect(() => {
+    if (!/^[6-9]\d{9}$/.test(phone) || !items.length) return undefined;
+    const timer = setTimeout(() => {
+      api("/orders/lead", { body: { phone, firstName, lastName, email, city, state, items } }).catch(() => {});
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [phone, firstName, lastName, email, city, state, items]);
+
   // Meta Pixel: InitiateCheckout once, with the server-confirmed total.
   const checkoutTracked = useRef(false);
   useEffect(() => {

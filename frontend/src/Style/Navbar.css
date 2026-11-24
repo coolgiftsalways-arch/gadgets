@@ -137,8 +137,28 @@
      transform: rotate(-3deg) scale(1.04);
 }
 
-.ge-logo span {
+.ge-logo {
+     flex-direction: column;
+}
+
+.ge-logo-word {
+     display: inline-flex;
+     align-items: flex-start;
+}
+
+.ge-logo-word span {
      color: var(--ge-yellow);
+}
+
+.ge-logo-by {
+     margin-top: 3px;
+     font-family: "Space Grotesk", sans-serif;
+     font-size: clamp(9px, 0.9vw, 11px);
+     font-weight: 700;
+     letter-spacing: 1.5px;
+     line-height: 1;
+     text-transform: uppercase;
+     opacity: 0.85;
 }
 
 .ge-logo sup {

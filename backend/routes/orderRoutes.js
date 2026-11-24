@@ -8,12 +8,14 @@ import {
   quote,
   trackOrder,
 } from "../controllers/orderController.js";
-import { checkoutLimiter, statusLimiter, trackLimiter } from "../middleware/rateLimiters.js";
+import { saveLead } from "../controllers/abandonedController.js";
+import { checkoutLimiter, leadLimiter, statusLimiter, trackLimiter } from "../middleware/rateLimiters.js";
 
 const router = Router();
 
 router.post("/quote", quote);
 router.post("/checkout", checkoutLimiter, checkout);
+router.post("/lead", leadLimiter, saveLead);
 
 // Razorpay sends the customer here after paying. Must stay above "/:token".
 router.get("/payment-callback", paymentCallback);

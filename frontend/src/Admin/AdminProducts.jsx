@@ -17,13 +17,13 @@ import {
   CheckCircle2,
   Save,
 } from "lucide-react";
-import { adminFetch, imageUrl, money, uploadToCloudinary } from "./api";
+import { adminFetch, imageUrl, money, uploadPhoto, uploadToCloudinary } from "./api";
 import "../Admincss/AdminProducts.css";
 
 const emptyForm = {
   name: "",
   sku: "",
-  category: "Audio",
+  category: "Other",
   price: "",
   compareAtPrice: "",
   stock: "",
@@ -41,33 +41,13 @@ const emptyForm = {
   shipHeight: "",
 };
 
-// Shrinks a photo in the browser (max 1600px, JPEG) so uploads are quick.
-function shrinkImage(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      const ctx = canvas.getContext("2d");
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(img.src);
-      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Could not read image."))), "image/jpeg", 0.85);
-    };
-    img.onerror = () => reject(new Error("That file isn't a readable image."));
-    img.src = URL.createObjectURL(file);
-  });
-}
 
 const displayStatus = (product) =>
   product.status === "draft" ? "Draft" : product.stock === 0 ? "Out of stock" : "Active";
 
 const AdminProducts = () => {
   const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState(["Audio"]);
+  const [categories, setCategories] = useState(["Other"]);
   const [threshold, setThreshold] = useState(5);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState("");
@@ -120,7 +100,7 @@ const AdminProducts = () => {
 
   const openAddModal = () => {
     setEditingId(null);
-    setForm({ ...emptyForm, category: categories[0] || "Audio" });
+    setForm({ ...emptyForm, category: "Other" });
     setFormError("");
     setModalOpen(true);
   };
@@ -177,14 +157,7 @@ const AdminProducts = () => {
     setUploading(true);
     setFormError("");
     try {
-      const blob = await shrinkImage(file);
-      // Cloudinary when it's set up, otherwise stored in the database.
-      let url = await uploadToCloudinary(new File([blob], "product.jpg", { type: "image/jpeg" }), "image");
-      if (!url) {
-        const body = new FormData();
-        body.append("image", blob, "product.jpg");
-        url = (await adminFetch("/media", { method: "POST", body })).url;
-      }
+      const url = await uploadPhoto(file, "product.jpg");
       setForm((current) => ({ ...current, images: [...current.images, url].slice(0, 8) }));
     } catch (err) {
       setFormError(err.message);

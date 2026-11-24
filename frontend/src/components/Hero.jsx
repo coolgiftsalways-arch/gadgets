@@ -16,17 +16,17 @@ const PRODUCTS = [
   {
     id: "01",
 
-    slug: "air-pods-pro",
+    slug: "bike-wings",
 
     number: "01",
 
-    name: "AIR PODS PRO",
+    name: "BIKE WINGS",
 
-    description: "A different perspective on everyday objects.",
+    description: "Wing-shaped lights that glow on the road beside you.",
 
     price: 2499,
 
-    category: "DIGITAL CULTURE",
+    category: "BIKE & CAR",
 
     className: "crypto-card",
   },
@@ -34,17 +34,17 @@ const PRODUCTS = [
   {
     id: "02",
 
-    slug: "power-core",
+    slug: "sunlight-lamp",
 
     number: "02",
 
-    name: "POWER CORE",
+    name: "SUNLIGHT LAMP",
 
-    description: "Sound without compromise.",
+    description: "Golden-hour glow for any room, any time.",
 
-    price: 4999,
+    price: 1999,
 
-    category: "PERSONAL AUDIO",
+    category: "LIGHTS & LAMPS",
 
     className: "headphone-card",
   },
@@ -52,17 +52,17 @@ const PRODUCTS = [
   {
     id: "03",
 
-    slug: "digital-camera",
+    slug: "cold-change-soda-cup",
 
     number: "03",
 
-    name: "DIGITAL CAMERA",
+    name: "COLD-CHANGE SODA CUP",
 
-    description: "Designed to keep up with you.",
+    description: "Changes colour the moment your drink goes in.",
 
-    price: 5999,
+    price: 1499,
 
-    category: "SMART ESSENTIALS",
+    category: "MUGS & CUPS",
 
     className: "watch-card",
   },

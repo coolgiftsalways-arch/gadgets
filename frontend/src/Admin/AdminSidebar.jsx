@@ -6,6 +6,8 @@ import {
   ShoppingCart,
   Package,
   TicketPercent,
+  Star,
+  ShoppingBag,
   Sun,
   Moon,
   Menu,
@@ -78,6 +80,16 @@ const AdminSidebar = () => {
       name: "Coupons",
       path: "/admin/coupons",
       icon: TicketPercent,
+    },
+    {
+      name: "Abandoned carts",
+      path: "/admin/abandoned",
+      icon: ShoppingBag,
+    },
+    {
+      name: "Reviews",
+      path: "/admin/reviews",
+      icon: Star,
     },
   ];
 

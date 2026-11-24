@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  Banknote,
   ArrowUpRight,
   Check,
   ChevronRight,
@@ -13,12 +14,18 @@ import {
   RotateCcw,
   ShieldCheck,
   ShoppingBag,
+  Smartphone,
   Sparkles,
-  Star,
   Truck,
 } from "lucide-react";
 import { getProductById, products } from "../data/products";
 import "../Style/ProductDetails.css";
+import { swatchStyle } from "../utils/colorSwatch";
+import ProductReviews, { Stars } from "../components/ProductReviews";
+import { loadStoreConfig } from "../storeConfig";
+import { deliveryWindow } from "../shopApi";
+import { usePageMeta } from "../usePageMeta";
+import { BUSINESS } from "../data/business";
 
 const CART_KEY = "gadgete_cart";
 
@@ -103,12 +110,41 @@ export default function ProductDetails() {
   }, [id]);
 
   const product = live ? fromApi(live, staticProduct) : staticProduct;
-  // Videos first, then photos.
+  // Photos first (the first photo is what shoppers see), then videos.
   const media = [
-    ...(product?.videos || []).map((src) => ({ type: "video", src })),
     ...(product?.images || []).map((src) => ({ type: "image", src })),
+    ...(product?.videos || []).map((src) => ({ type: "video", src })),
   ];
   const current = media[activeMedia];
+
+  // Real reviews and store settings (COD, UPI discount, delivery days).
+  const slug = live?.slug || id;
+  const [reviewData, setReviewData] = useState(null);
+  const [store, setStore] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(`${API_URL}/products/${encodeURIComponent(slug)}/reviews`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => alive && setReviewData(data))
+      .catch(() => alive && setReviewData(null));
+    return () => {
+      alive = false;
+    };
+  }, [slug]);
+
+  useEffect(() => {
+    let alive = true;
+    loadStoreConfig().then((config) => alive && setStore(config));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  usePageMeta(
+    product ? `${product.name} – Buy Online` : "",
+    product?.shortDescription || product?.label || "",
+  );
 
   const [quantity, setQuantity] = useState(1);
   const [color, setColor] = useState(staticProduct?.colors?.[0] || "");
@@ -300,15 +336,15 @@ export default function ProductDetails() {
               <span>.</span>
             </h1>
             <p className="pd-tagline">{product.label}</p>
-            <div className="pd-rating">
-              <span className="pd-stars">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <Star key={n} size={14} fill="currentColor" />
-                ))}
-              </span>
-              <strong>4.9</strong>
-              <span>Customer favourite</span>
-            </div>
+            {reviewData?.summary?.count > 0 && (
+              <a href="#reviews" className="pd-rating-link">
+                <Stars value={reviewData.summary.average} />
+                <strong>{reviewData.summary.average.toFixed(1)}</strong>
+                <span>
+                  {reviewData.summary.count} review{reviewData.summary.count === 1 ? "" : "s"}
+                </span>
+              </a>
+            )}
             <div className="pd-price-row">
               <strong>{product.price}</strong>
               <del>{product.oldPrice}</del>
@@ -328,7 +364,8 @@ export default function ProductDetails() {
                     type="button"
                     title={item}
                     aria-label={`Select ${item}`}
-                    className={`pd-swatch pd-${item.toLowerCase()} ${color === item ? "selected" : ""}`}
+                    className={`pd-swatch ${color === item ? "selected" : ""}`}
+                    style={swatchStyle(item)}
                     onClick={() => setColor(item)}
                   >
                     {color === item && <Check size={14} />}
@@ -377,6 +414,38 @@ export default function ProductDetails() {
               </p>
             )}
 
+            {store && (
+              <div className="pd-promise">
+                {store.payment?.upi?.enabled && (
+                  <p>
+                    <Truck />
+                    <span>
+                      <strong>
+                        {store.shipping?.fee ? "Delivery" : "Free delivery"} by {deliveryWindow(store.payment.upi.delivery)}
+                      </strong>{" "}
+                      with UPI
+                    </span>
+                  </p>
+                )}
+                {store.payment?.cod?.enabled && (
+                  <p>
+                    <Banknote />
+                    <span>
+                      <strong>Cash on Delivery available</strong> across India
+                    </span>
+                  </p>
+                )}
+                {store.payment?.upi?.enabled && store.payment.upi.discountPercent > 0 && (
+                  <p>
+                    <Smartphone />
+                    <span>
+                      <strong>Extra {store.payment.upi.discountPercent}% off</strong> when you pay by UPI
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="pd-service-points">
               <div>
                 <Truck />
@@ -387,13 +456,13 @@ export default function ProductDetails() {
               <div>
                 <ShieldCheck />
                 <span>
-                  SECURE CHECKOUT<small>Protected payments</small>
+                  SECURE CHECKOUT<small>UPI, cards &amp; COD</small>
                 </span>
               </div>
               <div>
                 <RotateCcw />
                 <span>
-                  CUSTOMER CARE<small>We're here to help</small>
+                  EASY REPLACEMENT<small>Damaged or wrong item</small>
                 </span>
               </div>
             </div>
@@ -470,9 +539,14 @@ export default function ProductDetails() {
                   <Truck />
                   <h3>DELIVERY</h3>
                   <p>
-                    Delivery timelines and availability are confirmed at
-                    checkout based on your delivery location.
+                    {store?.payment?.upi?.enabled
+                      ? `Arrives ${deliveryWindow(store.payment.upi.delivery)} when you pay by UPI` +
+                        (store.payment.cod?.enabled ? `, or ${deliveryWindow(store.payment.cod.delivery)} with Cash on Delivery.` : ".")
+                      : "Delivery timelines are confirmed at checkout based on your PIN code."}
                   </p>
+                  <Link to="/shipping-policy">
+                    SHIPPING POLICY <ArrowUpRight size={14} />
+                  </Link>
                 </article>
                 <article>
                   <ShieldCheck />
@@ -489,14 +563,20 @@ export default function ProductDetails() {
                   <RotateCcw />
                   <h3>RETURNS</h3>
                   <p>
-                    Please review the store's published return policy before
-                    placing your order.
+                    Got a damaged, faulty or wrong item? Tell us within{" "}
+                    {BUSINESS.reportDays} days of delivery with an unboxing
+                    photo or video and we'll replace or refund it.
                   </p>
+                  <Link to="/refund-policy">
+                    RETURNS &amp; REFUNDS <ArrowUpRight size={14} />
+                  </Link>
                 </article>
               </div>
             )}
           </div>
         </section>
+
+        <ProductReviews slug={slug} productName={product.name} data={reviewData} />
 
         <section className="pd-related">
           <div className="pd-related-heading">

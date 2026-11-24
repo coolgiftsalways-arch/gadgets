@@ -1,28 +1,12 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import "../Style/Legal.css";
+import { setPageMeta } from "../usePageMeta";
 
-// ==========================================
-// YOUR BUSINESS DETAILS — edit these
-// ==========================================
-export const BUSINESS = {
-  brand: "GADGETÉ",
-  tradeName: "Cool Gadgets Hub",
-  website: "coolgadgetshub.in",
-  email: "info@coolgadgetshub.in",
-  phone: "+91 70392 35169",
-  whatsapp: "917039235169",
-  instagram: "https://www.instagram.com/coolgadgetshub.in/",
-  // Registered business address (leave "" to hide it).
-  address: "",
-  // Name of your Grievance Officer (required for Indian e-commerce sites).
-  grievanceOfficer: "",
-  // Days after delivery a customer has to report a damaged / defective / wrong item.
-  reportDays: 7,
-  // City whose courts handle disputes (leave "" to just say "India").
-  jurisdiction: "",
-  updated: "23 November 2026",
-};
+// Your business details live in src/data/business.js — edit them there.
+import { BUSINESS } from "../data/business";
+
+export { BUSINESS };
 
 const mail = <a href={`mailto:${BUSINESS.email}`}>{BUSINESS.email}</a>;
 const whatsapp = <a href={`https://wa.me/${BUSINESS.whatsapp}`} target="_blank" rel="noreferrer">WhatsApp {BUSINESS.phone}</a>;
@@ -30,13 +14,13 @@ const courts = BUSINESS.jurisdiction ? `the courts at ${BUSINESS.jurisdiction}, 
 
 function LegalLayout({ eyebrow, title, intro, sections }) {
   useEffect(() => {
-    document.title = `${title} — ${BUSINESS.brand}`;
+    setPageMeta(title, intro);
     // Jump to a section when the link has one, e.g. /terms#returns
     const id = window.location.hash.slice(1);
     if (!id) return undefined;
     const timer = window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: "start" }), 400);
     return () => window.clearTimeout(timer);
-  }, [title]);
+  }, [title, intro]);
 
   return (
     <section className="legal-page">
@@ -85,6 +69,53 @@ function LegalLayout({ eyebrow, title, intro, sections }) {
   );
 }
 
+// Sections shared by the Terms page and the separate policy pages.
+const SHIPPING_SECTION = {
+  id: "shipping",
+  title: "Shipping and delivery",
+  body: (
+    <ul>
+      <li>We ship across India through our shipping partners. The expected delivery time is shown at checkout and in your confirmation email; it is an estimate, not a guarantee.</li>
+      <li>Once your order ships you will get a tracking number by email, and you can follow it on the <Link to="/track-order">Track Order</Link> page.</li>
+      <li>Delays caused by couriers, weather, holidays or other events outside our control may happen. We will help you follow up with the courier.</li>
+      <li>Please check the parcel at delivery. If the outer box is open, torn or damaged, note it with the delivery person or refuse the parcel and contact us.</li>
+    </ul>
+  ),
+};
+
+const CANCELLATIONS_SECTION = {
+  id: "cancellations",
+  title: "Cancellations",
+  body: (
+    <ul>
+      <li>You can cancel free of charge before your order is shipped — message us on {whatsapp} or email {mail} with your order number.</li>
+      <li>Once shipped, an order cannot be cancelled; you may refuse the delivery instead. For prepaid orders, the refund is made after the parcel returns to us.</li>
+      <li>Online payments for cancelled orders are refunded to the original payment method within 5–7 working days.</li>
+    </ul>
+  ),
+};
+
+const RETURNS_SECTION = {
+  id: "returns",
+  title: "Returns, replacements and refunds",
+  body: (
+    <>
+      <p>
+        If your item arrives <strong>damaged, defective, or is not what you ordered</strong>, tell us within{" "}
+        <strong>{BUSINESS.reportDays} days of delivery</strong> on {whatsapp} or at {mail}, with your order number and clear photos.
+        A continuous <strong>unboxing video</strong> (from the sealed parcel onwards) is required for damage and missing-item claims.
+      </p>
+      <p>Once we verify the claim, we will arrange a <strong>replacement</strong>, or a <strong>refund</strong> if a replacement is not available.</p>
+      <ul>
+        <li>The item must be unused, with its original box, accessories, manuals and tags.</li>
+        <li>We do not accept returns for change of mind, unless the product page says otherwise.</li>
+        <li>Damage caused by misuse, accidents, water, wrong charging or unauthorised repair is not covered.</li>
+        <li>Approved refunds go to the original payment method within 5–7 working days. Cash on Delivery orders are refunded by UPI or bank transfer to an account you share with us.</li>
+      </ul>
+    </>
+  ),
+};
+
 // ==========================================
 // PRIVACY POLICY
 // ==========================================
@@ -110,6 +141,7 @@ export function PrivacyPolicy() {
           <p>We only collect what we need to run the store:</p>
           <ul>
             <li><strong>Order details</strong> — your name, email address, mobile number, delivery address, the products you buy, the amount paid and your payment method (Cash on Delivery or UPI / online).</li>
+            <li><strong>Unfinished checkouts</strong> — if you type your mobile number at checkout but don't place the order, we keep your name, number and the items in your cart for up to 60 days, so we can help you finish your order on WhatsApp or by phone. Tell us and we'll delete it straight away.</li>
             <li><strong>Payment confirmation</strong> — for online payments we receive a payment reference and status from our payment partner. We never see or store your card number, UPI PIN or bank login.</li>
             <li><strong>Messages</strong> — what you send us through the contact form, email or WhatsApp.</li>
             <li><strong>Newsletter</strong> — your email address, if you subscribe.</li>
@@ -284,54 +316,14 @@ export function Terms() {
       body: (
         <ul>
           <li><strong>Online / UPI</strong> — payments are processed securely by Razorpay. If payment is not completed within the time shown, the order is released.</li>
-          <li><strong>Cash on Delivery</strong> — pay the courier the order amount in cash at delivery. Please keep the exact amount ready.</li>
+          <li><strong>Cash on Delivery</strong> — pay the courier in cash at delivery. Some COD orders ask for a small online payment to confirm the order; it is part of your order total, not an extra charge, and the rest is paid in cash. Please keep the exact amount ready.</li>
           <li>Repeatedly refusing Cash on Delivery orders may lead to COD being turned off for your number or address.</li>
         </ul>
       ),
     },
-    {
-      id: "shipping",
-      title: "Shipping and delivery",
-      body: (
-        <ul>
-          <li>We ship across India through our shipping partners. The expected delivery time is shown at checkout and in your confirmation email; it is an estimate, not a guarantee.</li>
-          <li>Once your order ships you will get a tracking number by email, and you can follow it on the <Link to="/track-order">Track Order</Link> page.</li>
-          <li>Delays caused by couriers, weather, holidays or other events outside our control may happen. We will help you follow up with the courier.</li>
-          <li>Please check the parcel at delivery. If the outer box is open, torn or damaged, note it with the delivery person or refuse the parcel and contact us.</li>
-        </ul>
-      ),
-    },
-    {
-      id: "cancellations",
-      title: "Cancellations",
-      body: (
-        <ul>
-          <li>You can cancel free of charge before your order is shipped — message us on {whatsapp} or email {mail} with your order number.</li>
-          <li>Once shipped, an order cannot be cancelled; you may refuse the delivery instead. For prepaid orders, the refund is made after the parcel returns to us.</li>
-          <li>Online payments for cancelled orders are refunded to the original payment method within 5–7 working days.</li>
-        </ul>
-      ),
-    },
-    {
-      id: "returns",
-      title: "Returns, replacements and refunds",
-      body: (
-        <>
-          <p>
-            If your item arrives <strong>damaged, defective, or is not what you ordered</strong>, tell us within{" "}
-            <strong>{BUSINESS.reportDays} days of delivery</strong> on {whatsapp} or at {mail}, with your order number and clear photos.
-            A continuous <strong>unboxing video</strong> (from the sealed parcel onwards) is required for damage and missing-item claims.
-          </p>
-          <p>Once we verify the claim, we will arrange a <strong>replacement</strong>, or a <strong>refund</strong> if a replacement is not available.</p>
-          <ul>
-            <li>The item must be unused, with its original box, accessories, manuals and tags.</li>
-            <li>We do not accept returns for change of mind, unless the product page says otherwise.</li>
-            <li>Damage caused by misuse, accidents, water, wrong charging or unauthorised repair is not covered.</li>
-            <li>Approved refunds go to the original payment method within 5–7 working days. Cash on Delivery orders are refunded by UPI or bank transfer to an account you share with us.</li>
-          </ul>
-        </>
-      ),
-    },
+    SHIPPING_SECTION,
+    CANCELLATIONS_SECTION,
+    RETURNS_SECTION,
     {
       id: "warranty",
       title: "Warranty",
@@ -398,6 +390,162 @@ export function Terms() {
       eyebrow="LEGAL / TERMS"
       title="Terms & Conditions"
       intro="The rules for shopping with us — orders, payment, delivery, cancellations, returns and warranty."
+      sections={sections}
+    />
+  );
+}
+
+// ==========================================
+// RETURNS & REFUND POLICY
+// ==========================================
+
+const GRIEVANCE_SECTION = {
+  id: "grievance",
+  title: "Grievance Officer",
+  body: (
+    <p>
+      Not happy with how we handled your request? Under the Consumer Protection (E-Commerce) Rules, 2020, you can
+      write to our Grievance Officer{BUSINESS.grievanceOfficer && <>, <strong>{BUSINESS.grievanceOfficer}</strong>,</>} at{" "}
+      {mail} or {BUSINESS.phone}. We acknowledge complaints within 48 hours and aim to resolve them within one month.
+      {BUSINESS.address && <> Postal address: {BUSINESS.address}.</>}
+    </p>
+  ),
+};
+
+export function RefundPolicy() {
+  const sections = [
+    RETURNS_SECTION,
+    {
+      id: "how",
+      title: "How to request a replacement or refund",
+      body: (
+        <ol>
+          <li>Record an unboxing video when you open the parcel — start with the sealed box.</li>
+          <li>
+            Within <strong>{BUSINESS.reportDays} days of delivery</strong>, message us on {whatsapp} or email {mail} with your
+            order number, a short description and the photos / video.
+          </li>
+          <li>We reply within 48 hours. If a pickup is needed, we arrange it — you don't pay for return shipping on approved claims.</li>
+          <li>After the item is checked, we ship the replacement or send the refund.</li>
+        </ol>
+      ),
+    },
+    {
+      id: "timeline",
+      title: "When you get your money back",
+      body: (
+        <ul>
+          <li><strong>UPI / online payments</strong> — refunded to the same UPI ID, card or bank account within 5–7 working days of approval.</li>
+          <li><strong>Cash on Delivery</strong> — refunded by UPI or bank transfer to an account you share with us, within 5–7 working days of approval. Any online amount paid to confirm the COD order goes back to where it came from.</li>
+          <li>Your bank may take a few more days to show the money in your account.</li>
+        </ul>
+      ),
+    },
+    GRIEVANCE_SECTION,
+  ];
+
+  return (
+    <LegalLayout
+      eyebrow="POLICY / RETURNS"
+      title="Returns & Refund Policy"
+      intro="Got a damaged, faulty or wrong item? Here is how we make it right — replacements, refunds and timelines."
+      sections={sections}
+    />
+  );
+}
+
+// ==========================================
+// SHIPPING & DELIVERY POLICY
+// ==========================================
+
+export function ShippingPolicy() {
+  const sections = [
+    {
+      id: "charges",
+      title: "Shipping charges",
+      body: (
+        <p>
+          Delivery is <strong>free across India</strong> unless a delivery charge is shown at checkout before you pay. You
+          always see the full amount — product price, any discount and any delivery charge — before you place the order.
+        </p>
+      ),
+    },
+    {
+      id: "times",
+      title: "Delivery times",
+      body: (
+        <ul>
+          <li>Orders are packed and handed to the courier within 1–2 working days.</li>
+          <li>
+            Most orders arrive within <strong>3–5 working days</strong> when paid by UPI / online, and within{" "}
+            <strong>7–10 working days</strong> for Cash on Delivery. The exact estimate for your PIN code is shown at checkout.
+          </li>
+          <li>Remote areas and some PIN codes can take a few days longer.</li>
+        </ul>
+      ),
+    },
+    SHIPPING_SECTION,
+    {
+      id: "failed",
+      title: "If delivery fails",
+      body: (
+        <p>
+          The courier usually tries to deliver up to three times and may call you. If the parcel comes back to us because
+          the address was wrong, nobody was available or the order was refused, we will contact you. Prepaid orders are then
+          refunded minus the shipping cost, or reshipped if you prefer.
+        </p>
+      ),
+    },
+    GRIEVANCE_SECTION,
+  ];
+
+  return (
+    <LegalLayout
+      eyebrow="POLICY / SHIPPING"
+      title="Shipping & Delivery Policy"
+      intro="Where we deliver, how long it takes, what it costs and how to track your parcel."
+      sections={sections}
+    />
+  );
+}
+
+// ==========================================
+// CANCELLATION POLICY
+// ==========================================
+
+export function CancellationPolicy() {
+  const sections = [
+    CANCELLATIONS_SECTION,
+    {
+      id: "by-us",
+      title: "When we may cancel an order",
+      body: (
+        <ul>
+          <li>The product is out of stock or no longer available.</li>
+          <li>We could not confirm a Cash on Delivery order with you by phone or WhatsApp.</li>
+          <li>The delivery address is not serviceable by our couriers.</li>
+          <li>The order looks fraudulent, or a pricing error was made.</li>
+        </ul>
+      ),
+    },
+    {
+      id: "refunds",
+      title: "Refunds for cancelled orders",
+      body: (
+        <p>
+          If you paid anything online — the full amount, or a small amount to confirm a Cash on Delivery order — it is
+          refunded to the original payment method within 5–7 working days of the cancellation.
+        </p>
+      ),
+    },
+    GRIEVANCE_SECTION,
+  ];
+
+  return (
+    <LegalLayout
+      eyebrow="POLICY / CANCELLATIONS"
+      title="Cancellation Policy"
+      intro="How to cancel an order, when we may cancel one, and how refunds for cancelled orders work."
       sections={sections}
     />
   );

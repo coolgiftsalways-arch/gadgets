@@ -21,6 +21,7 @@ import orderRoutes from "./routes/orderRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import storeRoutes from "./routes/storeRoutes.js";
 import { isAllowedOrigin } from "./utils/origins.js";
+import { renderIndex, renderRobots, renderSitemap } from "./services/seo.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FRONTEND_DIST = path.join(__dirname, "..", "frontend", "dist");
@@ -115,7 +116,17 @@ export function createApp() {
   // ---------- the website ----------
   // After "npm run build" the React site lives in frontend/dist and is served
   // from this same server, so one deployment runs everything.
+  // For search engines (built from your live products).
+  app.get("/robots.txt", (req, res) => {
+    res.type("text/plain").set("Cache-Control", "public, max-age=3600").send(renderRobots(req));
+  });
+  app.get("/sitemap.xml", async (req, res) => {
+    res.type("application/xml").set("Cache-Control", "public, max-age=3600").send(await renderSitemap(req));
+  });
+
   if (fs.existsSync(path.join(FRONTEND_DIST, "index.html"))) {
+    const indexHtml = fs.readFileSync(path.join(FRONTEND_DIST, "index.html"), "utf8");
+
     app.use(
       "/assets",
       express.static(path.join(FRONTEND_DIST, "assets"), {
@@ -128,10 +139,11 @@ export function createApp() {
     app.use(express.static(FRONTEND_DIST, { index: false, maxAge: env.isProd ? "1d" : 0 }));
 
     // Every other address (/shop, /admin/orders, …) loads the React app,
-    // which then shows the right page.
-    app.get(/^(?!\/api(\/|$)).*/, (req, res) => {
+    // which then shows the right page. The page's title, description and
+    // WhatsApp/Google preview are filled in first.
+    app.get(/^(?!\/api(\/|$)).*/, async (req, res) => {
       res.set("Cache-Control", "no-cache");
-      res.sendFile(path.join(FRONTEND_DIST, "index.html"));
+      res.type("html").send(await renderIndex(indexHtml, req));
     });
   } else {
     app.get("/", (req, res) => {

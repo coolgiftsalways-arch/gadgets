@@ -8,7 +8,7 @@ import {
   Target,
   Eye,
   Gem,
-  Headphones,
+  LampDesk,
   Sparkles,
   Camera,
 } from "lucide-react";
@@ -275,15 +275,15 @@ export default function About() {
 
             <div className="about-product-visual">
               <img
-                src="/images/about-headphones.png"
-                alt="GADGETÉ headphones"
+                src="/images/about-product.png"
+                alt="Cool Gadgets Hub product"
                 onError={(event) => {
                   event.currentTarget.style.display = "none";
                 }}
               />
 
               <div className="about-product-fallback">
-                <Headphones size={145} strokeWidth={1} />
+                <LampDesk size={145} strokeWidth={1} />
 
                 <span>GADGETÉ</span>
               </div>

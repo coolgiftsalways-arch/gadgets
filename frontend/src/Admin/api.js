@@ -91,6 +91,39 @@ export async function uploadToCloudinary(file, kind, onProgress) {
   });
 }
 
+// Shrinks a photo in the browser (max 1600px, JPEG) so uploads are quick.
+export function shrinkImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(img.src);
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Could not read image."))), "image/jpeg", 0.85);
+    };
+    img.onerror = () => reject(new Error("That file isn't a readable image."));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// Shrinks and uploads one photo: Cloudinary when it's set up, otherwise the
+// database. Returns the photo's address.
+export async function uploadPhoto(file, name = "photo.jpg") {
+  if (!file.type.startsWith("image/")) throw new Error("Please choose an image file.");
+  const blob = await shrinkImage(file);
+  const url = await uploadToCloudinary(new File([blob], name, { type: "image/jpeg" }), "image");
+  if (url) return url;
+  const body = new FormData();
+  body.append("image", blob, name);
+  return (await adminFetch("/media", { method: "POST", body })).url;
+}
+
 // "/api/media/…" works as-is unless the API lives on another domain.
 export function imageUrl(path) {
   if (!path) return "";

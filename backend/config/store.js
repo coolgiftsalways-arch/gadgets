@@ -43,6 +43,11 @@ export const INDIAN_STATES = [
 ];
 
 export const PRODUCT_CATEGORIES = [
+  "Lights & Lamps",
+  "Bike & Car",
+  "Mugs & Cups",
+  "Desk & Décor",
+  "Gifts",
   "Audio",
   "Wearables",
   "Power",

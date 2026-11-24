@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import AdminSidebar from "./AdminSidebar";
 import { getToken } from "./api";
@@ -11,7 +12,9 @@ const AdminLayout = () => {
     <div className="gad-admin-shell">
       <AdminSidebar />
       <main className="gad-admin-content">
-        <Outlet />
+        <Suspense fallback={null}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );

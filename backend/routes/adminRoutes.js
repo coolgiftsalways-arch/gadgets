@@ -44,6 +44,15 @@ import {
   updateCoupon,
 } from "../controllers/adminCouponController.js";
 
+import {
+  adminCreateReview,
+  adminDeleteReview,
+  adminListReviews,
+  adminUpdateReview,
+} from "../controllers/reviewController.js";
+
+import { listAbandoned, updateAbandoned } from "../controllers/abandonedController.js";
+
 const router = Router();
 
 router.post("/login", loginLimiter, login);
@@ -85,6 +94,14 @@ router.patch("/products/:id", updateProduct);
 router.delete("/products/:id", deleteProduct);
 router.post("/media", uploadMedia);
 router.post("/media/cloudinary-signature", cloudinarySignature);
+
+router.get("/abandoned", listAbandoned);
+router.patch("/abandoned/:phone", updateAbandoned);
+
+router.get("/reviews", adminListReviews);
+router.post("/reviews", adminCreateReview);
+router.patch("/reviews/:id", adminUpdateReview);
+router.delete("/reviews/:id", adminDeleteReview);
 
 router.get("/homepage", getHomepageAdmin);
 router.put("/homepage", saveHomepage);

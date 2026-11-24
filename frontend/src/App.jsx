@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, useLocation, useNavigationType } from "react-router-dom";
 
 import gsap from "gsap";
@@ -16,33 +16,45 @@ import Hero from "./components/Hero";
 import HomeSections from "./components/HomeSections";
 import HomeVideos from "./components/HomeVideos";
 import Footer from "./components/Footer";
-import OrderSuccess from "./Pages/OrderSuccess";
-import OrderResult from "./Pages/OrderResult";
+import WhatsAppButton from "./components/WhatsAppButton";
+import { usePageMeta } from "./usePageMeta";
 
 // ==========================================
 // PUBLIC WEBSITE PAGES
 // ==========================================
 
+// Pages people land on from ads load straight away; the rest load when
+// first opened, so the home and product pages open faster.
 import Shop from "./Pages/Shop";
-import About from "./Pages/About";
-import CustomerCare from "./Pages/CustomerCare";
-import { PrivacyPolicy, Terms } from "./Pages/Legal";
 import { ToastHost } from "./components/Toast";
 import ProductDetails from "./Pages/ProductDetails";
-import TrackOrder from "./Pages/TrackOrder";
 import Cart from "./Pages/Cart";
-import Checkout from "./Pages/Checkout";
+
+const About = lazy(() => import("./Pages/About"));
+const CustomerCare = lazy(() => import("./Pages/CustomerCare"));
+const TrackOrder = lazy(() => import("./Pages/TrackOrder"));
+const Checkout = lazy(() => import("./Pages/Checkout"));
+const OrderSuccess = lazy(() => import("./Pages/OrderSuccess"));
+const OrderResult = lazy(() => import("./Pages/OrderResult"));
+const legal = (name) => lazy(() => import("./Pages/Legal").then((module) => ({ default: module[name] })));
+const PrivacyPolicy = legal("PrivacyPolicy");
+const Terms = legal("Terms");
+const RefundPolicy = legal("RefundPolicy");
+const ShippingPolicy = legal("ShippingPolicy");
+const CancellationPolicy = legal("CancellationPolicy");
 
 // ==========================================
-// ADMIN
+// ADMIN (loaded only when you open /admin)
 // ==========================================
 
-import AdminLayout from "./Admin/AdminLayout";
-import AdminLogin from "./Admin/AdminLogin";
-import AdminDashboard from "./Admin/AdminDashboard";
-import AdminOrders from "./Admin/AdminOrders";
-import AdminProducts from "./Admin/AdminProducts";
-import AdminCoupons from "./Admin/AdminCoupons";
+const AdminLayout = lazy(() => import("./Admin/AdminLayout"));
+const AdminLogin = lazy(() => import("./Admin/AdminLogin"));
+const AdminDashboard = lazy(() => import("./Admin/AdminDashboard"));
+const AdminOrders = lazy(() => import("./Admin/AdminOrders"));
+const AdminProducts = lazy(() => import("./Admin/AdminProducts"));
+const AdminCoupons = lazy(() => import("./Admin/AdminCoupons"));
+const AdminReviews = lazy(() => import("./Admin/AdminReviews"));
+const AdminAbandoned = lazy(() => import("./Admin/AdminAbandoned"));
 
 // ==========================================
 // GLOBAL CSS
@@ -382,6 +394,7 @@ function ScrollManager() {
 // ==========================================
 
 function Home() {
+  usePageMeta("", "");
   return (
     <div className="gadgete-app">
       <Navbar />
@@ -396,11 +409,14 @@ function Home() {
 }
 
 function ShopPage() {
+  // A new ?q= / ?category= link re-opens the shop with that filter.
+  const { search } = useLocation();
+  usePageMeta("Shop All Gadgets", "Browse every gadget we sell — lamps, terrariums, colour-changing mugs, bike lights and more. Cash on Delivery available.");
   return (
     <div className="gadgete-app">
       <Navbar />
       <main>
-        <Shop />
+        <Shop key={search} />
       </main>
       <Footer />
     </div>
@@ -408,6 +424,7 @@ function ShopPage() {
 }
 
 function OrderSuccessPage() {
+  usePageMeta("Order Confirmed", "");
   return (
     <div className="gadgete-app">
       <Navbar />
@@ -420,6 +437,7 @@ function OrderSuccessPage() {
 }
 
 function AboutPage() {
+  usePageMeta("About Us", "");
   return (
     <div className="gadgete-app">
       <Navbar />
@@ -432,6 +450,7 @@ function AboutPage() {
 }
 
 function Contact() {
+  usePageMeta("Customer Care", "");
   return (
     <div className="gadgete-app">
       <Navbar />
@@ -466,6 +485,7 @@ function ProductPage() {
 }
 
 function TrackOrderPage() {
+  usePageMeta("Track Your Order", "");
   return (
     <div className="gadgete-app">
       <Navbar />
@@ -478,6 +498,7 @@ function TrackOrderPage() {
 }
 
 function CartPage() {
+  usePageMeta("Your Cart", "");
   return (
     <div className="gadgete-app">
       <Navbar />
@@ -490,6 +511,7 @@ function CartPage() {
 }
 
 function CheckoutPage() {
+  usePageMeta("Checkout", "");
   return (
     <div className="gadgete-app">
       <Navbar />
@@ -507,6 +529,24 @@ function CheckoutPage() {
 // is connected to its real admin functionality.
 // ==========================================
 
+function NotFoundPage() {
+  usePageMeta("Page not found", "");
+  return (
+    <div className="gadgete-app">
+      <Navbar />
+      <main className="not-found-page">
+        <span>ERROR 404</span>
+        <h1>
+          PAGE NOT <em>FOUND.</em>
+        </h1>
+        <p>The page you're looking for has moved or doesn't exist.</p>
+        <a href="/shop">BROWSE ALL GADGETS →</a>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
 // ==========================================
 // MAIN APP
 // ==========================================
@@ -518,6 +558,9 @@ function App() {
       <PageLoader />
       <ToastHost />
 
+      <WhatsAppButton />
+
+      <Suspense fallback={<div className="route-loading" aria-busy="true" />}>
       <Routes>
         {/* PUBLIC WEBSITE ROUTES */}
 
@@ -531,6 +574,9 @@ function App() {
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/privacy-policy" element={<LegalPage><PrivacyPolicy /></LegalPage>} />
         <Route path="/terms" element={<LegalPage><Terms /></LegalPage>} />
+        <Route path="/refund-policy" element={<LegalPage><RefundPolicy /></LegalPage>} />
+        <Route path="/shipping-policy" element={<LegalPage><ShippingPolicy /></LegalPage>} />
+        <Route path="/cancellation-policy" element={<LegalPage><CancellationPolicy /></LegalPage>} />
 
         {/* ORDER SUCCESS - KEEP OUTSIDE ADMIN */}
 
@@ -561,9 +607,15 @@ function App() {
           <Route path="orders" element={<AdminOrders />} />
           <Route path="products" element={<AdminProducts />} />
           <Route path="coupons" element={<AdminCoupons />} />
+          <Route path="abandoned" element={<AdminAbandoned />} />
+          <Route path="reviews" element={<AdminReviews />} />
         </Route>
 
+        {/* ANYTHING ELSE */}
+        <Route path="*" element={<NotFoundPage />} />
+
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

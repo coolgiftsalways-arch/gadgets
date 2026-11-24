@@ -18,6 +18,11 @@ const CATEGORY_ICONS = {
   Camera: "camera",
   Accessories: "plug",
   "Smart Home": "home",
+  "Lights & Lamps": "zap",
+  "Bike & Car": "zap",
+  "Mugs & Cups": "package",
+  "Desk & Décor": "home",
+  "Gifts": "package",
   Other: "package",
 };
 

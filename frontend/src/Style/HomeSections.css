@@ -332,6 +332,54 @@
 
 
 
+/* Real product in the "Featured collection" visual */
+.hs-feature-product {
+     position: relative;
+     z-index: 2;
+     width: min(360px, 78%);
+     aspect-ratio: 4 / 5;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     overflow: hidden;
+     border: 3px solid var(--hs-yellow);
+     border-radius: 28px;
+     background: rgba(255, 255, 255, 0.06);
+     color: var(--hs-yellow);
+     text-decoration: none;
+     transform: rotate(-6deg);
+     filter: drop-shadow(25px 30px 25px rgba(0, 0, 0, 0.4));
+     transition: transform 0.6s;
+}
+
+.hs-feature-visual:hover .hs-feature-product {
+     transform: rotate(0deg) scale(1.04);
+}
+
+.hs-feature-product img {
+     position: absolute;
+     inset: 0;
+     width: 100%;
+     height: 100%;
+     object-fit: cover;
+}
+
+.hs-feature-product span {
+     position: absolute;
+     left: 12px;
+     right: 12px;
+     bottom: 12px;
+     padding: 8px 12px;
+     border-radius: 999px;
+     background: var(--hs-yellow);
+     color: #10100e;
+     font-size: 12px;
+     font-weight: 800;
+     letter-spacing: 1px;
+     text-align: center;
+     text-transform: uppercase;
+}
+
 .hs-watch-object {
 
      position: relative;

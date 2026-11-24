@@ -8,6 +8,7 @@ import React, {
 } from "react";
 
 import {
+  LampDesk,
   ArrowUpRight,
   Plus,
   Search,
@@ -102,6 +103,14 @@ const getProductImage = (product) => {
 let cachedProducts = null;
 const FILTERS_KEY = "gadgete_shop_filters";
 
+const filtersFromUrl = () => {
+  const params = new URLSearchParams(window.location.search);
+  const category = params.get("category");
+  const search = params.get("q");
+  if (!category && !search) return null;
+  return { category: category ? category.toUpperCase() : "ALL PRODUCTS", search: search || "" };
+};
+
 const readFilters = () => {
   try {
     return JSON.parse(sessionStorage.getItem(FILTERS_KEY) || "{}");
@@ -114,7 +123,8 @@ export default function Shop() {
   const shopRef = useRef(null);
   // True when returning to the shop during this visit.
   const returning = useRef(Boolean(cachedProducts)).current;
-  const savedFilters = useRef(readFilters()).current;
+  // A link like /shop?q=lamp or /shop?category=Terrariums opens the shop already filtered.
+  const savedFilters = useRef(filtersFromUrl() || readFilters()).current;
 
   const [products, setProducts] = useState(cachedProducts || []);
   const [activeCategory, setActiveCategory] = useState(savedFilters.category || "ALL PRODUCTS");
@@ -540,7 +550,7 @@ export default function Shop() {
           <div className="shop-hero-shape" />
 
           <div className="shop-hero-headphone">
-            <Headphones size={155} strokeWidth={1.1} />
+            <LampDesk size={155} strokeWidth={1.1} />
           </div>
 
           <div className="shop-hero-art-label">

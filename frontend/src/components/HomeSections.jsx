@@ -7,12 +7,12 @@ import {
   ArrowUpRight,
   ArrowRight,
   Plus,
-  Zap,
   Package,
-  Activity,
   ShieldCheck,
-  BatteryFull,
   Sparkles,
+  Banknote,
+  Truck,
+  Smartphone,
 } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -82,12 +82,15 @@ export default function HomeSections() {
 
   // "Trending now": 3 real products (different from "Our products").
   const [trending, setTrending] = useState(() => trendingProducts.slice(0, 3));
+  // Product shown in the "Featured collection" visual (first featured product with a photo).
+  const [featured, setFeatured] = useState(null);
 
   useEffect(() => {
     let alive = true;
     loadHomeProducts().then(({ trendingPicks, heroPicks }) => {
       if (!alive) return;
       const picks = trendingPicks.length ? trendingPicks : heroPicks;
+      setFeatured([...heroPicks, ...trendingPicks].find((card) => card.image) || null);
       if (picks.length) {
         setTrending(picks);
         requestAnimationFrame(() => ScrollTrigger.refresh());
@@ -170,8 +173,8 @@ export default function HomeSections() {
             <span>NEXT.</span>
           </h2>
           <p>
-            Technology should never be ordinary. Discover objects that combine
-            powerful performance with unmistakable design.
+            Glowing lamps, colour-changing mugs, bike lights and desk décor —
+            handpicked gadgets that make everyday life more fun.
           </p>
           <a href="/shop" className="hs-outline-button">
             EXPLORE THE COLLECTION <ArrowUpRight size={20} />
@@ -179,33 +182,36 @@ export default function HomeSections() {
         </div>
         <div className="hs-feature-visual">
           <div className="hs-feature-orbit" />
-          <div className="hs-watch-object">
-            <div className="hs-watch-strap" />
-            <div className="hs-watch-face">
-              <span>10:09</span>
-              <small>GADGETÉ</small>
+          {featured?.image ? (
+            <a href={`/product/${featured.slug}`} className="hs-feature-product">
+              <img src={featured.image} alt={featured.name} loading="lazy" />
+              <span>{featured.name}</span>
+            </a>
+          ) : (
+            <div className="hs-feature-product hs-feature-product-empty">
+              <Sparkles size={64} strokeWidth={1.2} />
             </div>
-          </div>
+          )}
           <span className="hs-visual-index">OBJECT / 002</span>
           <span className="hs-visual-star">✳</span>
         </div>
         <div className="hs-feature-specs hs-reveal">
-          <span>ENGINEERED FOR LIFE</span>
+          <span>WHY SHOP WITH US</span>
           <div>
-            <Activity />
-            <p>ADVANCED PERFORMANCE</p>
+            <Banknote />
+            <p>CASH ON DELIVERY</p>
           </div>
           <div>
-            <Zap />
-            <p>ALL DAY ENERGY</p>
+            <Truck />
+            <p>FREE DELIVERY ACROSS INDIA</p>
           </div>
           <div>
             <ShieldCheck />
-            <p>PREMIUM BUILD</p>
+            <p>DAMAGE-FREE REPLACEMENT</p>
           </div>
           <div>
-            <BatteryFull />
-            <p>LONG LASTING POWER</p>
+            <Smartphone />
+            <p>EXTRA OFF WITH UPI</p>
           </div>
         </div>
       </section>

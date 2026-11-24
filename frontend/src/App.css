@@ -22,3 +22,47 @@ html.lenis body {
 .lenis.lenis-scrolling iframe {
   pointer-events: none;
 }
+/* Shown for a moment while a page's code loads */
+.route-loading {
+  min-height: 100vh;
+  background: #f4edda;
+}
+
+.not-found-page {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 14px;
+  padding: 80px 7vw;
+  background: #f4edda;
+  color: #10100e;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.not-found-page span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.not-found-page h1 {
+  margin: 0;
+  font: 400 clamp(48px, 9vw, 120px) / 0.95 "Anton", sans-serif;
+}
+
+.not-found-page h1 em {
+  color: #164e74;
+  font-style: normal;
+}
+
+.not-found-page a {
+  margin-top: 10px;
+  padding: 16px 24px;
+  background: #164e74;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+}

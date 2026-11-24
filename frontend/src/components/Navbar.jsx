@@ -125,9 +125,12 @@ const Navbar = () => {
       {/* MAIN NAVBAR */}
       <div className="ge-nav-main">
         {/* LOGO */}
-        <Link to="/" className="ge-logo">
-          GADGET<span>É</span>
-          <sup>®</sup>
+        <Link to="/" className="ge-logo" aria-label="GADGETÉ by Cool Gadgets Hub — home">
+          <span className="ge-logo-word">
+            GADGET<span>É</span>
+            <sup>®</sup>
+          </span>
+          <small className="ge-logo-by">by Cool Gadgets Hub</small>
         </Link>
 
         {/* DESKTOP NAVIGATION */}

@@ -2,9 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUp, ArrowUpRight, Check } from "lucide-react";
 import "../Style/Footer.css";
+import { BUSINESS } from "../data/business";
 
-// WhatsApp number with country code, without + or spaces.
-const WHATSAPP_NUMBER = "917039235169";
 // Your Instagram profile link.
 const INSTAGRAM_URL = "https://www.instagram.com/coolgadgetshub.in/";
 
@@ -84,7 +83,7 @@ function Footer() {
     },
     {
       name: "WhatsApp",
-      url: `https://wa.me/${WHATSAPP_NUMBER}`,
+      url: `https://wa.me/${BUSINESS.whatsapp}`,
       icon: <SocialIcons.WhatsApp />,
     },
   ];
@@ -159,31 +158,32 @@ function Footer() {
         <nav className="footer-links" aria-label="Shop links">
           <h3>SHOP</h3>
           <Link to="/shop">All Products</Link>
-          <Link to="/shop">Smartwatches</Link>
-          <Link to="/shop">Audio</Link>
-          <Link to="/shop">Accessories</Link>
+          <Link to="/shop?q=lamp">Lamps &amp; Lights</Link>
+          <Link to="/shop?category=Terrariums">Terrariums</Link>
+          <Link to="/shop?q=cup">Mugs &amp; Cups</Link>
         </nav>
 
         <nav className="footer-links" aria-label="Support links">
           <h3>SUPPORT</h3>
           <Link to="/contact">Customer Care</Link>
           <Link to="/track-order">Track Order</Link>
-          <Link to="/terms#returns">Returns &amp; Refunds</Link>
-          <Link to="/contact">FAQs</Link>
+          <Link to="/refund-policy">Returns &amp; Refunds</Link>
+          <Link to="/shipping-policy">Shipping &amp; Delivery</Link>
+          <Link to="/cancellation-policy">Cancellations</Link>
         </nav>
 
         <nav className="footer-links" aria-label="About links">
           <h3>ABOUT</h3>
           <Link to="/about">Our Story</Link>
-          <Link to="/about">Tech Culture</Link>
-          <Link to="/about">Careers</Link>
           <Link to="/contact">Contact Us</Link>
+          <Link to="/privacy-policy">Privacy Policy</Link>
+          <Link to="/terms">Terms &amp; Conditions</Link>
         </nav>
       </div>
 
       <div className="footer-bottom">
         <div className="footer-copyright">
-          © {new Date().getFullYear()} GADGETÉ. ALL RIGHTS RESERVED.
+          © {new Date().getFullYear()} GADGETÉ BY COOL GADGETS HUB. ALL RIGHTS RESERVED.
         </div>
 
         <div className="footer-socials">

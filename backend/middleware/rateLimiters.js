@@ -56,3 +56,10 @@ export const apiLimiter = limiter({
   limit: 1500,
   message: "Too many requests. Please slow down.",
 });
+
+// Checkout saves the shopper's cart as they type; a few dozen saves is plenty.
+export const leadLimiter = limiter({
+  minutes: 10,
+  limit: 30,
+  message: "Too many requests. Please slow down.",
+});

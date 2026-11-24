@@ -1,0 +1,364 @@
+/* Customer reviews on the product page */
+
+.pr-section {
+     padding: 65px 0;
+     border-top: 1px solid #10100e30;
+}
+
+.pr-heading {
+     display: flex;
+     flex-wrap: wrap;
+     align-items: flex-end;
+     justify-content: space-between;
+     gap: 16px;
+}
+
+.pr-heading h2 {
+     margin: 18px 0 0;
+     font: 400 clamp(38px, 5vw, 68px) / 0.98 "Anton", sans-serif;
+     letter-spacing: -0.02em;
+}
+
+.pr-heading h2 span {
+     color: #164e74;
+}
+
+.pr-write,
+.pr-submit {
+     min-height: 48px;
+     padding: 0 24px;
+     border: 0;
+     background: #164e74;
+     color: #fff;
+     font-family: inherit;
+     font-size: 12px;
+     font-weight: 700;
+     letter-spacing: 0.12em;
+     cursor: pointer;
+}
+
+.pr-write:hover,
+.pr-submit:hover {
+     background: #10100e;
+}
+
+.pr-submit:disabled {
+     opacity: 0.6;
+     cursor: wait;
+}
+
+.pr-thanks {
+     margin: 20px 0 0;
+     padding: 14px 16px;
+     border-radius: 10px;
+     background: #e3f3e6;
+     color: #1d5c2e;
+     font-weight: 600;
+}
+
+.pr-empty {
+     margin: 24px 0 0;
+     color: #10100eaa;
+}
+
+/* ---------- summary + list ---------- */
+
+.pr-body {
+     display: grid;
+     grid-template-columns: minmax(220px, 300px) 1fr;
+     gap: 40px;
+     margin-top: 36px;
+}
+
+.pr-stars {
+     display: inline-flex;
+     gap: 2px;
+     color: #e0a800;
+}
+
+.pr-summary {
+     align-self: start;
+     display: flex;
+     flex-direction: column;
+     gap: 8px;
+     padding: 24px;
+     border-radius: 16px;
+     background: #fff;
+}
+
+.pr-summary > strong {
+     font: 400 64px / 1 "Anton", sans-serif;
+}
+
+.pr-summary > span:not(.pr-stars) {
+     color: #10100e99;
+     font-size: 13px;
+}
+
+.pr-summary ul {
+     margin: 10px 0 0;
+     padding: 0;
+     list-style: none;
+}
+
+.pr-summary li {
+     display: grid;
+     grid-template-columns: 30px 1fr 24px;
+     align-items: center;
+     gap: 8px;
+     margin-top: 6px;
+     font-size: 12px;
+}
+
+.pr-summary i {
+     height: 8px;
+     overflow: hidden;
+     border-radius: 99px;
+     background: #10100e14;
+}
+
+.pr-summary b {
+     display: block;
+     height: 100%;
+     background: #e0a800;
+}
+
+.pr-list {
+     display: grid;
+     gap: 16px;
+     margin: 0;
+     padding: 0;
+     list-style: none;
+}
+
+.pr-card {
+     padding: 20px 22px;
+     border: 1px solid #10100e20;
+     border-radius: 16px;
+     background: #fffdf6;
+}
+
+.pr-card-top {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     gap: 10px;
+}
+
+.pr-card-top time {
+     color: #10100e88;
+     font-size: 12px;
+}
+
+.pr-card p {
+     margin: 12px 0 0;
+     font-size: 15px;
+     line-height: 1.55;
+     white-space: pre-line;
+}
+
+.pr-photos {
+     display: flex;
+     flex-wrap: wrap;
+     gap: 8px;
+     margin-top: 14px;
+}
+
+.pr-photos button {
+     width: 84px;
+     height: 84px;
+     padding: 0;
+     overflow: hidden;
+     border: 0;
+     border-radius: 10px;
+     cursor: zoom-in;
+}
+
+.pr-photos img {
+     width: 100%;
+     height: 100%;
+     object-fit: cover;
+}
+
+.pr-author {
+     display: flex;
+     flex-wrap: wrap;
+     align-items: center;
+     gap: 6px 10px;
+     margin-top: 14px;
+     font-size: 13px;
+}
+
+.pr-author span {
+     color: #10100e88;
+}
+
+.pr-author em {
+     display: inline-flex;
+     align-items: center;
+     gap: 4px;
+     color: #1d7a3a;
+     font-style: normal;
+     font-weight: 700;
+}
+
+/* ---------- write a review ---------- */
+
+.pr-form {
+     display: grid;
+     gap: 14px;
+     max-width: 640px;
+     margin-top: 28px;
+     padding: 24px;
+     border-radius: 16px;
+     background: #fff;
+}
+
+.pr-form-top {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+}
+
+.pr-form-top button {
+     border: 0;
+     background: none;
+     cursor: pointer;
+}
+
+.pr-rate {
+     display: flex;
+     gap: 4px;
+}
+
+.pr-rate button {
+     padding: 2px;
+     border: 0;
+     background: none;
+     color: #10100e40;
+     cursor: pointer;
+     transition: transform 0.15s, color 0.15s;
+}
+
+.pr-rate button.on {
+     color: #e0a800;
+}
+
+.pr-rate button:hover {
+     transform: scale(1.12);
+}
+
+.pr-form-grid {
+     display: grid;
+     grid-template-columns: 1fr 1fr;
+     gap: 14px;
+}
+
+.pr-form label {
+     display: grid;
+     gap: 6px;
+     font-size: 12px;
+     font-weight: 700;
+}
+
+.pr-form input,
+.pr-form textarea {
+     width: 100%;
+     box-sizing: border-box;
+     padding: 12px;
+     border: 1px solid #10100e40;
+     border-radius: 8px;
+     background: #fff;
+     color: #10100e;
+     font: 400 15px "Space Grotesk", sans-serif;
+}
+
+.pr-trap {
+     position: absolute;
+     left: -9999px;
+}
+
+.pr-error {
+     margin: 0;
+     color: #9b1c1c;
+     font-size: 13px;
+}
+
+.pr-note {
+     color: #10100e88;
+}
+
+.pr-lightbox {
+     position: fixed;
+     inset: 0;
+     z-index: 9999;
+     display: grid;
+     place-items: center;
+     padding: 16px;
+     background: rgba(16, 16, 14, 0.85);
+     cursor: zoom-out;
+}
+
+.pr-lightbox img {
+     max-width: 100%;
+     max-height: 90vh;
+     border-radius: 12px;
+}
+
+/* rating link under the product title */
+.pd-rating-link {
+     display: inline-flex;
+     align-items: center;
+     gap: 8px;
+     margin-bottom: 14px;
+     color: inherit;
+     font-size: 13px;
+     text-decoration: none;
+}
+
+.pd-rating-link strong {
+     font-size: 14px;
+}
+
+.pd-rating-link span:last-child {
+     text-decoration: underline;
+}
+
+/* delivery + COD reassurance under the buy buttons */
+.pd-promise {
+     display: grid;
+     gap: 8px;
+     margin-top: 16px;
+     padding: 14px 16px;
+     border-radius: 12px;
+     background: #fff;
+     font-size: 13px;
+}
+
+.pd-promise p {
+     display: flex;
+     align-items: center;
+     gap: 10px;
+     margin: 0;
+}
+
+.pd-promise svg {
+     flex: none;
+     width: 18px;
+     color: #164e74;
+}
+
+.pd-promise strong {
+     font-weight: 700;
+}
+
+@media (max-width: 760px) {
+     .pr-body,
+     .pr-form-grid {
+          grid-template-columns: 1fr;
+     }
+
+     .pr-section {
+          padding: 45px 0;
+     }
+}
