@@ -15,7 +15,7 @@ const courts = BUSINESS.jurisdiction ? `the courts at ${BUSINESS.jurisdiction}, 
 function LegalLayout({ eyebrow, title, intro, sections }) {
   useEffect(() => {
     setPageMeta(title, intro);
-    // Jump to a section when the link has one, e.g. /terms#returns
+    // Jump to a section when the link has one, e.g. /terms#warranty
     const id = window.location.hash.slice(1);
     if (!id) return undefined;
     const timer = window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: "start" }), 400);
@@ -97,22 +97,12 @@ const CANCELLATIONS_SECTION = {
 
 const RETURNS_SECTION = {
   id: "returns",
-  title: "Returns, replacements and refunds",
+  title: "Returns and refunds",
   body: (
-    <>
-      <p>
-        If your item arrives <strong>damaged, defective, or is not what you ordered</strong>, tell us within{" "}
-        <strong>{BUSINESS.reportDays} days of delivery</strong> on {whatsapp} or at {mail}, with your order number and clear photos.
-        A continuous <strong>unboxing video</strong> (from the sealed parcel onwards) is required for damage and missing-item claims.
-      </p>
-      <p>Once we verify the claim, we will arrange a <strong>replacement</strong>, or a <strong>refund</strong> if a replacement is not available.</p>
-      <ul>
-        <li>The item must be unused, with its original box, accessories, manuals and tags.</li>
-        <li>We do not accept returns for change of mind, unless the product page says otherwise.</li>
-        <li>Damage caused by misuse, accidents, water, wrong charging or unauthorised repair is not covered.</li>
-        <li>Approved refunds go to the original payment method within 5–7 working days. Cash on Delivery orders are refunded by UPI or bank transfer to an account you share with us.</li>
-      </ul>
-    </>
+    <p>
+      <strong>All sales are final. We don't accept returns or refunds.</strong> Orders cancelled before they ship
+      are refunded as described under Cancellations.
+    </p>
   ),
 };
 
@@ -158,7 +148,7 @@ export function PrivacyPolicy() {
           <li>To process, pack, ship and deliver your order, and to collect Cash on Delivery payments.</li>
           <li>To send order emails — confirmation, shipping, out-for-delivery, delivery and cancellation updates.</li>
           <li>To contact you about your order, for example to confirm a COD order or a delivery address.</li>
-          <li>To handle returns, replacements, refunds and support requests.</li>
+          <li>To handle cancellations and support requests.</li>
           <li>To send offers and new-drop emails, only if you subscribed. You can unsubscribe at any time.</li>
           <li>To understand how the site is used, improve it, and measure our ads.</li>
           <li>To prevent fraud and fake orders, and to meet tax, accounting and other legal requirements.</li>
@@ -202,7 +192,7 @@ export function PrivacyPolicy() {
       title: "How long we keep it",
       body: (
         <p>
-          We keep order records for as long as needed to deliver your order, handle returns and warranty claims, and meet
+          We keep order records for as long as needed to deliver your order, handle warranty claims and support requests, and meet
           tax and accounting laws. Newsletter emails are kept until you unsubscribe. Unpaid checkouts
           that were never completed may be deleted sooner.
         </p>

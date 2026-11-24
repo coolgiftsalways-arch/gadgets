@@ -207,7 +207,7 @@ export default function HomeSections() {
           </div>
           <div>
             <ShieldCheck />
-            <p>DAMAGE-FREE REPLACEMENT</p>
+            <p>SECURE PAYMENTS</p>
           </div>
           <div>
             <Smartphone />

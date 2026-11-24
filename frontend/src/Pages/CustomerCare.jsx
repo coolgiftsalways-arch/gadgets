@@ -131,7 +131,6 @@ const contactOptions = [
 const supportLinks = [
   { title: "ORDER HELP", icon: "truck", href: "/track-order" },
   { title: "WARRANTY SUPPORT", icon: "shield", href: "/terms#warranty" },
-  { title: "RETURNS & EXCHANGES", icon: "return", href: "/terms#returns" },
   { title: "PRODUCT SUPPORT", icon: "settings", href: "/shop" },
 ];
 

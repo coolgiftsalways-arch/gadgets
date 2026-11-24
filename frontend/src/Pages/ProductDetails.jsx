@@ -25,7 +25,6 @@ import ProductReviews, { Stars } from "../components/ProductReviews";
 import { loadStoreConfig } from "../storeConfig";
 import { deliveryWindow } from "../shopApi";
 import { usePageMeta } from "../usePageMeta";
-import { BUSINESS } from "../data/business";
 
 const CART_KEY = "gadgete_cart";
 
@@ -462,7 +461,7 @@ export default function ProductDetails() {
               <div>
                 <RotateCcw />
                 <span>
-                  EASY REPLACEMENT<small>Damaged or wrong item</small>
+                  CUSTOMER CARE<small>We're here to help</small>
                 </span>
               </div>
             </div>
@@ -557,18 +556,6 @@ export default function ProductDetails() {
                   </p>
                   <Link to="/contact">
                     CONTACT SUPPORT <ArrowUpRight size={14} />
-                  </Link>
-                </article>
-                <article>
-                  <RotateCcw />
-                  <h3>RETURNS</h3>
-                  <p>
-                    Got a damaged, faulty or wrong item? Tell us within{" "}
-                    {BUSINESS.reportDays} days of delivery with an unboxing
-                    photo or video and we'll replace or refund it.
-                  </p>
-                  <Link to="/terms#returns">
-                    RETURNS &amp; REFUNDS <ArrowUpRight size={14} />
                   </Link>
                 </article>
               </div>
