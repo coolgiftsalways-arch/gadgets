@@ -1,0 +1,416 @@
+From 5247b7cf52ee0113911a6796cb310000bb517365 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 24 Nov 2026 08:21:49 +0000
+Subject: [PATCH] Full-screen confetti and savings popup when UPI is selected
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Confetti fires from both bottom corners and floats down across the screen,
+with a 'You saved ₹X!' popup that springs in and closes itself (tap to close).
+Plays when checkout loads with UPI selected and each time UPI is re-selected.
+Respects reduced-motion settings.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HALAYuw82s3VFw2zbyoURm
+---
+ frontend/src/Pages/Checkout.jsx               |  36 +++--
+ frontend/src/Style/Checkout.css               |  26 ----
+ frontend/src/Style/SavingsCelebration.css     |  97 ++++++++++++
+ .../src/components/SavingsCelebration.jsx     | 141 ++++++++++++++++++
+ 4 files changed, 259 insertions(+), 41 deletions(-)
+ create mode 100644 frontend/src/Style/SavingsCelebration.css
+ create mode 100644 frontend/src/components/SavingsCelebration.jsx
+
+diff --git a/frontend/src/Pages/Checkout.jsx b/frontend/src/Pages/Checkout.jsx
+index 3fda8ba..af3ec6b 100644
+--- a/frontend/src/Pages/Checkout.jsx
++++ b/frontend/src/Pages/Checkout.jsx
+@@ -20,16 +20,10 @@ import {
+   imageUrl,
+ } from "../shopApi";
+ import "../Style/Checkout.css";
++import SavingsCelebration from "../components/SavingsCelebration";
+ import { STATES } from "../data/indianStates";
+ 
+ 
+-// Emoji burst shown when the shopper picks UPI. Each piece flies out to (x, y).
+-const CONFETTI = [
+-  ["🎉", -150, -70], ["🎊", -110, -105], ["✨", -60, -125], ["🎉", -15, -135],
+-  ["🎊", 35, -128], ["✨", 85, -112], ["🎉", 130, -85], ["🎊", 160, -45],
+-  ["✨", -165, -25], ["🎉", 55, -60], ["🎊", -80, -55], ["✨", 110, -20],
+-];
+-
+ const newKey = () =>
+   (crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`).replace(/[^A-Za-z0-9_-]/g, "");
+ 
+@@ -45,6 +39,9 @@ const Checkout = () => {
+   const [error, setError] = useState("");
+   const [upiOrder, setUpiOrder] = useState(null);
+   const checkoutKey = useRef(newKey());
++  // Each bump plays the full-screen "you saved" confetti again (0 = not showing).
++  const [celebration, setCelebration] = useState(0);
++  const celebratedOnLoad = useRef(false);
+ 
+   const [form, setForm] = useState({
+     firstName: "", lastName: "", phone: "", email: "",
+@@ -60,6 +57,11 @@ const Checkout = () => {
+       .then((data) => {
+         setQuote(data);
+         if (!data.options.upi.enabled) setPaymentMethod("cod");
++        // UPI is pre-selected, so celebrate its saving once when the prices first load.
++        else if (!celebratedOnLoad.current && data.options.upi.discount > 0) {
++          celebratedOnLoad.current = true;
++          setCelebration((n) => n + 1);
++        }
+       })
+       .catch((err) => setQuoteError(err.message));
+   }, [items, couponCode]);
+@@ -329,7 +331,10 @@ const Checkout = () => {
+ 
+             {quote?.options?.upi?.enabled && (
+               <label className={`ge-payment-option ${paymentMethod === "upi" ? "selected" : ""}`}>
+-                <input type="radio" name="paymentMethod" checked={paymentMethod === "upi"} onChange={() => setPaymentMethod("upi")} />
++                <input type="radio" name="paymentMethod" checked={paymentMethod === "upi"} onChange={() => {
++                    setPaymentMethod("upi");
++                    if (quote.options.upi.discount > 0) setCelebration((n) => n + 1);
++                  }} />
+                 <span className="ge-custom-radio" />
+                 <Smartphone size={30} />
+                 <span className="ge-payment-option-text">
+@@ -345,13 +350,6 @@ const Checkout = () => {
+ 
+             {paymentMethod === "upi" && upiSaving > 0 && (
+               <div className="ge-upi-congrats" role="status">
+-                <span className="ge-upi-confetti" aria-hidden="true">
+-                  {CONFETTI.map(([emoji, x, y], i) => (
+-                    <span key={i} style={{ "--x": `${x}px`, "--y": `${y}px`, "--d": `${(i % 4) * 40}ms` }}>
+-                      {emoji}
+-                    </span>
+-                  ))}
+-                </span>
+                 <span className="ge-upi-congrats-icon" aria-hidden="true">🎉</span>
+                 <span>
+                   <strong>Congrats! You&apos;ve saved {quote.options.upi.discountPercent}% on this order</strong>
+@@ -392,6 +390,14 @@ const Checkout = () => {
+           </section>
+         </aside>
+       </form>
++      {celebration > 0 && upiSaving > 0 && (
++        <SavingsCelebration
++          key={celebration}
++          amount={formatPrice(upiSaving)}
++          percent={quote.options.upi.discountPercent}
++          onDone={() => setCelebration(0)}
++        />
++      )}
+     </main>
+   );
+ };
+diff --git a/frontend/src/Style/Checkout.css b/frontend/src/Style/Checkout.css
+index 4ae822f..9e4fb15 100644
+--- a/frontend/src/Style/Checkout.css
++++ b/frontend/src/Style/Checkout.css
+@@ -470,7 +470,6 @@
+ /* UPI SAVINGS CELEBRATION */
+ 
+ .ge-upi-congrats {
+-     position: relative;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+@@ -501,21 +500,6 @@
+      animation: ge-congrats-wiggle 0.9s ease-in-out 0.3s 2;
+ }
+ 
+-.ge-upi-confetti {
+-     position: absolute;
+-     inset: 0;
+-     pointer-events: none;
+-}
+-
+-.ge-upi-confetti span {
+-     position: absolute;
+-     left: 50%;
+-     top: 50%;
+-     font-size: 22px;
+-     opacity: 0;
+-     animation: ge-confetti-burst 1.3s ease-out var(--d) forwards;
+-}
+-
+ @keyframes ge-congrats-pop {
+      from { opacity: 0; transform: scale(0.85); }
+      to { opacity: 1; transform: scale(1); }
+@@ -527,19 +511,9 @@
+      75% { transform: rotate(15deg) scale(1.15); }
+ }
+ 
+-@keyframes ge-confetti-burst {
+-     0% { opacity: 1; transform: translate(-50%, -50%) scale(0.4); }
+-     70% { opacity: 1; }
+-     100% {
+-          opacity: 0;
+-          transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y) + 40px)) scale(1.1) rotate(25deg);
+-     }
+-}
+-
+ @media (prefers-reduced-motion: reduce) {
+      .ge-upi-congrats,
+      .ge-upi-congrats-icon { animation: none; }
+-     .ge-upi-confetti { display: none; }
+ }
+ 
+ .ge-payment-option input {
+diff --git a/frontend/src/Style/SavingsCelebration.css b/frontend/src/Style/SavingsCelebration.css
+new file mode 100644
+index 0000000..82e578f
+--- /dev/null
++++ b/frontend/src/Style/SavingsCelebration.css
+@@ -0,0 +1,97 @@
++.sc-layer {
++     position: fixed;
++     inset: 0;
++     z-index: 9999;
++     pointer-events: none;
++}
++
++.sc-confetti {
++     position: absolute;
++     inset: 0;
++     width: 100%;
++     height: 100%;
++}
++
++/* Soft dim behind the popup; fades out on its own so it never blocks the page. */
++.sc-popup-wrap {
++     position: absolute;
++     inset: 0;
++     display: grid;
++     place-items: center;
++     padding: 16px;
++     background: rgba(16, 16, 14, 0.28);
++     pointer-events: auto;
++     cursor: pointer;
++     animation:
++          sc-dim-in 0.25s ease-out both,
++          sc-dim-out 0.35s ease-in var(--sc-hold, 2600ms) forwards;
++}
++
++.sc-popup {
++     width: min(320px, 100%);
++     display: flex;
++     flex-direction: column;
++     align-items: center;
++     gap: 6px;
++     padding: 26px 22px 22px;
++     border-radius: 22px;
++     background: #eff04c;
++     color: #10100e;
++     text-align: center;
++     box-shadow: 0 24px 60px rgba(16, 16, 14, 0.35);
++     animation:
++          sc-pop-in 0.55s cubic-bezier(0.18, 1.35, 0.4, 1) both,
++          sc-pop-out 0.35s ease-in var(--sc-hold, 2600ms) forwards;
++}
++
++.sc-popup-emoji {
++     font-size: 54px;
++     line-height: 1;
++     animation: sc-emoji-bounce 0.9s cubic-bezier(0.3, 1.6, 0.5, 1) 0.15s both;
++}
++
++.sc-popup-amount {
++     margin-top: 6px;
++     font-family: "Anton", sans-serif;
++     font-size: 34px;
++     font-weight: 400;
++     line-height: 1.05;
++     letter-spacing: 0.3px;
++}
++
++.sc-popup-text {
++     font-size: 14px;
++     font-weight: 600;
++     color: #164e74;
++}
++
++@keyframes sc-dim-in {
++     from { opacity: 0; }
++     to { opacity: 1; }
++}
++
++@keyframes sc-dim-out {
++     to { opacity: 0; visibility: hidden; }
++}
++
++@keyframes sc-pop-in {
++     from { opacity: 0; transform: translateY(24px) scale(0.6); }
++     to { opacity: 1; transform: translateY(0) scale(1); }
++}
++
++@keyframes sc-pop-out {
++     to { opacity: 0; transform: translateY(-12px) scale(0.92); }
++}
++
++@keyframes sc-emoji-bounce {
++     0% { transform: scale(0) rotate(-30deg); }
++     60% { transform: scale(1.2) rotate(10deg); }
++     100% { transform: scale(1) rotate(0); }
++}
++
++@media (prefers-reduced-motion: reduce) {
++     .sc-popup,
++     .sc-popup-emoji {
++          animation: sc-dim-out 0.2s linear var(--sc-hold, 2600ms) forwards;
++     }
++}
+diff --git a/frontend/src/components/SavingsCelebration.jsx b/frontend/src/components/SavingsCelebration.jsx
+new file mode 100644
+index 0000000..875b66f
+--- /dev/null
++++ b/frontend/src/components/SavingsCelebration.jsx
+@@ -0,0 +1,141 @@
++import { useEffect, useRef } from "react";
++import { createPortal } from "react-dom";
++import "../Style/SavingsCelebration.css";
++
++const COLORS = ["#eff04c", "#ffffff", "#ff5fa2", "#3ddc97", "#ff9f1c", "#4cc9f0", "#164e74"];
++const EMOJIS = ["🎉", "🎊", "✨", "💸"];
++const POPUP_MS = 2600;
++const CONFETTI_FADE_AT = 3600;
++
++const prefersReducedMotion = () =>
++  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
++
++// Two confetti cannons fire from the bottom corners; pieces arc up, flutter and fall.
++function fireConfetti(canvas) {
++  const ctx = canvas.getContext("2d");
++  const dpr = Math.min(window.devicePixelRatio || 1, 2);
++  const width = window.innerWidth;
++  const height = window.innerHeight;
++  canvas.width = width * dpr;
++  canvas.height = height * dpr;
++  ctx.scale(dpr, dpr);
++
++  const power = Math.max(height, 600) / 27;
++  const pieces = [];
++  const launch = (x, direction) => {
++    for (let i = 0; i < 80; i += 1) {
++      // Upward kick scales with screen height; sideways drift with screen width,
++      // so pieces cover the screen on phones and desktops alike (drag 0.985 => travel ≈ v / 0.015).
++      const rise = power * (0.75 + Math.random() * 0.35);
++      const drift = width * (0.1 + Math.random() * 0.75) * 0.015;
++      const emoji = i % 10 === 0 ? EMOJIS[(i / 10) % EMOJIS.length] : null;
++      pieces.push({
++        x,
++        y: height + 10,
++        vx: direction * drift,
++        vy: -rise,
++        size: emoji ? 22 + Math.random() * 8 : 6 + Math.random() * 6,
++        color: COLORS[Math.floor(Math.random() * COLORS.length)],
++        shape: emoji || (Math.random() < 0.7 ? "rect" : "circle"),
++        rotation: Math.random() * Math.PI * 2,
++        spin: (Math.random() - 0.5) * 0.3,
++        wobble: Math.random() * Math.PI * 2,
++        wobbleSpeed: 0.08 + Math.random() * 0.1,
++        delay: Math.random() * 120,
++      });
++    }
++  };
++  launch(-10, 1);
++  launch(width + 10, -1);
++
++  const start = performance.now();
++  let last = start;
++  let frame;
++
++  const tick = (now) => {
++    const dt = Math.min((now - last) / 16.67, 3); // smooth on 60/120 Hz screens
++    last = now;
++    const elapsed = now - start;
++    ctx.clearRect(0, 0, width, height);
++
++    let alive = 0;
++    for (const p of pieces) {
++      if (elapsed < p.delay) {
++        alive += 1;
++        continue;
++      }
++      p.vx *= Math.pow(0.985, dt);
++      p.vy = p.vy * Math.pow(0.985, dt) + 0.3 * dt;
++      p.vy = Math.min(p.vy, 3.6); // gentle, floaty fall
++      p.x += (p.vx + Math.sin(p.wobble) * 0.6) * dt;
++      p.y += p.vy * dt;
++      p.rotation += p.spin * dt;
++      p.wobble += p.wobbleSpeed * dt;
++      if (p.y > height + 40) continue;
++      alive += 1;
++
++      const fade = elapsed > CONFETTI_FADE_AT ? Math.max(0, 1 - (elapsed - CONFETTI_FADE_AT) / 800) : 1;
++      ctx.save();
++      ctx.globalAlpha = fade;
++      ctx.translate(p.x, p.y);
++      ctx.rotate(p.rotation);
++      if (p.shape === "rect" || p.shape === "circle") {
++        ctx.scale(1, Math.cos(p.wobble)); // paper flipping in the air
++        ctx.fillStyle = p.color;
++        if (p.shape === "rect") ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
++        else {
++          ctx.beginPath();
++          ctx.arc(0, 0, p.size / 2.4, 0, Math.PI * 2);
++          ctx.fill();
++        }
++      } else {
++        ctx.font = `${p.size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
++        ctx.textAlign = "center";
++        ctx.textBaseline = "middle";
++        ctx.fillText(p.shape, 0, 0);
++      }
++      ctx.restore();
++    }
++
++    if (alive > 0 && elapsed < CONFETTI_FADE_AT + 800) frame = requestAnimationFrame(tick);
++    else ctx.clearRect(0, 0, width, height);
++  };
++  frame = requestAnimationFrame(tick);
++  return () => cancelAnimationFrame(frame);
++}
++
++/**
++ * Full-screen "you saved" moment: confetti from both corners plus a popup that
++ * springs in and closes itself. Remount it (change its `key`) to play it again.
++ */
++export default function SavingsCelebration({ amount, percent, onDone }) {
++  const canvasRef = useRef(null);
++  const doneRef = useRef(onDone);
++
++  useEffect(() => {
++    doneRef.current = onDone;
++  }, [onDone]);
++
++  useEffect(() => {
++    const stopConfetti = canvasRef.current && !prefersReducedMotion() ? fireConfetti(canvasRef.current) : null;
++    const timer = setTimeout(() => doneRef.current?.(), CONFETTI_FADE_AT + 900);
++    return () => {
++      stopConfetti?.();
++      clearTimeout(timer);
++    };
++  }, []);
++
++  return createPortal(
++    <div className="sc-layer">
++      <canvas ref={canvasRef} className="sc-confetti" aria-hidden="true" />
++      <div className="sc-popup-wrap" onClick={() => doneRef.current?.()}>
++        <div className="sc-popup" role="status" aria-live="polite" style={{ "--sc-hold": `${POPUP_MS}ms` }}>
++          <span className="sc-popup-emoji" aria-hidden="true">🎉</span>
++          <strong className="sc-popup-amount">You saved {amount}!</strong>
++          <span className="sc-popup-text">{percent}% UPI discount applied on this order</span>
++        </div>
++      </div>
++    </div>,
++    document.body,
++  );
++}
+-- 
+2.43.0
+
