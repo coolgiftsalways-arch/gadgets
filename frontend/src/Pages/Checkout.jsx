@@ -20,15 +20,9 @@ import {
   imageUrl,
 } from "../shopApi";
 import "../Style/Checkout.css";
+import SavingsCelebration from "../components/SavingsCelebration";
 import { STATES } from "../data/indianStates";
 
-
-// Emoji burst shown when the shopper picks UPI. Each piece flies out to (x, y).
-const CONFETTI = [
-  ["🎉", -150, -70], ["🎊", -110, -105], ["✨", -60, -125], ["🎉", -15, -135],
-  ["🎊", 35, -128], ["✨", 85, -112], ["🎉", 130, -85], ["🎊", 160, -45],
-  ["✨", -165, -25], ["🎉", 55, -60], ["🎊", -80, -55], ["✨", 110, -20],
-];
 
 const newKey = () =>
   (crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`).replace(/[^A-Za-z0-9_-]/g, "");
@@ -45,6 +39,9 @@ const Checkout = () => {
   const [error, setError] = useState("");
   const [upiOrder, setUpiOrder] = useState(null);
   const checkoutKey = useRef(newKey());
+  // Each bump plays the full-screen "you saved" confetti again (0 = not showing).
+  const [celebration, setCelebration] = useState(0);
+  const celebratedOnLoad = useRef(false);
 
   const [form, setForm] = useState({
     firstName: "", lastName: "", phone: "", email: "",
@@ -60,6 +57,11 @@ const Checkout = () => {
       .then((data) => {
         setQuote(data);
         if (!data.options.upi.enabled) setPaymentMethod("cod");
+        // UPI is pre-selected, so celebrate its saving once when the prices first load.
+        else if (!celebratedOnLoad.current && data.options.upi.discount > 0) {
+          celebratedOnLoad.current = true;
+          setCelebration((n) => n + 1);
+        }
       })
       .catch((err) => setQuoteError(err.message));
   }, [items, couponCode]);
@@ -329,7 +331,10 @@ const Checkout = () => {
 
             {quote?.options?.upi?.enabled && (
               <label className={`ge-payment-option ${paymentMethod === "upi" ? "selected" : ""}`}>
-                <input type="radio" name="paymentMethod" checked={paymentMethod === "upi"} onChange={() => setPaymentMethod("upi")} />
+                <input type="radio" name="paymentMethod" checked={paymentMethod === "upi"} onChange={() => {
+                    setPaymentMethod("upi");
+                    if (quote.options.upi.discount > 0) setCelebration((n) => n + 1);
+                  }} />
                 <span className="ge-custom-radio" />
                 <Smartphone size={30} />
                 <span className="ge-payment-option-text">
@@ -345,13 +350,6 @@ const Checkout = () => {
 
             {paymentMethod === "upi" && upiSaving > 0 && (
               <div className="ge-upi-congrats" role="status">
-                <span className="ge-upi-confetti" aria-hidden="true">
-                  {CONFETTI.map(([emoji, x, y], i) => (
-                    <span key={i} style={{ "--x": `${x}px`, "--y": `${y}px`, "--d": `${(i % 4) * 40}ms` }}>
-                      {emoji}
-                    </span>
-                  ))}
-                </span>
                 <span className="ge-upi-congrats-icon" aria-hidden="true">🎉</span>
                 <span>
                   <strong>Congrats! You&apos;ve saved {quote.options.upi.discountPercent}% on this order</strong>
@@ -392,6 +390,14 @@ const Checkout = () => {
           </section>
         </aside>
       </form>
+      {celebration > 0 && upiSaving > 0 && (
+        <SavingsCelebration
+          key={celebration}
+          amount={formatPrice(upiSaving)}
+          percent={quote.options.upi.discountPercent}
+          onDone={() => setCelebration(0)}
+        />
+      )}
     </main>
   );
 };
