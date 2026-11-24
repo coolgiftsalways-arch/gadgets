@@ -576,7 +576,10 @@ export default function ProductDetails() {
           </div>
         </section>
 
-        <ProductReviews slug={slug} productName={product.name} data={reviewData} />
+        {/* Shown only once the product has at least one approved review. */}
+        {reviewData?.summary?.count > 0 && (
+          <ProductReviews slug={slug} productName={product.name} data={reviewData} />
+        )}
 
         <section className="pd-related">
           <div className="pd-related-heading">
