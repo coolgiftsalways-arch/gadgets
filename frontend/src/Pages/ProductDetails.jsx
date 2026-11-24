@@ -567,7 +567,7 @@ export default function ProductDetails() {
                     {BUSINESS.reportDays} days of delivery with an unboxing
                     photo or video and we'll replace or refund it.
                   </p>
-                  <Link to="/refund-policy">
+                  <Link to="/terms#returns">
                     RETURNS &amp; REFUNDS <ArrowUpRight size={14} />
                   </Link>
                 </article>

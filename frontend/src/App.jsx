@@ -39,7 +39,6 @@ const OrderResult = lazy(() => import("./Pages/OrderResult"));
 const legal = (name) => lazy(() => import("./Pages/Legal").then((module) => ({ default: module[name] })));
 const PrivacyPolicy = legal("PrivacyPolicy");
 const Terms = legal("Terms");
-const RefundPolicy = legal("RefundPolicy");
 const ShippingPolicy = legal("ShippingPolicy");
 const CancellationPolicy = legal("CancellationPolicy");
 
@@ -574,7 +573,6 @@ function App() {
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/privacy-policy" element={<LegalPage><PrivacyPolicy /></LegalPage>} />
         <Route path="/terms" element={<LegalPage><Terms /></LegalPage>} />
-        <Route path="/refund-policy" element={<LegalPage><RefundPolicy /></LegalPage>} />
         <Route path="/shipping-policy" element={<LegalPage><ShippingPolicy /></LegalPage>} />
         <Route path="/cancellation-policy" element={<LegalPage><CancellationPolicy /></LegalPage>} />
 

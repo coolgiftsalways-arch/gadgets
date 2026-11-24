@@ -167,7 +167,7 @@ function Footer() {
           <h3>SUPPORT</h3>
           <Link to="/contact">Customer Care</Link>
           <Link to="/track-order">Track Order</Link>
-          <Link to="/refund-policy">Returns &amp; Refunds</Link>
+          <Link to="/terms#returns">Returns &amp; Refunds</Link>
           <Link to="/shipping-policy">Shipping &amp; Delivery</Link>
           <Link to="/cancellation-policy">Cancellations</Link>
         </nav>

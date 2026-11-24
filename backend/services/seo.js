@@ -23,10 +23,6 @@ const PAGES = {
   "/track-order": { title: `Track Your Order | ${SITE_NAME}`, description: "Track your Cool Gadgets Hub order with your order number." },
   "/privacy-policy": { title: `Privacy Policy | ${SITE_NAME}` },
   "/terms": { title: `Terms & Conditions | ${SITE_NAME}` },
-  "/refund-policy": {
-    title: `Returns & Refund Policy | ${SITE_NAME}`,
-    description: "Damaged, faulty or wrong item? How replacements and refunds work at Cool Gadgets Hub.",
-  },
   "/shipping-policy": {
     title: `Shipping & Delivery Policy | ${SITE_NAME}`,
     description: "Free delivery across India. Delivery times, charges and tracking for Cool Gadgets Hub orders.",
@@ -35,7 +31,7 @@ const PAGES = {
 };
 
 // Pages Google should list (products are added from the database).
-export const SITEMAP_PAGES = ["/", "/shop", "/about", "/contact", "/refund-policy", "/shipping-policy", "/cancellation-policy", "/privacy-policy", "/terms"];
+export const SITEMAP_PAGES = ["/", "/shop", "/about", "/contact", "/shipping-policy", "/cancellation-policy", "/privacy-policy", "/terms"];
 
 const escapeHtml = (value) =>
   String(value ?? "")

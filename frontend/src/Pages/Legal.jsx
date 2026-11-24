@@ -395,10 +395,7 @@ export function Terms() {
   );
 }
 
-// ==========================================
-// RETURNS & REFUND POLICY
-// ==========================================
-
+// Shared by the shipping and cancellation policy pages.
 const GRIEVANCE_SECTION = {
   id: "grievance",
   title: "Grievance Officer",
@@ -411,48 +408,6 @@ const GRIEVANCE_SECTION = {
     </p>
   ),
 };
-
-export function RefundPolicy() {
-  const sections = [
-    RETURNS_SECTION,
-    {
-      id: "how",
-      title: "How to request a replacement or refund",
-      body: (
-        <ol>
-          <li>Record an unboxing video when you open the parcel — start with the sealed box.</li>
-          <li>
-            Within <strong>{BUSINESS.reportDays} days of delivery</strong>, message us on {whatsapp} or email {mail} with your
-            order number, a short description and the photos / video.
-          </li>
-          <li>We reply within 48 hours. If a pickup is needed, we arrange it — you don't pay for return shipping on approved claims.</li>
-          <li>After the item is checked, we ship the replacement or send the refund.</li>
-        </ol>
-      ),
-    },
-    {
-      id: "timeline",
-      title: "When you get your money back",
-      body: (
-        <ul>
-          <li><strong>UPI / online payments</strong> — refunded to the same UPI ID, card or bank account within 5–7 working days of approval.</li>
-          <li><strong>Cash on Delivery</strong> — refunded by UPI or bank transfer to an account you share with us, within 5–7 working days of approval. Any online amount paid to confirm the COD order goes back to where it came from.</li>
-          <li>Your bank may take a few more days to show the money in your account.</li>
-        </ul>
-      ),
-    },
-    GRIEVANCE_SECTION,
-  ];
-
-  return (
-    <LegalLayout
-      eyebrow="POLICY / RETURNS"
-      title="Returns & Refund Policy"
-      intro="Got a damaged, faulty or wrong item? Here is how we make it right — replacements, refunds and timelines."
-      sections={sections}
-    />
-  );
-}
 
 // ==========================================
 // SHIPPING & DELIVERY POLICY
