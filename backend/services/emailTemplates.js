@@ -1,6 +1,7 @@
 // The HTML + plain-text content of every email the store sends.
 // Kept as inline-styled tables because that is what email apps render reliably.
 import { env } from "../config/env.js";
+import { advancePaid, amountDue } from "../config/store.js";
 
 const COLORS = {
   blue: "#164e74",
@@ -72,7 +73,7 @@ const paymentLine = (order) => {
   if (order.payment?.method === "cod") {
     return order.payment.status === "paid"
       ? "Cash on Delivery — paid"
-      : `Cash on Delivery — please keep ${rupees(order.total)} ready`;
+      : `Cash on Delivery — please keep ${rupees(amountDue(order))} ready${advancePaid(order) ? ` (${rupees(advancePaid(order))} already paid online)` : ""}`;
   }
   if (order.payment?.status === "refunded") return "Paid online — refunded";
   return "Paid online (UPI / Razorpay)";
@@ -183,8 +184,9 @@ function itemsTable(order) {
     ${order.couponDiscount > 0 ? line(`Coupon ${esc(order.coupon?.code || "")}`, `−${rupees(order.couponDiscount)}`, "color:#1d7a3a;") : ""}
     ${order.discount > 0 ? line(`UPI discount${order.payment?.discountPercent ? ` (${order.payment.discountPercent}%)` : ""}`, `−${rupees(order.discount)}`, "color:#1d7a3a;") : ""}
     ${line("Shipping", order.shippingFee > 0 ? rupees(order.shippingFee) : "FREE")}
+    ${advancePaid(order) && order.payment?.status !== "paid" ? line("Order total", rupees(order.total)) + line("Paid online (advance)", `−${rupees(advancePaid(order))}`, "color:#1d7a3a;") : ""}
     <tr><td style="padding:12px 0 0;border-top:2px solid ${COLORS.black};font-size:17px;font-weight:700;">${order.payment?.method === "cod" && order.payment?.status !== "paid" ? "To pay on delivery" : "Total"}</td>
-        <td align="right" style="padding:12px 0 0;border-top:2px solid ${COLORS.black};font-size:17px;font-weight:700;white-space:nowrap;">${rupees(order.total)}</td></tr>
+        <td align="right" style="padding:12px 0 0;border-top:2px solid ${COLORS.black};font-size:17px;font-weight:700;white-space:nowrap;">${rupees(order.payment?.method === "cod" && order.payment?.status !== "paid" ? amountDue(order) : order.total)}</td></tr>
   </table>`;
 }
 
@@ -300,7 +302,7 @@ function shipped(order) {
       ${itemsTable(order)}${infoPanel(order, { showDelivery: false })}`,
     footerNote:
       order.payment.method === "cod" && order.payment.status !== "paid"
-        ? `Cash on Delivery: please keep ${rupees(order.total)} ready.`
+        ? `Cash on Delivery: please keep ${rupees(amountDue(order))} ready.`
         : "",
   });
 
@@ -329,14 +331,14 @@ function outForDelivery(order) {
     eyebrow: "Out for delivery",
     title: "Arriving today.",
     intro: `${esc(order.customer.firstName)}, order <strong>${esc(order.orderNumber)}</strong> is out for delivery.${
-      cod ? ` Please keep <strong>${rupees(order.total)}</strong> ready in cash.` : ""
+      cod ? ` Please keep <strong>${rupees(amountDue(order))}</strong> ready in cash.` : ""
     }`,
     body: `${button("Track your order", order.shipping?.trackingUrl || trackUrl(order))}${infoPanel(order, { showDelivery: false })}`,
   });
 
   const text = [
     `Order ${order.orderNumber} is out for delivery.`,
-    cod ? `Please keep ${rupees(order.total)} ready in cash.` : "",
+    cod ? `Please keep ${rupees(amountDue(order))} ready in cash.` : "",
     `Track: ${order.shipping?.trackingUrl || trackUrl(order)}`,
   ]
     .filter(Boolean)

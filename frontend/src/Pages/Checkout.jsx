@@ -128,7 +128,7 @@ const Checkout = () => {
         },
       });
 
-      if (order.paymentMethod === "cod") {
+      if (order.paymentMethod === "cod" && !order.paymentUrl) {
         navigate(`/order-success?order=${order.orderId}`);
       } else {
         setUpiOrder(order);
@@ -300,6 +300,12 @@ const Checkout = () => {
             </div>
             <div className="ge-checkout-summary-divider" />
             <div className="ge-checkout-total"><span>Total</span><strong>{formatPrice(option?.total)}</strong></div>
+            {paymentMethod === "cod" && option?.advance > 0 && (
+              <div className="ge-cod-split">
+                <div><span>Pay now (to confirm your order)</span><strong>{formatPrice(option.advance)}</strong></div>
+                <div><span>Pay in cash on delivery</span><strong>{formatPrice(option.payOnDelivery)}</strong></div>
+              </div>
+            )}
             {option?.delivery && (
               <p style={{ fontSize: 12, marginTop: 8 }}>Estimated delivery: {deliveryWindow(option.delivery)}</p>
             )}
@@ -334,7 +340,11 @@ const Checkout = () => {
                 <Banknote size={30} />
                 <span className="ge-payment-option-text">
                   <strong>Cash on Delivery (COD)</strong>
-                  <small>{formatPrice(quote.options.cod.total)} · Pay in cash when your order is delivered</small>
+                  <small>
+                    {quote.options.cod.advance > 0
+                      ? `Pay ${formatPrice(quote.options.cod.advance)} now to confirm · ${formatPrice(quote.options.cod.payOnDelivery)} in cash on delivery`
+                      : `${formatPrice(quote.options.cod.total)} · Pay in cash when your order is delivered`}
+                  </small>
                 </span>
               </label>
             )}
@@ -346,7 +356,9 @@ const Checkout = () => {
               {loading
                 ? "PLEASE WAIT..."
                 : paymentMethod === "cod"
-                  ? `PLACE ORDER · ${formatPrice(option?.total)}`
+                  ? option?.advance > 0
+                    ? `PAY ${formatPrice(option.advance)} & PLACE ORDER`
+                    : `PLACE ORDER · ${formatPrice(option?.total)}`
                   : `PAY ${formatPrice(option?.total)}`}
               <ArrowRight size={21} />
             </button>
@@ -360,6 +372,9 @@ const Checkout = () => {
 // Step 2 for UPI: QR code of the Razorpay payment link + a Pay button.
 function UpiPayment({ order, onCancel }) {
   const navigate = useNavigate();
+  // UPI pays the whole order; COD pays only the advance now.
+  const isCodAdvance = order.paymentMethod === "cod";
+  const payNow = order.payNow ?? order.total;
   const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState("");
   const qrBox = useRef(null);
@@ -392,7 +407,7 @@ function UpiPayment({ order, onCancel }) {
 
     ctx.fillStyle = "#10100e";
     ctx.font = "bold 40px Arial, sans-serif";
-    ctx.fillText(`Pay ${formatPrice(order.total)}`, canvas.width / 2, 90 + pad / 2 + qrSize + 60);
+    ctx.fillText(`Pay ${formatPrice(payNow)}`, canvas.width / 2, 90 + pad / 2 + qrSize + 60);
     ctx.font = "26px Arial, sans-serif";
     ctx.fillStyle = "#555555";
     ctx.fillText(`Order ${order.orderNumber} · Scan with any UPI app`, canvas.width / 2, 90 + pad / 2 + qrSize + 105);
@@ -428,10 +443,17 @@ function UpiPayment({ order, onCancel }) {
     <main className="ge-checkout-page">
       <section className="ge-checkout-heading">
         <h1>PAY<span>NOW.</span></h1>
-        <div className="ge-checkout-heading-description">ORDER {order.orderNumber}<br />{formatPrice(order.total)}</div>
+        <div className="ge-checkout-heading-description">ORDER {order.orderNumber}<br />{formatPrice(payNow)}</div>
       </section>
 
       <section className="ge-payment-card" style={{ maxWidth: 460, margin: "0 auto", textAlign: "center" }}>
+        {isCodAdvance && (
+          <p style={{ marginBottom: 12, padding: 12, borderRadius: 10, background: "rgba(239,240,76,.14)", lineHeight: 1.5 }}>
+            Pay <strong>{formatPrice(payNow)}</strong> now to confirm your Cash on Delivery order.
+            <br />
+            The remaining <strong>{formatPrice(order.payOnDelivery)}</strong> is paid in cash on delivery.
+          </p>
+        )}
         <p style={{ marginBottom: 14 }}>Scan with your phone camera or any UPI app, or tap the button below.</p>
         <div ref={qrBox} style={{ display: "inline-block", padding: 14, background: "#fff", borderRadius: 12 }}>
           <QRCodeCanvas value={order.paymentUrl} size={230} level="M" />
@@ -444,7 +466,7 @@ function UpiPayment({ order, onCancel }) {
           <Download size={16} /> DOWNLOAD QR
         </button>
         <a className="ge-place-order" href={order.paymentUrl}>
-          PAY {formatPrice(order.total)} WITH UPI / RAZORPAY <ArrowRight size={20} />
+          PAY {formatPrice(payNow)} WITH UPI / RAZORPAY <ArrowRight size={20} />
         </a>
         <p style={{ marginTop: 14, fontSize: 13 }}>⏳ Waiting for payment… this page updates automatically.</p>
         {message && <p style={{ fontSize: 13, color: "#eff04c" }}>{message}</p>}

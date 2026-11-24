@@ -122,7 +122,10 @@ export const statusLabel = (status) => LABELS[status] || status;
 export const statusClass = (status) => String(status || "").replaceAll("_", "-");
 
 export const paymentLabel = (payment = {}) => {
-  if (payment.method === "cod") return payment.status === "paid" ? "COD — collected" : "Cash on Delivery";
+  if (payment.method === "cod") {
+    if (payment.status === "paid") return "COD — collected";
+    return payment.advancePaidAt ? `COD · ₹${payment.advance} paid` : "Cash on Delivery";
+  }
   if (payment.status === "refunded") return "Refunded";
   if (payment.status === "paid") return "Paid Online";
   return "UPI — unpaid";

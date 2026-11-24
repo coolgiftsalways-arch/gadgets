@@ -131,6 +131,9 @@ const orderSchema = new mongoose.Schema(
         default: "pending",
       },
       discountPercent: { type: Number, default: 0 },
+      // COD only: amount paid online upfront to confirm the order (rest is cash on delivery)
+      advance: { type: Number, default: 0 },
+      advancePaidAt: Date,
       linkId: { type: String, index: true, sparse: true }, // Razorpay payment link
       linkUrl: String,
       linkExpiresAt: Date,

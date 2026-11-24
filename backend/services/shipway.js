@@ -3,6 +3,7 @@
 // as the username and your License Key (Shipway → Profile → Manage Profile)
 // as the password.
 import { env } from "../config/env.js";
+import { advancePaid } from "../config/store.js";
 
 const BASE = "https://app.shipway.com/api";
 
@@ -241,6 +242,8 @@ export function buildOrderPayload(order, { withLabel = false, warehouseId = "", 
     discount: String(discount),
     shipping: String(order.shippingFee || 0),
     order_total: String(order.total),
+    // COD advance already paid online: Shipway takes it off the cash the courier collects.
+    ...(advancePaid(order) ? { gift_card_amt: String(advancePaid(order)) } : {}),
     taxes: "0", // prices already include GST
     payment_type: order.payment.method === "cod" ? "C" : "P",
     email: customer.email,

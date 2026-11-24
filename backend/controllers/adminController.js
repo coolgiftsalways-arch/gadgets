@@ -150,7 +150,21 @@ export async function stats(req, res) {
     // Cash on Delivery orders (not cancelled), split by whether the cash has come in.
     Order.aggregate([
       { $match: { "payment.method": "cod", status: { $in: NOT_CANCELLED } } },
-      { $group: { _id: "$payment.status", total: { $sum: "$total" }, count: { $sum: 1 } } },
+      {
+        $group: {
+          _id: "$payment.status",
+          // cash to collect = total minus any advance already paid online
+          total: {
+            $sum: {
+              $subtract: [
+                "$total",
+                { $cond: [{ $ifNull: ["$payment.advancePaidAt", false] }, { $ifNull: ["$payment.advance", 0] }, 0] },
+              ],
+            },
+          },
+          count: { $sum: 1 },
+        },
+      },
     ]),
   ]);
 

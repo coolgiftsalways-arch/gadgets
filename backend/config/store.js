@@ -127,6 +127,15 @@ export function deliveryFor(method) {
 // All amounts are whole rupees. A coupon comes off the subtotal first, then
 // UPI orders get their discount on what is left. The total can never drop
 // below ₹1 (Razorpay's minimum charge).
+// COD advance: paid online to confirm a COD order (needs Razorpay).
+export const codAdvanceFor = (total) =>
+  isUpiAvailable() && env.store.codAdvance > 0 ? Math.min(env.store.codAdvance, Math.max(0, total)) : 0;
+
+// What was already paid online towards a COD order, and what is left to collect in cash.
+export const advancePaid = (order) =>
+  order?.payment?.method === "cod" && order.payment.advancePaidAt ? order.payment.advance || 0 : 0;
+export const amountDue = (order) => Math.max(0, (order?.total || 0) - advancePaid(order));
+
 export function priceOrder(subtotal, method, couponDiscount = 0) {
   const discountPercent = method === "upi" ? env.store.upiDiscountPercent : 0;
   const shippingFee = shippingFor(subtotal);
@@ -137,13 +146,19 @@ export function priceOrder(subtotal, method, couponDiscount = 0) {
   let discount = Math.round((afterCoupon * discountPercent) / 100);
   discount = Math.max(0, Math.min(discount, afterCoupon + shippingFee - 1));
 
+  const total = afterCoupon - discount + shippingFee;
+  const advance = method === "cod" ? codAdvanceFor(total) : 0;
+
   return {
     subtotal,
     couponDiscount: coupon,
     discount,
     discountPercent,
     shippingFee,
-    total: afterCoupon - discount + shippingFee,
+    total,
+    advance, // COD: paid online now
+    payNow: method === "cod" ? advance : total,
+    payOnDelivery: method === "cod" ? total - advance : 0,
     delivery: deliveryFor(method),
   };
 }

@@ -163,7 +163,7 @@ const AdminOrders = () => {
               {STATUS_OPTIONS.map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
-              <option value="unpaid">Unpaid UPI checkouts</option>
+              <option value="unpaid">Unpaid checkouts (UPI / COD advance)</option>
             </select>
             <ChevronDown size={14} />
           </label>
@@ -1071,7 +1071,13 @@ function ShipwaySection({ order, onUpdated }) {
 function whatsappLink(order) {
   const a = order.shippingAddress || {};
   const items = order.items.map((item) => `${item.name}${item.quantity > 1 ? ` x${item.quantity}` : ""}`).join(", ");
-  const pay = order.payment.method === "cod" ? `${money(order.total)} Cash on Delivery` : `${money(order.total)} (paid online)`;
+  const advance = order.payment.advancePaidAt ? order.payment.advance || 0 : 0;
+  const pay =
+    order.payment.method === "cod"
+      ? advance
+        ? `${money(order.total)} — ${money(advance)} paid online, ${money(order.total - advance)} Cash on Delivery`
+        : `${money(order.total)} Cash on Delivery`
+      : `${money(order.total)} (paid online)`;
   const text = [
     `Hi ${order.customer.firstName}, this is GADGETÉ (coolgadgetshub.in).`,
     `Please confirm your order ${order.orderNumber}:`,

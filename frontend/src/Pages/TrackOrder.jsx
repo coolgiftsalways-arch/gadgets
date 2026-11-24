@@ -403,6 +403,12 @@ export default function TrackOrder() {
                   <dt>Total</dt>
                   <dd>{formatPrice(order.total)}</dd>
                 </div>
+                {order.payment?.dueOnDelivery > 0 && order.payment?.advancePaid > 0 && (
+                  <div>
+                    <dt>To pay on delivery</dt>
+                    <dd>{formatPrice(order.payment.dueOnDelivery)}</dd>
+                  </div>
+                )}
               </dl>
             </article>
           </div>

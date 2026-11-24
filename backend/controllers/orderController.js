@@ -6,6 +6,8 @@ import { env } from "../config/env.js";
 import {
   PLACED_STATUSES,
   STATUS_LABELS,
+  advancePaid,
+  amountDue,
   isCodAvailable,
   isUpiAvailable,
   priceOrder,
@@ -264,6 +266,9 @@ function checkoutResponse(order) {
     shippingFee: order.shippingFee,
     total: order.total,
     delivery: order.delivery,
+    advance: order.payment.advance || 0,
+    payNow: order.payment.method === "cod" ? order.payment.advance || 0 : order.total,
+    payOnDelivery: order.payment.method === "cod" ? order.total - (order.payment.advance || 0) : 0,
     paymentUrl: awaiting ? order.payment.linkUrl || null : null,
     expiresAt: awaiting ? order.payment.linkExpiresAt || null : null,
   };
@@ -289,6 +294,9 @@ async function existingCheckout(checkoutKey) {
 
 function describeOrder(order) {
   const list = order.items.map((item) => `${item.name} x${item.quantity}`).join(", ");
+  if (order.payment.method === "cod") {
+    return `${env.store.name} order ${order.orderNumber} — COD advance (rest ₹${(order.total - order.payment.advance).toLocaleString("en-IN")} on delivery) — ${list}`;
+  }
   const note = order.discount > 0 ? ` (${order.payment.discountPercent}% UPI discount applied)` : "";
   return `${env.store.name} order ${order.orderNumber} — ${list}${note}`;
 }
@@ -354,9 +362,10 @@ export async function checkout(req, res) {
     couponDiscount: price.couponDiscount,
     shippingFee: price.shippingFee,
     total: price.total,
-    payment: { method, status: "pending", discountPercent: price.discountPercent },
+    payment: { method, status: "pending", discountPercent: price.discountPercent, advance: price.advance },
     delivery: price.delivery,
-    status: method === "cod" ? "pending" : "awaiting_payment",
+    // UPI, and COD with an advance, wait for an online payment first.
+    status: method === "cod" && !price.advance ? "pending" : "awaiting_payment",
     source: /Mobi|Android|iPhone|iPad/i.test(req.get("user-agent") || "")
       ? "Mobile website"
       : "Website",
@@ -376,12 +385,18 @@ export async function checkout(req, res) {
   order.stockReserved = true;
 
   try {
-    if (method === "cod") {
+    if (method === "cod" && !price.advance) {
       await placeCodOrder(order);
       return res.status(201).json(checkoutResponse(order));
     }
 
-    order.timeline.push({ status: "awaiting_payment", message: "Checkout started — waiting for payment." });
+    order.timeline.push({
+      status: "awaiting_payment",
+      message:
+        method === "cod"
+          ? `Checkout started — waiting for the ₹${price.advance.toLocaleString("en-IN")} COD advance.`
+          : "Checkout started — waiting for payment.",
+    });
     await saveNewOrder(order);
   } catch (error) {
     await releaseStock(items);
@@ -395,12 +410,12 @@ export async function checkout(req, res) {
     throw error;
   }
 
-  // UPI: one fixed-amount Razorpay payment link for this order.
+  // One fixed-amount Razorpay payment link: the full total (UPI) or the COD advance.
   try {
     const expiresAt = new Date(Date.now() + env.store.paymentWindowMinutes * 60 * 1000);
 
     const link = await razorpay.createPaymentLink({
-      amount: order.total,
+      amount: method === "cod" ? order.payment.advance : order.total,
       referenceId: order.orderNumber,
       description: describeOrder(order),
       customer: {
@@ -589,7 +604,10 @@ const maskEmail = (address = "") => {
 const addDays = (date, days) => new Date(new Date(date).getTime() + days * 86400000);
 
 const paymentLabel = (order) => {
-  if (order.payment.method === "cod") return "Cash on Delivery";
+  if (order.payment.method === "cod") {
+    const paid = advancePaid(order);
+    return paid ? `Cash on Delivery (₹${paid} paid online)` : "Cash on Delivery";
+  }
   if (order.payment.status === "refunded") return "Paid online — refunded";
   if (order.payment.status === "paid") return "Paid online (UPI)";
   return "Online payment (UPI)";
@@ -629,6 +647,8 @@ function publicOrder(order, { includeEmail = false } = {}) {
       status: order.payment.status,
       label: paymentLabel(order),
       discountPercent: order.payment.discountPercent,
+      advancePaid: advancePaid(order),
+      dueOnDelivery: order.payment.method === "cod" && order.payment.status !== "paid" ? amountDue(order) : 0,
     },
     subtotal: order.subtotal,
     discount: order.discount,

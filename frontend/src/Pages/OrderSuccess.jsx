@@ -129,6 +129,8 @@ export default function OrderSuccess() {
 
   const isPaid = order.payment?.status === "paid";
   const isCod = order.payment?.method === "cod";
+  const advancePaid = order.payment?.advancePaid || 0;
+  const dueOnDelivery = order.payment?.dueOnDelivery ?? order.total;
 
   return (
     <main className="os-page">
@@ -158,7 +160,9 @@ export default function OrderSuccess() {
         <p className="os-description">
           Thank you for shopping with GADGETÉ!
           {isCod
-            ? " Your Cash on Delivery order has been successfully placed. Pay when your order arrives."
+            ? advancePaid
+              ? ` We received your ${formatPrice(advancePaid)} advance — your Cash on Delivery order is confirmed. Pay the remaining ${formatPrice(dueOnDelivery)} in cash when it arrives.`
+              : " Your Cash on Delivery order has been successfully placed. Pay when your order arrives."
             : isPaid
               ? " Your payment has been received successfully."
               : " Your order has been received and is awaiting payment confirmation."}
@@ -230,6 +234,19 @@ export default function OrderSuccess() {
               {isCod ? "Cash on Delivery" : "Online Payment"}
             </strong>
           </div>
+
+          {isCod && advancePaid > 0 && (
+            <>
+              <div className="os-payment-info">
+                <span>PAID ONLINE (ADVANCE)</span>
+                <strong>{formatPrice(advancePaid)}</strong>
+              </div>
+              <div className="os-payment-info">
+                <span>TO PAY ON DELIVERY</span>
+                <strong>{formatPrice(dueOnDelivery)}</strong>
+              </div>
+            </>
+          )}
 
           <div className="os-payment-info">
             <span>PAYMENT STATUS</span>

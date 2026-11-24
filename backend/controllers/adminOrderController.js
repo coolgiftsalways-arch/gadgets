@@ -60,7 +60,7 @@ const SORTS = {
 };
 
 const LIST_FIELDS =
-  "orderNumber customer shippingAddress items.quantity items.name items.color items.product total payment.method payment.status status placedAt createdAt seenByAdmin attention source codConfirmedAt";
+  "orderNumber customer shippingAddress items.quantity items.name items.color items.product total payment.method payment.status payment.advance payment.advancePaidAt status placedAt createdAt seenByAdmin attention source codConfirmedAt";
 
 // GET /api/admin/orders?status=&payment=&q=&sort=&page=&limit=
 export async function listOrders(req, res) {

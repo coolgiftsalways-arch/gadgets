@@ -158,26 +158,43 @@ export async function placeCodOrder(order) {
 export async function markPaid(orderId, paymentId = "") {
   const now = new Date();
 
+  // COD orders pay only the advance online; the rest stays "to collect on delivery".
+  const current = await Order.findById(orderId).select("payment.method payment.advance total");
+  if (!current) return null;
+  const codAdvance = current.payment.method === "cod";
+  const due = current.total - (current.payment.advance || 0);
+
   const order = await Order.findOneAndUpdate(
     {
       _id: orderId,
-      "payment.method": "upi",
+      "payment.method": codAdvance ? "cod" : "upi",
       "payment.status": { $in: ["pending", "failed"] },
       status: { $in: ["awaiting_payment", "expired"] },
     },
     {
-      $set: {
-        status: "pending",
-        placedAt: now,
-        seenByAdmin: false,
-        "payment.status": "paid",
-        "payment.paymentId": paymentId,
-        "payment.paidAt": now,
-      },
+      $set: codAdvance
+        ? {
+            status: "pending",
+            placedAt: now,
+            seenByAdmin: false,
+            "payment.status": "pending", // the cash balance is still to be collected
+            "payment.paymentId": paymentId,
+            "payment.advancePaidAt": now,
+          }
+        : {
+            status: "pending",
+            placedAt: now,
+            seenByAdmin: false,
+            "payment.status": "paid",
+            "payment.paymentId": paymentId,
+            "payment.paidAt": now,
+          },
       $push: {
         timeline: {
           status: "pending",
-          message: "Payment received. Your order is confirmed.",
+          message: codAdvance
+            ? `₹${current.payment.advance.toLocaleString("en-IN")} advance received — order confirmed. Pay ₹${due.toLocaleString("en-IN")} in cash on delivery.`
+            : "Payment received. Your order is confirmed.",
           at: now,
         },
       },
@@ -243,7 +260,7 @@ export async function expireOrder(orderId, { cancelLink = true, message } = {}) 
 // Returns the up-to-date order.
 export async function syncPayment(order) {
   const unpaid = ["awaiting_payment", "expired"].includes(order.status);
-  if (!unpaid || order.payment?.method !== "upi" || !order.payment.linkId) return order;
+  if (!unpaid || !["upi", "cod"].includes(order.payment?.method) || !order.payment.linkId) return order;
   if (!razorpay.isConfigured()) return order;
 
   const link = await razorpay.fetchPaymentLink(order.payment.linkId);
