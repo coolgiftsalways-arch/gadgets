@@ -306,7 +306,7 @@ export function Terms() {
       body: (
         <ul>
           <li><strong>Online / UPI</strong> — payments are processed securely by Razorpay. If payment is not completed within the time shown, the order is released.</li>
-          <li><strong>Cash on Delivery</strong> — pay the courier in cash at delivery. Some COD orders ask for a small online payment to confirm the order; it is part of your order total, not an extra charge, and the rest is paid in cash. Please keep the exact amount ready.</li>
+          <li><strong>Cash on Delivery</strong> — pay the courier the order amount in cash at delivery. Please keep the exact amount ready.</li>
           <li>Repeatedly refusing Cash on Delivery orders may lead to COD being turned off for your number or address.</li>
         </ul>
       ),
@@ -478,7 +478,7 @@ export function CancellationPolicy() {
       title: "Refunds for cancelled orders",
       body: (
         <p>
-          If you paid anything online — the full amount, or a small amount to confirm a Cash on Delivery order — it is
+          If you paid online, the amount is
           refunded to the original payment method within 5–7 working days of the cancellation.
         </p>
       ),

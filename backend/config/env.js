@@ -86,9 +86,9 @@ export const env = {
 
     upiDiscountPercent: clamp(int("UPI_DISCOUNT_PERCENT", 10), 0, 90),
     codEnabled: bool("COD_ENABLED", true),
-    // COD orders pay this much online first (to confirm the order); the rest in cash on delivery.
-    // 0 = no advance. Only used when online payment (Razorpay) is set up.
-    codAdvance: clamp(int("COD_ADVANCE", 49), 0, 100000),
+    // Optional: COD orders pay this much online first (to confirm the order), the rest
+    // in cash on delivery. 0 (the default) = no advance — customers just place the order.
+    codAdvance: clamp(int("COD_ADVANCE", 0), 0, 100000),
     upiDelivery: {
       minDays: clamp(int("UPI_DELIVERY_MIN_DAYS", 3), 0, 60),
       maxDays: clamp(int("UPI_DELIVERY_MAX_DAYS", 5), 0, 90),
