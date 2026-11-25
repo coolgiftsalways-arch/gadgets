@@ -135,7 +135,7 @@ export default function HomeSections() {
   const handleBuyNow = (product, event) => {
     event.stopPropagation();
     handleAddToCart(product, { stopPropagation() {} });
-    navigate("/cart");
+    navigate("/checkout");
   };
 
   return (

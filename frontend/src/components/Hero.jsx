@@ -155,8 +155,10 @@ const Hero = () => {
     }
   };
 
+  // Straight to the checkout form.
   const buyNow = (product) => {
     addToCart(product);
+    navigate("/checkout");
   };
 
   useLayoutEffect(() => {

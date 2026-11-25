@@ -28,7 +28,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import gsap from "gsap";
 import { apiRequest } from "../api/api";
 import "../Style/Shop.css";
@@ -121,6 +121,7 @@ const readFilters = () => {
 
 export default function Shop() {
   const shopRef = useRef(null);
+  const navigate = useNavigate();
   // True when returning to the shop during this visit.
   const returning = useRef(Boolean(cachedProducts)).current;
   // A link like /shop?q=lamp or /shop?category=Terrariums opens the shop already filtered.
@@ -468,9 +469,10 @@ export default function Shop() {
   // BUY NOW
   // ==========================================
 
+  // Straight to the checkout form.
   const buyNow = (product) => {
     addToCart(product);
-    window.location.href = "/cart";
+    navigate("/checkout");
   };
 
   // ==========================================

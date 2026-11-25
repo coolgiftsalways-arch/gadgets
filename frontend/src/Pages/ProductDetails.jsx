@@ -250,7 +250,7 @@ export default function ProductDetails() {
 
   const buyNow = () => {
     addToCart();
-    navigate("/cart");
+    navigate("/checkout");
   };
 
   return (
