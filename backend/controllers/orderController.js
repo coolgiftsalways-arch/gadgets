@@ -18,7 +18,7 @@ import { email, integer, isObjectId, line, phone, pincode } from "../utils/valid
 import * as razorpay from "../services/razorpay.js";
 import { checkCoupon, couponDiscountFor } from "../services/couponService.js";
 import * as shipway from "../services/shipway.js";
-import { catchUpFromScans, refreshTracking } from "../services/shippingService.js";
+import { catchUpFromScans, refreshTracking, syncFromShipway } from "../services/shippingService.js";
 import {
   expireOrder,
   markPaid,
@@ -714,6 +714,26 @@ export async function trackOrder(req, res) {
 
   if (!order) {
     throw notFound("We couldn't find an order with that number. Please check it and try again.");
+  }
+
+  // Courier booked in the Shipway dashboard but the AWB not picked up yet:
+  // ask Shipway now (at most every 30 minutes per order) instead of waiting for the sweep.
+  const waiting = order.shipping || {};
+  const waitingStale = !waiting.syncedAt || Date.now() - new Date(waiting.syncedAt).getTime() > TRACK_REFRESH_MS;
+  if (
+    ["pending", "processing"].includes(order.status) &&
+    waiting.provider === "shipway" &&
+    waiting.pushedAt &&
+    !waiting.awb &&
+    !waiting.testMode &&
+    waitingStale &&
+    shipway.isConfigured()
+  ) {
+    try {
+      order = (await syncFromShipway(order)).order;
+    } catch (error) {
+      console.warn(`Shipway sync failed for ${order.orderNumber}: ${error.message}`);
+    }
   }
 
   // Fresh courier status when the customer looks (at most every 30 minutes per order).

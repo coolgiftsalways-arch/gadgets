@@ -125,7 +125,7 @@ export async function shipOrder(order, { carrierId = "", parcel: rawParcel = nul
       // If an earlier try (or someone in the Shipway panel) already got an AWB, use it.
       const existing = ship.pushedAt ? await shipway.getOrder(shipway.shipwayId(order)).catch(() => null) : null;
       if (existing?.tracking_number) {
-        ship.awb = String(existing.tracking_number);
+        ship.awb = awbNumber;
         ship.courier = existing.name || existing.carrier_title || "";
       } else {
         const book = () => shipway.pushOrderWithLabel(order, { warehouseId: warehouse.id, carrierId: chosenCarrier, parcel });
@@ -286,15 +286,22 @@ export async function syncFromShipway(order) {
   }
 
   ship.syncedAt = new Date();
+  // Shipway's field name for the AWB varies between accounts / API versions.
+  const awbNumber = [existing.tracking_number, existing.awb, existing.awbno, existing.awb_number, existing.awb_code]
+    .map((value) => String(value || "").trim())
+    .find(Boolean);
   if (existing.status && SHIPWAY_ORDER_STATUS[existing.status]) ship.providerStatus = SHIPWAY_ORDER_STATUS[existing.status];
 
-  if (!existing.tracking_number) {
+  if (!awbNumber) {
+    if (existing.status && existing.status !== "O") {
+      console.warn(`Shipway ${shipway.shipwayId(order)}: status ${existing.status} but no AWB in reply`, Object.keys(existing).join(","));
+    }
     order.markModified("shipping");
     await order.save();
     return { order, linked: false };
   }
 
-  ship.awb = String(existing.tracking_number);
+  ship.awb = awbNumber;
   ship.courier = existing.name || existing.carrier_title || ship.courier || "";
   if (existing.carrier_id) ship.carrierId = String(existing.carrier_id);
   ship.lastError = "";
