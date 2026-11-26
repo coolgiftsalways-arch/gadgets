@@ -1,0 +1,99 @@
+From 844170b767d66ce74532f703b14383275407fcbe Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 26 Nov 2026 08:05:18 +0000
+Subject: [PATCH] Track order: pick up AWBs booked in the Shipway dashboard
+ when the customer looks
+
+- Track Order API asks Shipway for the courier/AWB of orders still waiting
+  for one (at most every 30 minutes) instead of waiting for the 3-hour sweep.
+- Read the AWB from the other field names Shipway uses, and log when Shipway
+  says the courier is booked but returns no AWB.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01HALAYxDpRYpuPiGKiao6GG
+---
+ backend/controllers/orderController.js | 22 +++++++++++++++++++++-
+ backend/services/shippingService.js    | 13 ++++++++++---
+ 2 files changed, 31 insertions(+), 4 deletions(-)
+
+diff --git a/backend/controllers/orderController.js b/backend/controllers/orderController.js
+index 9441108..aebbf83 100644
+--- a/backend/controllers/orderController.js
++++ b/backend/controllers/orderController.js
+@@ -18,7 +18,7 @@ import { email, integer, isObjectId, line, phone, pincode } from "../utils/valid
+ import * as razorpay from "../services/razorpay.js";
+ import { checkCoupon, couponDiscountFor } from "../services/couponService.js";
+ import * as shipway from "../services/shipway.js";
+-import { catchUpFromScans, refreshTracking } from "../services/shippingService.js";
++import { catchUpFromScans, refreshTracking, syncFromShipway } from "../services/shippingService.js";
+ import {
+   expireOrder,
+   markPaid,
+@@ -716,6 +716,26 @@ export async function trackOrder(req, res) {
+     throw notFound("We couldn't find an order with that number. Please check it and try again.");
+   }
+ 
++  // Courier booked in the Shipway dashboard but the AWB not picked up yet:
++  // ask Shipway now (at most every 30 minutes per order) instead of waiting for the sweep.
++  const waiting = order.shipping || {};
++  const waitingStale = !waiting.syncedAt || Date.now() - new Date(waiting.syncedAt).getTime() > TRACK_REFRESH_MS;
++  if (
++    ["pending", "processing"].includes(order.status) &&
++    waiting.provider === "shipway" &&
++    waiting.pushedAt &&
++    !waiting.awb &&
++    !waiting.testMode &&
++    waitingStale &&
++    shipway.isConfigured()
++  ) {
++    try {
++      order = (await syncFromShipway(order)).order;
++    } catch (error) {
++      console.warn(`Shipway sync failed for ${order.orderNumber}: ${error.message}`);
++    }
++  }
++
+   // Fresh courier status when the customer looks (at most every 30 minutes per order).
+   const ship = order.shipping || {};
+   const onTheWay = ["processing", "shipped", "out_for_delivery"].includes(order.status);
+diff --git a/backend/services/shippingService.js b/backend/services/shippingService.js
+index 84e6b9f..e2fa93c 100644
+--- a/backend/services/shippingService.js
++++ b/backend/services/shippingService.js
+@@ -125,7 +125,7 @@ export async function shipOrder(order, { carrierId = "", parcel: rawParcel = nul
+       // If an earlier try (or someone in the Shipway panel) already got an AWB, use it.
+       const existing = ship.pushedAt ? await shipway.getOrder(shipway.shipwayId(order)).catch(() => null) : null;
+       if (existing?.tracking_number) {
+-        ship.awb = String(existing.tracking_number);
++        ship.awb = awbNumber;
+         ship.courier = existing.name || existing.carrier_title || "";
+       } else {
+         const book = () => shipway.pushOrderWithLabel(order, { warehouseId: warehouse.id, carrierId: chosenCarrier, parcel });
+@@ -286,15 +286,22 @@ export async function syncFromShipway(order) {
+   }
+ 
+   ship.syncedAt = new Date();
++  // Shipway's field name for the AWB varies between accounts / API versions.
++  const awbNumber = [existing.tracking_number, existing.awb, existing.awbno, existing.awb_number, existing.awb_code]
++    .map((value) => String(value || "").trim())
++    .find(Boolean);
+   if (existing.status && SHIPWAY_ORDER_STATUS[existing.status]) ship.providerStatus = SHIPWAY_ORDER_STATUS[existing.status];
+ 
+-  if (!existing.tracking_number) {
++  if (!awbNumber) {
++    if (existing.status && existing.status !== "O") {
++      console.warn(`Shipway ${shipway.shipwayId(order)}: status ${existing.status} but no AWB in reply`, Object.keys(existing).join(","));
++    }
+     order.markModified("shipping");
+     await order.save();
+     return { order, linked: false };
+   }
+ 
+-  ship.awb = String(existing.tracking_number);
++  ship.awb = awbNumber;
+   ship.courier = existing.name || existing.carrier_title || ship.courier || "";
+   if (existing.carrier_id) ship.carrierId = String(existing.carrier_id);
+   ship.lastError = "";
+-- 
+2.43.0
+
