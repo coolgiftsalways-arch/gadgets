@@ -77,8 +77,23 @@ const FAILED_ATTEMPT =
 
 const ATTEMPT_HEADLINE = {
   title: "Delivery attempted",
-  text: "The courier tried to deliver today but couldn't reach you. They'll try again - please keep your phone handy, or message us to rearrange.",
+  text: "The courier tried to deliver but couldn't reach you. They'll try again - please keep your phone handy, or message us to rearrange.",
 };
+
+// Furthest step the courier scans prove the parcel reached (-1 = none), so the
+// progress bar is right even before the order status catches up.
+function stepFromScans(events = []) {
+  let best = -1;
+  for (const event of events) {
+    const s = String(event?.message || "").toUpperCase();
+    if (!s || /RTO|RETURN|CANCEL|LOST|DAMAGED/.test(s)) continue;
+    if (/\bDELIVERED\b/.test(s) && !/UNDELIVERED|NOT DELIVERED/.test(s)) best = Math.max(best, 4);
+    else if (s.includes("OUT FOR DELIVERY")) best = Math.max(best, 3);
+    else if (/PICKED UP|IN TRANSIT|SHIPPED|DISPATCHED|RECEIVED AT|ORIGIN CENTER|BAG|TRIP|VEHICLE|REACHED|ARRIVED/.test(s))
+      best = Math.max(best, 2);
+  }
+  return best;
+}
 
 const paymentText = (payment = {}) =>
   payment.label || (payment.method === "cod" ? "Cash on Delivery" : payment.method === "upi" ? "Paid online" : "—");
@@ -161,9 +176,12 @@ export default function TrackOrder() {
   };
 
   // ---------- order data ----------
-  const status = order?.status || "pending";
-  const cancelled = status === "cancelled";
-  const stepIndex = Math.max(0, STEPS.findIndex((step) => step.key === status));
+  const savedStatus = order?.status || "pending";
+  const cancelled = savedStatus === "cancelled";
+  const stepIndex = cancelled
+    ? 0
+    : Math.max(0, STEPS.findIndex((step) => step.key === savedStatus), stepFromScans(order?.courierEvents));
+  const status = cancelled ? "cancelled" : STEPS[stepIndex].key;
   const tracking = order?.tracking || {};
   // Newest courier scan is the most reliable "latest" status; Shipway's summary
   // field sometimes holds things like "Exchange".
@@ -172,14 +190,19 @@ export default function TrackOrder() {
   const attempted = !cancelled && status !== "delivered" && FAILED_ATTEMPT.test(latestScan);
   const headline = attempted ? ATTEMPT_HEADLINE : HEADLINES[status] || HEADLINES.pending;
   const eta = order?.estimatedDelivery;
+  const etaRange = eta
+    ? formatDay(eta.from) === formatDay(eta.to)
+      ? formatDay(eta.to)
+      : `${formatDay(eta.from)} – ${formatDay(eta.to)}`
+    : "Awaiting update";
   const etaText =
     status === "delivered"
       ? formatDay(tracking.deliveredAt) || "Delivered"
-      : eta
-        ? formatDay(eta.from) === formatDay(eta.to)
-          ? formatDay(eta.to)
-          : `${formatDay(eta.from)} – ${formatDay(eta.to)}`
-        : "Awaiting update";
+      : attempted
+        ? "Next attempt soon"
+        : status === "out_for_delivery"
+          ? "Today"
+          : etaRange;
   const events = [...(order?.courierEvents || []), ...(order?.timeline || [])];
   const items = order?.items || [];
 

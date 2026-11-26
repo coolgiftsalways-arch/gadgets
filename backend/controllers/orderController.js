@@ -18,7 +18,7 @@ import { email, integer, isObjectId, line, phone, pincode } from "../utils/valid
 import * as razorpay from "../services/razorpay.js";
 import { checkCoupon, couponDiscountFor } from "../services/couponService.js";
 import * as shipway from "../services/shipway.js";
-import { refreshTracking } from "../services/shippingService.js";
+import { catchUpFromScans, refreshTracking } from "../services/shippingService.js";
 import {
   expireOrder,
   markPaid,
@@ -725,6 +725,15 @@ export async function trackOrder(req, res) {
       order = await refreshTracking(order);
     } catch (error) {
       console.warn(`Tracking refresh failed for ${order.orderNumber}: ${error.message}`);
+    }
+  }
+
+  // Even without a fresh Shipway call, catch up from the scans we already have.
+  if (onTheWay && ship.events?.length) {
+    try {
+      order = await catchUpFromScans(order);
+    } catch (error) {
+      console.warn(`Scan catch-up failed for ${order.orderNumber}: ${error.message}`);
     }
   }
 

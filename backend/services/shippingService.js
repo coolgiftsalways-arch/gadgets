@@ -310,6 +310,13 @@ export async function syncFromShipway(order) {
   return { order, linked: true };
 }
 
+// Moves an order forward from the courier scans already saved on it (no Shipway
+// call). Fixes orders left on "Packed" when the summary status was unrecognised.
+export async function catchUpFromScans(order) {
+  await advanceTo(order, shipway.statusFromEvents(order.shipping?.events));
+  return order;
+}
+
 // "Refresh tracking" button, the tracking sweep and the Track Order page.
 export async function refreshTracking(order) {
   if (!order.shipping?.awb) throw conflict("This order has no tracking number yet.");
