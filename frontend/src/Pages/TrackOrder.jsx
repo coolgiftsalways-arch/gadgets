@@ -71,6 +71,15 @@ const HEADLINES = {
   cancelled: { title: "Cancelled", text: "This order was cancelled. If you have questions, we're happy to help." },
 };
 
+// Courier couldn't hand the parcel over on this attempt (they usually retry next day).
+const FAILED_ATTEMPT =
+  /consignee unavailable|not available|door locked|premises closed|refused|address (issue|incomplete|not found)|not reachable|undelivered|delivery attempt/i;
+
+const ATTEMPT_HEADLINE = {
+  title: "Delivery attempted",
+  text: "The courier tried to deliver today but couldn't reach you. They'll try again - please keep your phone handy, or message us to rearrange.",
+};
+
 const paymentText = (payment = {}) =>
   payment.label || (payment.method === "cod" ? "Cash on Delivery" : payment.method === "upi" ? "Paid online" : "—");
 
@@ -155,8 +164,13 @@ export default function TrackOrder() {
   const status = order?.status || "pending";
   const cancelled = status === "cancelled";
   const stepIndex = Math.max(0, STEPS.findIndex((step) => step.key === status));
-  const headline = HEADLINES[status] || HEADLINES.pending;
   const tracking = order?.tracking || {};
+  // Newest courier scan is the most reliable "latest" status; Shipway's summary
+  // field sometimes holds things like "Exchange".
+  const latestScan = order?.courierEvents?.[0]?.message || "";
+  const courierLatest = latestScan || tracking.status;
+  const attempted = !cancelled && status !== "delivered" && FAILED_ATTEMPT.test(latestScan);
+  const headline = attempted ? ATTEMPT_HEADLINE : HEADLINES[status] || HEADLINES.pending;
   const eta = order?.estimatedDelivery;
   const etaText =
     status === "delivered"
@@ -273,9 +287,9 @@ export default function TrackOrder() {
                   <span>.</span>
                 </h2>
                 <p>{headline.text}</p>
-                {tracking.status && !cancelled && status !== "delivered" && (
+                {courierLatest && !cancelled && status !== "delivered" && (
                   <span className="track-courier-status">
-                    <span className="track-live-dot" /> Latest from courier: {tracking.status}
+                    <span className="track-live-dot" /> Latest from courier: {courierLatest}
                   </span>
                 )}
               </div>

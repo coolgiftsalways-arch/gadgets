@@ -381,6 +381,36 @@ export function mapStatus(code = "", text = "") {
   return null;
 }
 
+const STAGES = ["shipped", "out_for_delivery", "delivered"];
+
+// Furthest stage the courier scans prove the parcel has reached (null = none).
+// Backup for when Shipway's current status is something we don't recognise
+// (e.g. "Exchange"), so the order doesn't stay stuck on "Packed".
+export function statusFromEvents(events = []) {
+  let best = -1;
+  for (const event of events || []) {
+    const s = String(event?.status || "").toUpperCase();
+    if (!s || /RTO|RETURN|CANCEL|LOST|DAMAGED/.test(s)) continue;
+    let stage = -1;
+    if (/\bDELIVERED\b/.test(s) && !/UNDELIVERED|NOT DELIVERED/.test(s)) stage = 2;
+    else if (s.includes("OUT FOR DELIVERY")) stage = 1;
+    else if (/PICKED UP|IN TRANSIT|SHIPPED|DISPATCHED|RECEIVED AT|ORIGIN CENTER|BAG|TRIP|VEHICLE|REACHED|ARRIVED/.test(s)) stage = 0;
+    best = Math.max(best, stage);
+  }
+  return best < 0 ? null : STAGES[best];
+}
+
+// Whichever of two order statuses is further along (null-safe).
+export function furthest(a, b) {
+  return STAGES.indexOf(b) > STAGES.indexOf(a) ? b : a || b || null;
+}
+
+// Latest courier scan says the delivery attempt failed (customer to be contacted).
+export const isFailedAttempt = (text = "") =>
+  /CONSIGNEE UNAVAILABLE|NOT AVAILABLE|DOOR LOCKED|PREMISES CLOSED|REFUSED|ADDRESS (ISSUE|INCOMPLETE|NOT FOUND)|NOT REACHABLE|UNDELIVERED|DELIVERY ATTEMPT/i.test(
+    String(text),
+  );
+
 // Turns Shipway's tracking reply for one AWB into { code, status, courier, trackUrl, events }.
 export function readTracking(data, awb) {
   const list = Array.isArray(data) ? data : [];

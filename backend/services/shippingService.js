@@ -319,7 +319,10 @@ export async function refreshTracking(order) {
   applyTracking(order, tracking);
   order.markModified("shipping");
   await order.save();
-  await advanceTo(order, shipway.mapStatus(tracking.code, tracking.text));
+  await advanceTo(
+    order,
+    shipway.furthest(shipway.mapStatus(tracking.code, tracking.text), shipway.statusFromEvents(order.shipping.events)),
+  );
   return order;
 }
 
@@ -359,6 +362,6 @@ export async function applyWebhook(body = {}) {
 
   order.markModified("shipping");
   await order.save();
-  await advanceTo(order, shipway.mapStatus(code, text));
+  await advanceTo(order, shipway.furthest(shipway.mapStatus(code, text), shipway.statusFromEvents(ship.events)));
   return order;
 }
